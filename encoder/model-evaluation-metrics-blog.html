@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Right, But How Right? — Precision, Recall, Accuracy &amp; F1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  window.MathJax = { tex:{inlineMath:[['$','$'],['\\(','\\)']], displayMath:[['$$','$$'],['\\[','\\]']]}, svg:{fontCache:'global'} };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<style>
+:root{
+  --paper:#F6F1E7; --paper2:#FBF7EF; --card:#FFFFFF;
+  --ink:#22282A; --ink-soft:#4C5658; --muted:#7E8888; --line:#E4DBCB;
+  --teal:#0E5C58; --teal-deep:#093F3C; --teal-soft:#E3EEEC;
+  --amber:#D9663B; --amber-soft:#F7E4D8; --gold:#C9A24B;
+  --violet:#6C5CE7; --blue:#2E86DE; --green:#2E9E5B; --neg:#D9663B;
+  --shadow:0 1px 2px rgba(20,40,38,.04),0 8px 30px -12px rgba(20,40,38,.18);
+  --shadow-lg:0 30px 60px -24px rgba(14,92,88,.30);
+  --radius:18px; --maxw:1180px;
+  --mono:'JetBrains Mono',ui-monospace,monospace; --disp:'Fraunces',Georgia,serif; --body:'Spectral',Georgia,serif;
+  --code-bg:#0E2A28; --code-border:#15403c; --code-text:#CFE9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.72;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 12% -10%, #FCEBDD55, transparent 40%),radial-gradient(circle at 100% 0%, #DCEBE955, transparent 45%);background-attachment:fixed;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;line-height:1.12;color:var(--teal-deep);letter-spacing:-.01em}
+a{color:var(--teal);text-decoration:none}
+code,kbd,.mono{font-family:var(--mono)}
+.layout{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;padding:20px clamp(20px,5vw,48px) 80px;display:grid;grid-template-columns:240px 1fr;gap:48px;align-items:start}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.toc{display:none}}
+main{min-width:0}
+section{margin-bottom:60px;scroll-margin-top:90px}
+section h2{font-size:clamp(28px,4vw,40px);margin:6px 0 20px}
+section h3{font-size:23px;margin:34px 0 12px;color:var(--teal)}
+p{margin:0 0 18px;color:var(--ink-soft)}
+.lead-in{font-size:20px;color:var(--ink-soft)}
+strong{color:var(--ink)}
+
+#progress{position:fixed;top:0;left:0;height:4px;width:0%;z-index:60;background:linear-gradient(90deg,var(--teal),var(--gold),var(--amber))}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:14px clamp(16px,4vw,40px);backdrop-filter:blur(8px);background:linear-gradient(var(--paper),rgba(246,241,231,0));transition:background .3s,box-shadow .3s}
+.topbar.solid{background:rgba(246,241,231,.9);box-shadow:0 1px 0 var(--line)}
+.brand{font-family:var(--disp);font-weight:600;font-size:18px;color:var(--teal-deep);display:flex;align-items:center;gap:10px}
+.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-soft)}
+.topnav a{margin-left:22px;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.topnav a:hover{color:var(--amber)}
+@media(max-width:820px){.topnav{display:none}}
+
+.hero{max-width:var(--maxw);margin:0 auto;padding:140px clamp(20px,5vw,48px) 30px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;position:relative;z-index:2}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:120px}}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:18px}
+.hero h1{font-size:clamp(38px,6vw,72px);font-weight:600;margin:0 0 18px}
+.hero h1 .em{font-style:italic;color:var(--amber)}
+.hero p.lead{font-size:20px;color:var(--ink-soft);max-width:42ch;margin:0 0 26px}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:13px 22px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.btn.ghost{background:transparent;color:var(--teal)}
+.btn.ghost:hover{background:var(--teal-soft)}
+.hero-fig{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.hero-fig svg{display:block;width:100%;height:auto}
+
+.toc{position:sticky;top:96px;font-family:var(--mono);font-size:12.5px}
+.toc h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.toc a{display:block;color:var(--ink-soft);padding:5px 0 5px 14px;border-left:2px solid var(--line);transition:.2s;line-height:1.35}
+.toc a:hover{color:var(--teal)}
+.toc a.active{color:var(--teal-deep);border-left-color:var(--amber);font-weight:600}
+
+.sec-no{font-family:var(--mono);font-size:13px;color:var(--amber);letter-spacing:.1em}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+.note{background:var(--teal-soft);border-left:4px solid var(--teal);border-radius:10px;padding:16px 20px;margin:22px 0;font-size:17px;color:var(--teal-deep)}
+.note.amber{background:var(--amber-soft);border-left-color:var(--amber);color:#8a3f1e}
+.note.violet{background:#ECEAFB;border-left-color:var(--violet);color:#3d3380}
+
+.icards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:22px 0}
+.icard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s,border-color .25s}
+.icard:hover{transform:translateY(-4px);border-color:var(--amber);box-shadow:var(--shadow-lg)}
+.icard .emoji{font-size:26px;margin-bottom:10px}
+.icard h4{font-size:19px;color:var(--teal-deep);margin:0 0 6px}
+.icard p{font-size:15.5px;color:var(--ink-soft);margin:0}
+
+.fig{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:24px 0;box-shadow:var(--shadow)}
+.fig svg{display:block;width:100%;height:auto;max-width:760px;margin:0 auto}
+.fig figcaption{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;margin-top:14px;letter-spacing:.02em}
+.legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:10px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:14.5px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+thead{background:var(--teal);color:#fff;font-family:var(--mono);font-size:11.5px;letter-spacing:.02em}
+th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--paper2)}
+td.mono,th.mono{font-family:var(--mono)}
+table caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--amber);padding:0 0 10px;font-weight:600}
+.tbl-scroll{overflow-x:auto}
+
+pre{background:var(--code-bg);color:var(--code-text);border-radius:14px;padding:20px 22px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;box-shadow:var(--shadow);border:1px solid var(--code-border);margin:18px 0;position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:9px;right:15px;font-size:10.5px;color:#5f8a84;letter-spacing:.2em}
+code.inl{background:var(--teal-soft);color:var(--teal-deep);padding:2px 7px;border-radius:6px;font-size:14px}
+.c-kw{color:#F2A0C0}.c-fn{color:#7FD1E8}.c-str{color:#E7E08B}.c-num{color:#F2C879}.c-com{color:#6f9a94}.c-op{color:#E58B5F}
+.out{background:var(--paper2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;padding:10px 16px;font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);white-space:pre;overflow-x:auto;margin:-8px 0 18px}
+
+.keybox{background:linear-gradient(180deg,#fff,#FBF7EF);border:1.5px solid var(--gold);border-radius:14px;padding:14px 18px;margin:18px auto;text-align:center;box-shadow:var(--shadow)}
+.eqcard{background:var(--paper2);border:1px dashed var(--line);border-radius:12px;padding:10px 18px;margin:18px 0;overflow-x:auto}
+
+/* ===================== METRIC LAB ===================== */
+.lab{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin:24px 0;box-shadow:var(--shadow)}
+.lab h4{margin:0 0 4px;font-size:21px}
+.lab .lsub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:18px}
+.lab-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:760px){.lab-grid{grid-template-columns:1fr}}
+.cm{display:grid;grid-template-columns:64px 1fr 1fr;grid-auto-rows:auto;gap:8px;font-family:var(--mono);font-size:12px}
+.cm .corner{}
+.cm .chdr{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10.5px;letter-spacing:.06em;text-align:center;padding:4px}
+.cm .rhdr{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10.5px;writing-mode:vertical-rl;transform:rotate(180deg)}
+.cmcell{border-radius:12px;padding:14px 10px;text-align:center;border:2px solid var(--line);transition:background .3s,border-color .3s}
+.cmcell .lbl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+.cmcell .val{font-size:26px;font-weight:600;font-family:var(--mono);color:var(--ink)}
+.cmcell.tp{background:#EAF5EE;border-color:#bfe0cb}.cmcell.tp .val{color:#1f6b3e}
+.cmcell.tn{background:#EAF5EE;border-color:#bfe0cb}.cmcell.tn .val{color:#1f6b3e}
+.cmcell.fp{background:var(--amber-soft);border-color:#ecc7b4}.cmcell.fp .val{color:#8a3f1e}
+.cmcell.fn{background:#F2E0EE;border-color:#e6c4de}.cmcell.fn .val{color:#7a2f6a}
+.cmcell input{width:100%;border:0;background:transparent;text-align:center;font-family:var(--mono);font-size:22px;font-weight:600;color:inherit;-moz-appearance:textfield}
+.cmcell input::-webkit-outer-spin-button,.cmcell input::-webkit-inner-spin-button{-webkit-appearance:none}
+.sliders{margin-top:14px;display:grid;gap:10px}
+.srow{display:grid;grid-template-columns:42px 1fr 44px;gap:10px;align-items:center;font-family:var(--mono);font-size:12px}
+.srow label{color:var(--muted)}
+.srow input[type=range]{width:100%;accent-color:var(--amber)}
+.srow .num{text-align:right;color:var(--teal-deep);font-weight:600}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.presets button{font-family:var(--mono);font-size:11px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--teal);cursor:pointer;transition:.2s}
+.presets button:hover{background:var(--teal);color:#fff;border-color:var(--teal)}
+
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.metric{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--paper2)}
+.metric .mname{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.metric .mval{font-family:var(--disp);font-size:30px;font-weight:600;color:var(--teal-deep);line-height:1.1;margin:4px 0}
+.metric .mbar{height:8px;border-radius:6px;background:#e7ded0;overflow:hidden;margin-top:6px}
+.metric .mfill{height:100%;width:0;border-radius:6px;background:var(--teal);transition:width .4s}
+.metric.hl{border-color:var(--gold);box-shadow:0 0 0 2px rgba(201,162,75,.25)}
+.metric.hl .mfill{background:var(--gold)}
+.metric .mform{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:6px}
+
+footer{position:relative;z-index:2;background:var(--teal-deep);color:#BFD8D4;padding:48px clamp(20px,5vw,48px);text-align:center;font-family:var(--mono);font-size:13px}
+footer .big{font-family:var(--disp);font-size:24px;color:#fff;margin-bottom:10px}
+footer .links{margin:18px 0 6px;line-height:2}
+footer .links a{color:#9fd9d2}
+footer .sub{opacity:.7;margin-top:10px;font-size:12px}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+  .reveal{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="topbar" id="topbar">
+  <style>
+  .nbar-left{display:flex;align-items:center;gap:10px}
+  .nbtn{font-family:var(--mono,'JetBrains Mono',monospace);font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+    display:inline-flex;align-items:center;padding:7px 13px;border-radius:999px;
+    border:1px solid var(--line,#E4DBCB);background:var(--card,#fff);color:var(--teal,#0E5C58);cursor:pointer;
+    text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s,border-color .2s}
+  .nbtn:hover{transform:translateY(-1px);border-color:var(--amber,#D9663B);background:var(--teal-soft,#E3EEEC);
+    box-shadow:var(--shadow,0 8px 30px -12px rgba(20,40,38,.18))}
+  @media(max-width:560px){.nbtn .lbl{display:none}.nbtn{padding:7px 10px}}
+  </style>
+  <div class="nbar-left">
+  <a class="nbtn" href="javascript:history.back()" title="Go back">←<span class="lbl">&nbsp;Back</span></a>
+  <a class="nbtn" href="../index.html" title="Home">⌂<span class="lbl">&nbsp;Home</span></a>
+  <div class="brand"><span class="dot"></span> Model Metrics · Notebook</div>
+  </div>
+  <nav class="topnav">
+    <a href="#confusion">Confusion matrix</a><a href="#lab">Lab</a><a href="#precision">Precision</a>
+    <a href="#recall">Recall</a><a href="#f1">F1</a><a href="#threshold">Threshold</a><a href="#choose">Choosing</a>
+  </nav>
+</div>
+
+<header class="hero">
+  <div>
+    <div class="eyebrow reveal">Model evaluation · Classification metrics</div>
+    <h1 class="reveal">Right, but <span class="em">how</span> right?</h1>
+    <p class="lead reveal">"86% accurate" sounds great — until you learn the model misses every fraud, every tumor, every rare case. Accuracy, precision, recall and F1 each tell a different part of the story. Build a confusion matrix below and watch all four move at once.</p>
+    <div class="cta reveal">
+      <a class="btn" href="#confusion">Start reading</a>
+      <a class="btn ghost" href="#lab">Open the metric lab</a>
+    </div>
+  </div>
+  <div class="hero-fig reveal"><div id="heroSvg"></div></div>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <h5>Contents</h5>
+    <a href="#why">1 · Why accuracy isn't enough</a>
+    <a href="#confusion">2 · The confusion matrix</a>
+    <a href="#lab">3 · The metric lab ▶</a>
+    <a href="#accuracy">4 · Accuracy</a>
+    <a href="#precision">5 · Precision</a>
+    <a href="#recall">6 · Recall</a>
+    <a href="#f1">7 · F1 score</a>
+    <a href="#threshold">8 · The threshold trade-off</a>
+    <a href="#beyond">9 · Beyond the big four</a>
+    <a href="#loss">10 · Metrics vs loss</a>
+    <a href="#choose">11 · Which metric, when</a>
+    <a href="#summary">12 · Summary</a>
+  </aside>
+
+  <main>
+
+    <section id="why" class="reveal">
+      <div class="sec-no">01</div>
+      <h2>Why accuracy alone fools you</h2>
+      <p class="lead-in">Imagine a disease that affects 1 in 100 people. A lazy model that always predicts "healthy" is right 99% of the time — 99% accuracy — and catches exactly zero sick patients.</p>
+      <p>That's the trap. A single number hides <em>what kind</em> of mistakes a model makes. On <strong>imbalanced data</strong> — fraud, disease, defects, spam — the rare class is the whole point, and accuracy quietly rewards ignoring it. To see the real story we need to split "wrong" into its two flavours: crying wolf (false alarms) and missing the wolf (misses). That split is the confusion matrix, and precision, recall and F1 all flow from it.</p>
+      <div class="icards">
+        <div class="icard"><div class="emoji">🎯</div><h4>Accuracy</h4><p>Overall correctness. Honest on balanced data, misleading when one class is rare.</p></div>
+        <div class="icard"><div class="emoji">🔍</div><h4>Precision</h4><p>When the model says "positive," how often is it right? Punishes false alarms.</p></div>
+        <div class="icard"><div class="emoji">🕸️</div><h4>Recall</h4><p>Of all the real positives, how many did it catch? Punishes misses.</p></div>
+      </div>
+    </section>
+
+    <section id="confusion" class="reveal">
+      <div class="sec-no">02</div>
+      <h2>The confusion matrix — where every metric is born</h2>
+      <p class="lead-in">A confusion matrix is a 2×2 table comparing what actually happened (rows) with what the model predicted (columns). Four cells, four outcomes.</p>
+      <div class="icards">
+        <div class="icard"><div class="emoji">✅</div><h4>True Positive (TP)</h4><p>Predicted positive, and it really was. A correct hit — e.g. flagged fraud that <em>was</em> fraud.</p></div>
+        <div class="icard"><div class="emoji">✅</div><h4>True Negative (TN)</h4><p>Predicted negative, and it really was. A correct pass — e.g. a normal email left in the inbox.</p></div>
+        <div class="icard"><div class="emoji">⚠️</div><h4>False Positive (FP)</h4><p>Predicted positive, but it wasn't. A false alarm — Type&nbsp;I error. Good email sent to spam.</p></div>
+        <div class="icard"><div class="emoji">❌</div><h4>False Negative (FN)</h4><p>Predicted negative, but it was positive. A miss — Type&nbsp;II error. A disease left undetected.</p></div>
+      </div>
+      <div class="note amber"><strong>The cost is rarely symmetric.</strong> A false negative on a cancer screen can be fatal; a false positive on a spam filter loses a real email. Which error you fear most decides which metric you optimize — that's the whole game.</div>
+    </section>
+
+    <!-- ===================== THE LAB ===================== -->
+    <section id="lab" class="reveal">
+      <div class="sec-no">03</div>
+      <h2>The metric lab — turn the dials, watch the metrics</h2>
+      <p class="lead-in">This is the heart of the page. Type into the four confusion-matrix cells (or drag the sliders) and every metric below recomputes instantly, with its formula filled in by your numbers.</p>
+
+      <div class="lab">
+        <h4>Confusion-matrix calculator</h4>
+        <div class="lsub">rows = actual · columns = predicted · edit any cell</div>
+        <div class="lab-grid">
+          <div>
+            <div class="cm">
+              <div class="corner"></div>
+              <div class="chdr">predicted&nbsp;POSITIVE</div>
+              <div class="chdr">predicted&nbsp;NEGATIVE</div>
+              <div class="rhdr">actual POS</div>
+              <div class="cmcell tp"><span class="lbl">True Positive</span><input id="inTP" type="number" min="0" value="80"></div>
+              <div class="cmcell fn"><span class="lbl">False Negative</span><input id="inFN" type="number" min="0" value="20"></div>
+              <div class="rhdr">actual NEG</div>
+              <div class="cmcell fp"><span class="lbl">False Positive</span><input id="inFP" type="number" min="0" value="30"></div>
+              <div class="cmcell tn"><span class="lbl">True Negative</span><input id="inTN" type="number" min="0" value="870"></div>
+            </div>
+            <div class="sliders">
+              <div class="srow"><label>TP</label><input id="rTP" type="range" min="0" max="1000" value="80"><span class="num" id="nTP">80</span></div>
+              <div class="srow"><label>FN</label><input id="rFN" type="range" min="0" max="1000" value="20"><span class="num" id="nFN">20</span></div>
+              <div class="srow"><label>FP</label><input id="rFP" type="range" min="0" max="1000" value="30"><span class="num" id="nFP">30</span></div>
+              <div class="srow"><label>TN</label><input id="rTN" type="range" min="0" max="1000" value="870"><span class="num" id="nTN">870</span></div>
+            </div>
+            <div class="presets">
+              <button data-p="balanced">Balanced model</button>
+              <button data-p="imbalanced">Rare-disease trap</button>
+              <button data-p="highrecall">High recall</button>
+              <button data-p="highprec">High precision</button>
+            </div>
+          </div>
+          <div class="metrics" id="metrics"></div>
+        </div>
+      </div>
+      <div class="note">Try the <b>Rare-disease trap</b> preset: accuracy stays sky-high while recall collapses — exactly the failure accuracy alone hides. Then try <b>High recall</b> vs <b>High precision</b> to feel the tug-of-war.</div>
+    </section>
+
+    <section id="accuracy" class="reveal">
+      <div class="sec-no">04</div>
+      <h2>Accuracy — overall correctness</h2>
+      <p class="lead-in">The fraction of all predictions that were right, of either kind.</p>
+      <div class="keybox">$$ \text{Accuracy}=\frac{TP+TN}{TP+TN+FP+FN} $$</div>
+      <p><strong>What it answers:</strong> "Out of everything I predicted, how much did I get right?" <strong>When to trust it:</strong> balanced datasets where the classes are roughly equal and both error types cost the same. <strong>When it lies:</strong> imbalanced data — the rare-disease model that scores 99% by never predicting the disease.</p>
+      <div class="note">Rule of thumb: if one class is much rarer than the other, treat accuracy as a sanity check, not a verdict. Look at precision and recall for the real picture.</div>
+    </section>
+
+    <section id="precision" class="reveal">
+      <div class="sec-no">05</div>
+      <h2>Precision — how trustworthy is a "yes"?</h2>
+      <p class="lead-in">Of everything the model labelled positive, what fraction truly was positive? Precision is punished by false positives.</p>
+      <div class="keybox">$$ \text{Precision}=\frac{TP}{TP+FP} $$</div>
+      <h3>How to read it</h3>
+      <p>Precision lives entirely in the "predicted positive" column. It asks: when the model raises its hand, how often should you believe it? No false positives → 100% precision. The more junk that sneaks into the positive pile, the worse it looks.</p>
+      <h3>How to calculate it — worked example</h3>
+      <p>Say a spam filter flags 100 emails as spam. 90 really were spam (TP = 90), 10 were innocent (FP = 10):</p>
+      <div class="eqcard">$$ \text{Precision}=\frac{90}{90+10}=\frac{90}{100}=0.90\;\;(90\%) $$</div>
+      <h3>When precision matters most</h3>
+      <p>When a <strong>false positive is expensive</strong>. A spam filter that sends real mail to junk, a system that blocks legitimate transactions, a court tool that wrongly flags someone — all want high precision: only say "positive" when you're sure.</p>
+      <pre data-lang="python"><span class="c-kw">def</span> <span class="c-fn">precision</span>(tp, fp):
+    <span class="c-kw">return</span> tp / (tp + fp) <span class="c-kw">if</span> (tp + fp) <span class="c-kw">else</span> <span class="c-num">0.0</span>
+
+precision(<span class="c-num">90</span>, <span class="c-num">10</span>)   <span class="c-com"># of all "spam" calls, how many were right?</span></pre>
+      <div class="out">0.9   # 90% of flagged emails really were spam</div>
+    </section>
+
+    <section id="recall" class="reveal">
+      <div class="sec-no">06</div>
+      <h2>Recall — how many real positives did we catch?</h2>
+      <p class="lead-in">Of all the actual positives in the data, what fraction did the model find? Recall is punished by false negatives. Also called <em>sensitivity</em> or <em>true positive rate</em>.</p>
+      <div class="keybox">$$ \text{Recall}=\frac{TP}{TP+FN} $$</div>
+      <h3>How to read it</h3>
+      <p>Recall lives entirely in the "actual positive" row. It asks: of everything that truly was positive, how much did we manage to catch? Miss nothing → 100% recall. Every false negative drags it down.</p>
+      <h3>Worked example</h3>
+      <p>A cancer screen is run on 100 patients who truly have the disease. It correctly flags 70 (TP = 70) and misses 30 (FN = 30):</p>
+      <div class="eqcard">$$ \text{Recall}=\frac{70}{70+30}=\frac{70}{100}=0.70\;\;(70\%) $$</div>
+      <h3>When recall matters most</h3>
+      <p>When a <strong>false negative is dangerous</strong>. Disease screening, fraud detection, predictive maintenance, search — better to raise a few false alarms than to miss a real case. Here you tolerate lower precision to push recall up.</p>
+      <pre data-lang="python"><span class="c-kw">def</span> <span class="c-fn">recall</span>(tp, fn):
+    <span class="c-kw">return</span> tp / (tp + fn) <span class="c-kw">if</span> (tp + fn) <span class="c-kw">else</span> <span class="c-num">0.0</span>
+
+recall(<span class="c-num">70</span>, <span class="c-num">30</span>)     <span class="c-com"># of all real cases, how many did we catch?</span></pre>
+      <div class="out">0.7   # caught 70% of the patients who were actually sick</div>
+    </section>
+
+    <section id="f1" class="reveal">
+      <div class="sec-no">07</div>
+      <h2>F1 score — one number for the balance</h2>
+      <p class="lead-in">Precision and recall pull in opposite directions. F1 is their <strong>harmonic mean</strong> — a single score that's only high when <em>both</em> are high.</p>
+      <div class="keybox">$$ F_1 = 2\cdot\frac{\text{Precision}\cdot\text{Recall}}{\text{Precision}+\text{Recall}} $$</div>
+      <p>Why harmonic (not plain average) mean? Because it refuses to be fooled by a lopsided model. If precision = 1.0 but recall = 0.0, the plain average is a comfy 0.5 — but F1 is 0. You can't game F1 by acing one metric and ignoring the other; it punishes imbalance.</p>
+      <h3>Worked example</h3>
+      <p>With precision = 0.90 and recall = 0.70:</p>
+      <div class="eqcard">$$ F_1 = 2\cdot\frac{0.90\times0.70}{0.90+0.70}=2\cdot\frac{0.63}{1.60}=0.7875 $$</div>
+      <div class="note violet"><strong>The general form:</strong> $F_\beta$ lets you weight recall more ($\beta>1$) or precision more ($\beta<1$). $F_2$ favours recall (medicine); $F_{0.5}$ favours precision (recommendations). $F_1$ weights them equally.</div>
+    </section>
+
+    <section id="threshold" class="reveal">
+      <div class="sec-no">08</div>
+      <h2>The threshold trade-off &amp; PR curve</h2>
+      <p class="lead-in">A classifier outputs a probability; a <strong>threshold</strong> turns it into a yes/no. Slide that threshold and you slide along the precision–recall trade-off.</p>
+      <p>Lower the threshold and the model says "positive" more freely: it catches more real positives (<strong>recall ↑</strong>) but also raises more false alarms (<strong>precision ↓</strong>). Raise it and the opposite happens. You almost never get both high at once — squeezing one usually costs the other.</p>
+      <div class="fig">
+        <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" id="prSvg"></svg>
+        <figcaption>The precision–recall curve · each point is one threshold · a great model hugs the top-right corner</figcaption>
+      </div>
+      <div class="note">The <strong>PR curve</strong> traces every threshold's (recall, precision) pair. It's more informative than the ROC curve on imbalanced data. Want one summary number? The <strong>area under it</strong> (average precision) rewards models that keep precision high across all recall levels.</div>
+    </section>
+
+    <section id="beyond" class="reveal">
+      <div class="sec-no">09</div>
+      <h2>Beyond the big four</h2>
+      <p class="lead-in">A few more metrics round out the picture, especially for ranking and probability quality.</p>
+      <div class="tbl-scroll">
+        <table>
+          <caption>Other useful evaluation metrics</caption>
+          <thead><tr><th>Metric</th><th>Formula / idea</th><th>What it tells you</th></tr></thead>
+          <tbody>
+            <tr><td>Specificity (TNR)</td><td class="mono">TN / (TN + FP)</td><td>How well the model identifies real negatives — the mirror of recall.</td></tr>
+            <tr><td>Precision–Recall AUC</td><td class="mono">area under PR curve</td><td>Threshold-free summary; strong choice for imbalanced data.</td></tr>
+            <tr><td>ROC–AUC</td><td class="mono">area under TPR vs FPR</td><td>How well the model ranks positives above negatives overall.</td></tr>
+            <tr><td>Log loss</td><td class="mono">−Σ y·log(p)</td><td>Penalizes confident wrong predictions — measures probability quality, not just labels.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="loss" class="reveal">
+      <div class="sec-no">10</div>
+      <h2>Metrics vs loss — and how to track both</h2>
+      <p class="lead-in">A subtle but vital distinction: the <strong>loss</strong> is what the model trains to minimize; the <strong>metrics</strong> are how humans judge it. They are not the same thing.</p>
+      <p>Loss (e.g. cross-entropy) must be smooth and differentiable so gradient descent can optimize it; it reacts to the model's <em>probabilities</em>. Accuracy, precision, recall and F1 are computed on the final <em>labels</em> and are often non-differentiable — great for reporting, useless as a training signal. So you train on loss and watch the metrics.</p>
+      <div class="keybox">$$ \text{Binary cross-entropy} = -\frac{1}{N}\sum_{i}\big[y_i\log p_i + (1-y_i)\log(1-p_i)\big] $$</div>
+      <h3>How to check the loss (and metrics) during training</h3>
+      <p>Track loss <em>and</em> a task-appropriate metric on a held-out validation set every epoch. If training loss keeps falling while validation loss climbs, you're overfitting — stop early. Watch the metric you actually care about (often F1 or recall), not just accuracy.</p>
+      <pre data-lang="python"><span class="c-kw">from</span> sklearn.metrics <span class="c-kw">import</span> precision_score, recall_score, f1_score, log_loss
+
+<span class="c-kw">for</span> epoch <span class="c-kw">in</span> range(epochs):
+    train_loss = train_one_epoch(model, train_loader)      <span class="c-com"># what we minimize</span>
+    val_probs  = model.predict_proba(X_val)[:, <span class="c-num">1</span>]
+    val_pred   = (val_probs >= <span class="c-num">0.5</span>).astype(int)            <span class="c-com"># threshold → labels</span>
+
+    val_loss = log_loss(y_val, val_probs)                  <span class="c-com"># probability quality</span>
+    p  = precision_score(y_val, val_pred)
+    r  = recall_score(y_val, val_pred)
+    f1 = f1_score(y_val, val_pred)
+    print(<span class="c-str">f"ep{epoch}  train_loss={train_loss:.3f}  val_loss={val_loss:.3f}  "</span>
+          <span class="c-str">f"P={p:.3f}  R={r:.3f}  F1={f1:.3f}"</span>)
+
+    <span class="c-kw">if</span> val_loss > best + patience_eps:    <span class="c-com"># early stopping on validation loss</span>
+        <span class="c-kw">break</span></pre>
+      <div class="out">ep0  train_loss=0.612  val_loss=0.588  P=0.71  R=0.55  F1=0.62
+ep1  train_loss=0.402  val_loss=0.371  P=0.83  R=0.74  F1=0.78
+ep2  train_loss=0.255  val_loss=0.349  P=0.86  R=0.79  F1=0.82   ← best val_loss
+ep3  train_loss=0.188  val_loss=0.402  P=0.87  R=0.78  F1=0.82   ← val_loss rising → stop</div>
+      <div class="note amber"><strong>Watch the gap.</strong> Falling train loss + rising validation loss = overfitting. The metric you report (F1/recall) should be measured on validation/test data the model never trained on — never on the training set.</div>
+    </section>
+
+    <section id="choose" class="reveal">
+      <div class="sec-no">11</div>
+      <h2>Which metric, when — the decision guide</h2>
+      <p class="lead-in">Pick the metric that matches the cost of being wrong in <em>your</em> problem.</p>
+      <div class="tbl-scroll">
+        <table>
+          <caption>Choosing a metric by scenario</caption>
+          <thead><tr><th>Situation</th><th>Optimize for</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Balanced classes, equal error cost</td><td class="mono">Accuracy</td><td>Simple and honest when no class dominates.</td></tr>
+            <tr><td>False positives are costly (spam filter, blocking transactions)</td><td class="mono">Precision</td><td>Only say "positive" when confident; avoid false alarms.</td></tr>
+            <tr><td>False negatives are dangerous (disease, fraud, safety)</td><td class="mono">Recall</td><td>Catch every real case, even at the cost of some false alarms.</td></tr>
+            <tr><td>Both errors matter; imbalanced data</td><td class="mono">F1 score</td><td>One number that stays low unless precision <em>and</em> recall are both high.</td></tr>
+            <tr><td>Comparing models across all thresholds</td><td class="mono">PR-AUC / ROC-AUC</td><td>Threshold-free; PR-AUC is best when positives are rare.</td></tr>
+            <tr><td>Probabilities must be well-calibrated</td><td class="mono">Log loss</td><td>Punishes confident mistakes; measures probability quality.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note violet"><strong>One sentence to remember:</strong> precision is "don't cry wolf," recall is "don't miss the wolf," F1 is "do both," and accuracy is "how often right overall" — trustworthy only when the classes are balanced.</div>
+    </section>
+
+    <section id="summary" class="reveal">
+      <div class="sec-no">12</div>
+      <h2>Summary</h2>
+      <p class="lead-in">Every classification metric is just four numbers — TP, FP, FN, TN — sliced different ways. Choose the slice that matches the mistake you most need to avoid.</p>
+      <div class="tbl-scroll">
+        <table>
+          <caption>The cheat sheet</caption>
+          <thead><tr><th>Metric</th><th class="mono">Formula</th><th>Answers</th><th>Hurt by</th></tr></thead>
+          <tbody>
+            <tr><td>Accuracy</td><td class="mono">(TP+TN)/all</td><td>Overall correctness</td><td>Imbalance</td></tr>
+            <tr><td>Precision</td><td class="mono">TP/(TP+FP)</td><td>Are "yes" calls trustworthy?</td><td>False positives</td></tr>
+            <tr><td>Recall</td><td class="mono">TP/(TP+FN)</td><td>Did we catch the positives?</td><td>False negatives</td></tr>
+            <tr><td>F1</td><td class="mono">2PR/(P+R)</td><td>Balance of the two</td><td>Either being low</td></tr>
+            <tr><td>Specificity</td><td class="mono">TN/(TN+FP)</td><td>Did we catch the negatives?</td><td>False positives</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note"><strong>The takeaway:</strong> don't report a single number. Show the confusion matrix, then the metric that matches your problem's cost — and measure it on held-out data, while you train on loss.</div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="big">Precision = don't cry wolf · Recall = don't miss the wolf · F1 = do both.</div>
+  <div>Four cells — TP, FP, FN, TN — are the source of every classification metric.</div>
+  <div class="links">
+    <a href="https://www.ultralytics.com/blog/accuracy-precision-recall" target="_blank" rel="noopener">Ultralytics</a> ·
+    <a href="https://www.bmc.com/blogs/confusion-precision-recall/" target="_blank" rel="noopener">BMC</a> ·
+    <a href="https://medium.com/@piyushkashyap045/understanding-precision-recall-and-f1-score-metrics-ea219b908093" target="_blank" rel="noopener">Piyush Kashyap (Medium)</a>
+  </div>
+  <div class="sub">An interactive companion to the precision/recall/F1 explainers above.</div>
+</footer>
+
+<script>
+const $=id=>document.getElementById(id);
+
+/* chrome */
+const prog=$('progress'),tb=$('topbar');
+function onScroll(){const h=document.documentElement,m=h.scrollHeight-h.clientHeight;prog.style.width=(m>0?h.scrollTop/m*100:0)+'%';tb.classList.toggle('solid',h.scrollTop>40);}
+document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in');}),{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+const tl=[...document.querySelectorAll('.toc a')];
+const spy=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;tl.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));}}),{rootMargin:'-25% 0px -65% 0px'});
+document.querySelectorAll('main section[id]').forEach(s=>spy.observe(s));
+
+/* ===================== METRIC LAB ===================== */
+let TP=80,FN=20,FP=30,TN=870;
+const METRICS=[
+  {key:'acc', name:'Accuracy', hl:false, form:'(TP+TN) / total',
+   calc:()=>{const t=TP+TN+FP+FN; return t?(TP+TN)/t:0;}},
+  {key:'prec',name:'Precision', hl:true, form:'TP / (TP+FP)',
+   calc:()=>{const d=TP+FP; return d?TP/d:0;}},
+  {key:'rec', name:'Recall (sensitivity)', hl:true, form:'TP / (TP+FN)',
+   calc:()=>{const d=TP+FN; return d?TP/d:0;}},
+  {key:'f1',  name:'F1 score', hl:false, form:'2·P·R / (P+R)',
+   calc:()=>{const p=(TP+FP)?TP/(TP+FP):0,r=(TP+FN)?TP/(TP+FN):0; return (p+r)?2*p*r/(p+r):0;}},
+  {key:'spec',name:'Specificity', hl:false, form:'TN / (TN+FP)',
+   calc:()=>{const d=TN+FP; return d?TN/d:0;}},
+  {key:'fpr', name:'Fall-out (FPR)', hl:false, form:'FP / (FP+TN)',
+   calc:()=>{const d=FP+TN; return d?FP/d:0;}},
+];
+function buildMetrics(){
+  $('metrics').innerHTML=METRICS.map(m=>`
+    <div class="metric ${m.hl?'hl':''}" id="m_${m.key}">
+      <div class="mname">${m.name}</div>
+      <div class="mval" id="mv_${m.key}">—</div>
+      <div class="mbar"><div class="mfill" id="mf_${m.key}"></div></div>
+      <div class="mform" id="mform_${m.key}">${m.form}</div>
+    </div>`).join('');
+}
+function fmtForm(key){
+  if(key==='acc') return `(${TP}+${TN}) / ${TP+TN+FP+FN}`;
+  if(key==='prec')return `${TP} / (${TP}+${FP})`;
+  if(key==='rec') return `${TP} / (${TP}+${FN})`;
+  if(key==='f1'){const p=(TP+FP)?TP/(TP+FP):0,r=(TP+FN)?TP/(TP+FN):0;return `2·${p.toFixed(2)}·${r.toFixed(2)} / (${p.toFixed(2)}+${r.toFixed(2)})`;}
+  if(key==='spec')return `${TN} / (${TN}+${FP})`;
+  if(key==='fpr') return `${FP} / (${FP}+${TN})`;
+}
+function refresh(){
+  METRICS.forEach(m=>{const v=m.calc();
+    $('mv_'+m.key).textContent=(v*100).toFixed(1)+'%';
+    $('mf_'+m.key).style.width=(v*100)+'%';
+    $('mform_'+m.key).textContent=fmtForm(m.key)+' = '+v.toFixed(3);
+  });
+}
+function syncInputs(){
+  $('inTP').value=TP;$('inFN').value=FN;$('inFP').value=FP;$('inTN').value=TN;
+  $('rTP').value=Math.min(TP,1000);$('rFN').value=Math.min(FN,1000);$('rFP').value=Math.min(FP,1000);$('rTN').value=Math.min(TN,1000);
+  $('nTP').textContent=TP;$('nFN').textContent=FN;$('nFP').textContent=FP;$('nTN').textContent=TN;
+  refresh();
+}
+function bind(numId,rangeId,setter){
+  $(numId).addEventListener('input',e=>{let v=parseInt(e.target.value);if(isNaN(v)||v<0)v=0;setter(v);syncInputs();});
+  $(rangeId).addEventListener('input',e=>{setter(parseInt(e.target.value));syncInputs();});
+}
+buildMetrics();
+bind('inTP','rTP',v=>TP=v); bind('inFN','rFN',v=>FN=v);
+bind('inFP','rFP',v=>FP=v); bind('inTN','rTN',v=>TN=v);
+
+const PRESETS={
+  balanced:{TP:430,FN:70,FP:80,TN:420},
+  imbalanced:{TP:2,FN:98,FP:5,TN:9895},   // rare disease: high accuracy, terrible recall
+  highrecall:{TP:97,FN:3,FP:210,TN:690},  // catches almost all positives, many false alarms
+  highprec:{TP:55,FN:45,FP:4,TN:896},     // rarely wrong when positive, misses many
+};
+document.querySelectorAll('.presets button').forEach(b=>b.onclick=()=>{
+  const p=PRESETS[b.dataset.p]; TP=p.TP;FN=p.FN;FP=p.FP;TN=p.TN; syncInputs();
+});
+syncInputs();
+
+/* ===================== PR curve ===================== */
+(function(){
+  const w=720,h=280,padL=56,padR=20,padT=18,padB=46;
+  const X=r=>padL+r*(w-padL-padR), Y=p=>h-padB-p*(h-padT-padB);
+  // a plausible PR curve: precision high at low recall, decays as recall→1
+  const pts=[];for(let i=0;i<=40;i++){const r=i/40;const p=Math.max(0.5, 0.99-0.55*Math.pow(r,2.2));pts.push([r,p]);}
+  let path='M';pts.forEach((pt,i)=>{path+=`${X(pt[0]).toFixed(1)},${Y(pt[1]).toFixed(1)} `;if(i===0)path+='L';});
+  let grid='';
+  for(let g=0;g<=1;g+=0.25){
+    grid+=`<line x1="${X(g)}" y1="${padT}" x2="${X(g)}" y2="${h-padB}" stroke="#EEE7D8"/>`;
+    grid+=`<line x1="${padL}" y1="${Y(g)}" x2="${w-padR}" y2="${Y(g)}" stroke="#EEE7D8"/>`;
+    grid+=`<text x="${X(g)}" y="${h-padB+18}" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#7E8888">${g.toFixed(2)}</text>`;
+    grid+=`<text x="${padL-8}" y="${Y(g)+3}" text-anchor="end" font-family="JetBrains Mono" font-size="10" fill="#7E8888">${g.toFixed(2)}</text>`;
+  }
+  // example operating points
+  const ops=[[0.30,0.94,'high threshold · precise'],[0.70,0.82,'balanced'],[0.95,0.62,'low threshold · high recall']];
+  let opdots=ops.map(o=>`<circle cx="${X(o[0])}" cy="${Y(o[1])}" r="5" fill="#C9A24B" stroke="#fff" stroke-width="1.5"/>`).join('');
+  $('prSvg').innerHTML=`${grid}
+    <path d="${path}" fill="none" stroke="#0E5C58" stroke-width="2.6"/>
+    ${opdots}
+    <text x="${X(0.30)+8}" y="${Y(0.94)-6}" font-family="JetBrains Mono" font-size="9.5" fill="#9a7a1e">precise (raise threshold)</text>
+    <text x="${X(0.95)-6}" y="${Y(0.62)+18}" text-anchor="end" font-family="JetBrains Mono" font-size="9.5" fill="#9a7a1e">high recall (lower threshold)</text>
+    <text x="${(padL+w-padR)/2}" y="${h-6}" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#4C5658">Recall →</text>
+    <text x="16" y="${(padT+h-padB)/2}" transform="rotate(-90 16 ${(padT+h-padB)/2})" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#4C5658">Precision →</text>`;
+})();
+
+/* ===================== hero ===================== */
+(function(){
+  const w=440,h=300;
+  function cell(x,y,wd,ht,fill,stroke,lbl,val){return `<rect x="${x}" y="${y}" width="${wd}" height="${ht}" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="1.4"/>
+    <text x="${x+wd/2}" y="${y+22}" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#7E8888">${lbl}</text>
+    <text x="${x+wd/2}" y="${y+ht/2+16}" text-anchor="middle" font-family="JetBrains Mono" font-size="20" font-weight="600" fill="${stroke}">${val}</text>`;}
+  let s=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+  s+=`<text x="${w/2}" y="26" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#7E8888">predicted →</text>`;
+  s+=cell(70,46,150,100,'#EAF5EE','#2E9E5B','True Positive','TP');
+  s+=cell(228,46,150,100,'#F2E0EE','#7a2f6a','False Negative','FN');
+  s+=cell(70,150,150,100,'#F7E4D8','#D9663B','False Positive','FP');
+  s+=cell(228,150,150,100,'#EAF5EE','#2E9E5B','True Negative','TN');
+  s+=`<text x="30" y="100" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#7E8888" transform="rotate(-90 30 100)">actual POS</text>`;
+  s+=`<text x="30" y="204" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#7E8888" transform="rotate(-90 30 204)">actual NEG</text>`;
+  s+=`<text x="${w/2}" y="284" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#7E8888">four cells · every metric</text>`;
+  s+=`</svg>`;
+  $('heroSvg').innerHTML=s;
+})();
+
+window.addEventListener('load',()=>{ if(window.MathJax&&MathJax.typesetPromise) MathJax.typesetPromise(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Bend in the Wire — Activation Functions, Explored</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  window.MathJax = { tex:{inlineMath:[['$','$'],['\\(','\\)']], displayMath:[['$$','$$'],['\\[','\\]']]}, svg:{fontCache:'global'} };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<style>
+:root{
+  --paper:#F6F1E7; --paper2:#FBF7EF; --card:#FFFFFF;
+  --ink:#22282A; --ink-soft:#4C5658; --muted:#7E8888; --line:#E4DBCB;
+  --teal:#0E5C58; --teal-deep:#093F3C; --teal-soft:#E3EEEC;
+  --amber:#D9663B; --amber-soft:#F7E4D8; --gold:#C9A24B;
+  --violet:#6C5CE7; --blue:#2E86DE; --green:#2E9E5B;
+  --shadow:0 1px 2px rgba(20,40,38,.04),0 8px 30px -12px rgba(20,40,38,.18);
+  --shadow-lg:0 30px 60px -24px rgba(14,92,88,.30);
+  --radius:18px; --maxw:1180px;
+  --mono:'JetBrains Mono',monospace; --disp:'Fraunces',serif; --body:'Spectral',Georgia,serif;
+  --code-bg:#0E2A28; --code-border:#15403c; --code-text:#CFE9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.72;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 12% -10%, #FCEBDD55, transparent 40%),radial-gradient(circle at 100% 0%, #DCEBE955, transparent 45%);background-attachment:fixed;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;line-height:1.12;color:var(--teal-deep);letter-spacing:-.01em}
+a{color:var(--teal);text-decoration:none}
+code,kbd,.mono{font-family:var(--mono)}
+.layout{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;padding:20px clamp(20px,5vw,48px) 80px;display:grid;grid-template-columns:240px 1fr;gap:48px;align-items:start}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.toc{display:none}}
+main{min-width:0}
+section{margin-bottom:60px;scroll-margin-top:90px}
+section h2{font-size:clamp(28px,4vw,40px);margin:6px 0 20px}
+section h3{font-size:23px;margin:34px 0 12px;color:var(--teal)}
+p{margin:0 0 18px;color:var(--ink-soft)}
+.lead-in{font-size:20px;color:var(--ink-soft)}
+strong{color:var(--ink)}
+
+#progress{position:fixed;top:0;left:0;height:4px;width:0%;z-index:60;background:linear-gradient(90deg,var(--teal),var(--gold),var(--amber))}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:14px clamp(16px,4vw,40px);backdrop-filter:blur(8px);background:linear-gradient(var(--paper),rgba(246,241,231,0));transition:background .3s,box-shadow .3s}
+.topbar.solid{background:rgba(246,241,231,.9);box-shadow:0 1px 0 var(--line)}
+.brand{font-family:var(--disp);font-weight:600;font-size:18px;color:var(--teal-deep);display:flex;align-items:center;gap:10px}
+.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-soft)}
+.topnav a{margin-left:22px;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.topnav a:hover{color:var(--amber)}
+@media(max-width:820px){.topnav{display:none}}
+
+.hero{max-width:var(--maxw);margin:0 auto;padding:140px clamp(20px,5vw,48px) 30px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;position:relative;z-index:2}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:120px}}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:18px}
+.hero h1{font-size:clamp(38px,6vw,72px);font-weight:600;margin:0 0 18px}
+.hero h1 .em{font-style:italic;color:var(--amber)}
+.hero p.lead{font-size:20px;color:var(--ink-soft);max-width:42ch;margin:0 0 26px}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:13px 22px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.btn.ghost{background:transparent;color:var(--teal)}
+.btn.ghost:hover{background:var(--teal-soft)}
+.hero-fig{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.hero-fig svg{display:block;width:100%;height:auto}
+
+.toc{position:sticky;top:96px;font-family:var(--mono);font-size:12.5px}
+.toc h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.toc a{display:block;color:var(--ink-soft);padding:6px 0 6px 14px;border-left:2px solid var(--line);transition:.2s;line-height:1.4}
+.toc a:hover{color:var(--teal)}
+.toc a.active{color:var(--teal-deep);border-left-color:var(--amber);font-weight:600}
+
+.sec-no{font-family:var(--mono);font-size:13px;color:var(--amber);letter-spacing:.1em}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+.note{background:var(--teal-soft);border-left:4px solid var(--teal);border-radius:10px;padding:16px 20px;margin:22px 0;font-size:17px;color:var(--teal-deep)}
+.note.amber{background:var(--amber-soft);border-left-color:var(--amber);color:#8a3f1e}
+.note.violet{background:#ECEAFB;border-left-color:var(--violet);color:#3d3380}
+
+.icards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:22px 0}
+.icard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s,border-color .25s}
+.icard:hover{transform:translateY(-4px);border-color:var(--amber);box-shadow:var(--shadow-lg)}
+.icard .emoji{font-size:26px;margin-bottom:10px}
+.icard h4{font-size:19px;color:var(--teal-deep);margin:0 0 6px}
+.icard p{font-size:15.5px;color:var(--ink-soft);margin:0}
+
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:14.5px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+thead{background:var(--teal);color:#fff;font-family:var(--mono);font-size:11.5px;letter-spacing:.03em}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--paper2)}
+td.mono,th.mono{font-family:var(--mono)}
+table caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--amber);padding:0 0 10px;font-weight:600}
+.tbl-scroll{overflow-x:auto}
+
+pre{background:var(--code-bg);color:var(--code-text);border-radius:14px;padding:20px 22px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;box-shadow:var(--shadow);border:1px solid var(--code-border);margin:18px 0;position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:9px;right:15px;font-size:10.5px;color:#5f8a84;letter-spacing:.2em}
+code.inl{background:var(--teal-soft);color:var(--teal-deep);padding:2px 7px;border-radius:6px;font-size:14px}
+.c-kw{color:#F2A0C0}.c-fn{color:#7FD1E8}.c-num{color:#F2C879}.c-com{color:#6f9a94}.c-op{color:#E58B5F}
+
+.keybox{background:linear-gradient(180deg,#fff,#FBF7EF);border:1.5px solid var(--gold);border-radius:14px;padding:8px 18px;margin:18px auto;text-align:center;box-shadow:var(--shadow)}
+
+/* ===== gallery ===== */
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin:22px 0}
+.gcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 12px 8px;box-shadow:var(--shadow);cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s}
+.gcard:hover{transform:translateY(-3px);border-color:var(--amber);box-shadow:var(--shadow-lg)}
+.gcard .gname{font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--teal-deep);text-align:center;margin-bottom:4px}
+.gcard svg{display:block;width:100%;height:54px}
+.gcard .gcat{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:center;margin-top:2px}
+
+/* ===== explorer ===== */
+.explorer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin:24px 0;box-shadow:var(--shadow)}
+.explorer h4{margin:0 0 4px;font-size:21px}
+.explorer .esub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:16px}
+.exp-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:22px}
+@media(max-width:760px){.exp-grid{grid-template-columns:1fr}}
+.plotwrap{background:var(--paper2);border:1px solid var(--line);border-radius:14px;padding:10px}
+.plotwrap svg{display:block;width:100%;height:auto}
+.exp-side{display:flex;flex-direction:column;gap:14px}
+.fnsel{font-family:var(--mono);font-size:14px;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--teal-deep);width:100%}
+.ctl{display:flex;flex-direction:column;gap:4px;font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:var(--muted)}
+.ctl .v{color:var(--teal-deep);font-weight:600;font-size:13px;float:right}
+.ctl input[type=range]{width:100%;accent-color:var(--amber)}
+.exp-read{font-family:var(--mono);font-size:13px;color:var(--ink-soft);background:var(--teal-soft);border-radius:10px;padding:12px 14px;line-height:1.7}
+.exp-read .big{font-size:18px;color:var(--teal-deep);font-weight:600}
+.exp-read .amb{color:var(--amber)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px}
+.legend i{width:14px;height:0;border-top-width:3px;border-top-style:solid;display:inline-block;margin-right:5px;vertical-align:4px}
+.toggle{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);cursor:pointer}
+.exp-meta{font-size:15px;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:12px}
+.exp-meta b{color:var(--teal-deep)}
+
+/* ===== af doc cards ===== */
+.afgrid{display:grid;grid-template-columns:1fr;gap:16px;margin:18px 0}
+.af{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow)}
+.af .afhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.af h4{font-size:20px;margin:0}
+.af .rng{font-family:var(--mono);font-size:11px;color:#fff;background:var(--teal);padding:3px 9px;border-radius:999px;letter-spacing:.03em}
+.af .formula{background:var(--paper2);border:1px dashed var(--line);border-radius:10px;padding:4px 14px;margin:12px 0;overflow-x:auto}
+.af .intu{font-style:italic;color:var(--ink-soft);margin:6px 0}
+.af .pc{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;font-size:14.5px}
+@media(max-width:560px){.af .pc{grid-template-columns:1fr}}
+.af .pc div{padding:8px 12px;border-radius:8px}
+.af .pros{background:#EAF5EE;color:#1f6b3e}.af .cons{background:var(--amber-soft);color:#8a3f1e}
+.af .when{margin-top:10px;font-size:14.5px;color:var(--teal-deep)}
+.af .when b{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--amber)}
+
+/* softmax widget */
+.smx{background:linear-gradient(160deg,#0E5C58,#093F3C);border-radius:var(--radius);padding:24px;margin:22px 0;color:#DCEFEC;box-shadow:var(--shadow-lg)}
+.smx h4{color:#fff;margin:0 0 12px;font-size:19px}
+.smx-row{display:grid;grid-template-columns:60px 1fr 70px;gap:12px;align-items:center;margin:10px 0;font-family:var(--mono);font-size:12px}
+.smx-row input[type=range]{accent-color:var(--gold)}
+.smx-bar-wrap{background:rgba(255,255,255,.08);border-radius:6px;height:22px;overflow:hidden}
+.smx-bar{height:100%;background:var(--gold);width:0;transition:width .3s;border-radius:6px}
+.smx-prob{text-align:right;color:#f0dca6;font-weight:600}
+.smx-sum{font-family:var(--mono);font-size:12px;color:#9fc9c3;margin-top:10px;text-align:right}
+
+footer{position:relative;z-index:2;background:var(--teal-deep);color:#BFD8D4;padding:48px clamp(20px,5vw,48px);text-align:center;font-family:var(--mono);font-size:13px}
+footer .big{font-family:var(--disp);font-size:24px;color:#fff;margin-bottom:10px}
+footer .links{margin:18px 0 6px;line-height:2}
+footer .links a{color:#9fd9d2}
+footer .sub{opacity:.7;margin-top:10px;font-size:12px}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+  .reveal{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="topbar" id="topbar">
+  <style>
+  .nbar-left{display:flex;align-items:center;gap:10px}
+  .nbtn{font-family:var(--mono,'JetBrains Mono',monospace);font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+    display:inline-flex;align-items:center;padding:7px 13px;border-radius:999px;
+    border:1px solid var(--line,#E4DBCB);background:var(--card,#fff);color:var(--teal,#0E5C58);cursor:pointer;
+    text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s,border-color .2s}
+  .nbtn:hover{transform:translateY(-1px);border-color:var(--amber,#D9663B);background:var(--teal-soft,#E3EEEC);
+    box-shadow:var(--shadow,0 8px 30px -12px rgba(20,40,38,.18))}
+  @media(max-width:560px){.nbtn .lbl{display:none}.nbtn{padding:7px 10px}}
+  </style>
+  <div class="nbar-left">
+  <a class="nbtn" href="javascript:history.back()" title="Go back">←<span class="lbl">&nbsp;Back</span></a>
+  <a class="nbtn" href="../index.html" title="Home">⌂<span class="lbl">&nbsp;Home</span></a>
+  <div class="brand"><span class="dot"></span> Activation Functions · Notebook</div>
+  </div>
+  <nav class="topnav">
+    <a href="#why">Why</a><a href="#gallery">Gallery</a><a href="#explorer">Explorer</a>
+    <a href="#relu">ReLU family</a><a href="#modern">Modern</a><a href="#choose">Choose</a><a href="#table">Compare</a>
+  </nav>
+</div>
+
+<header class="hero">
+  <div>
+    <div class="eyebrow reveal">Deep learning · Non-linearity</div>
+    <h1 class="reveal">The bend in the <span class="em">wire.</span></h1>
+    <p class="lead reveal">Stack a thousand linear layers and you still have a line. The activation function is the small non-linear kink that lets a network curve, fold, and learn. Drag the input, reshape the curve, and watch its derivative move with you.</p>
+    <div class="cta reveal">
+      <a class="btn" href="#why">Start reading</a>
+      <a class="btn ghost" href="#explorer">Open the explorer</a>
+    </div>
+  </div>
+  <div class="hero-fig reveal"><div id="heroSvg"></div></div>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <h5>Contents</h5>
+    <a href="#why">1 · Why activations exist</a>
+    <a href="#anatomy">2 · Reading a curve</a>
+    <a href="#gallery">3 · The gallery</a>
+    <a href="#explorer">4 · The explorer</a>
+    <a href="#classics">5 · The classics</a>
+    <a href="#relu">6 · The ReLU family</a>
+    <a href="#modern">7 · Smooth &amp; modern</a>
+    <a href="#shrink">8 · The shrink family</a>
+    <a href="#output">9 · Output &amp; special</a>
+    <a href="#choose">10 · How to choose</a>
+    <a href="#table">11 · Master comparison</a>
+  </aside>
+
+  <main>
+
+    <section id="why" class="reveal">
+      <div class="sec-no">01</div>
+      <h2>Why activation functions exist</h2>
+      <p class="lead-in">A neuron computes a weighted sum and adds a bias — that's a straight line. Chain many of them and the result is still just one big straight line.</p>
+      <p>Composing linear maps gives another linear map: $W_2(W_1x)=(W_2W_1)x$. No matter how deep, a purely linear network can only draw a hyperplane. The activation function injects a <strong>non-linear kink</strong> after each layer, and that single bend is what unlocks the rich hypothesis space deep nets are prized for. Without it, your hundred-layer network has the power of linear regression.</p>
+      <div class="icards">
+        <div class="icard"><div class="emoji">🪢</div><h4>The kink that lets you fold</h4><p>A flat sheet can only slice space with planes. Add a fold (a non-linearity) and you can wrap around curved decision boundaries.</p></div>
+        <div class="icard"><div class="emoji">🚪</div><h4>A gate per neuron</h4><p>Each activation decides how much signal passes — fully, partly, or not at all — turning a sum into a decision.</p></div>
+        <div class="icard"><div class="emoji">📉</div><h4>It also shapes gradients</h4><p>The function's <em>derivative</em> is what flows backward in training. A good activation keeps that gradient alive; a bad one lets it vanish.</p></div>
+      </div>
+      <div class="note">Two jobs, one function: the <strong>forward</strong> shape decides what the neuron outputs; the <strong>derivative</strong> decides how well the network can learn. Every trade-off below is really about balancing those two.</div>
+    </section>
+
+    <section id="anatomy" class="reveal">
+      <div class="sec-no">02</div>
+      <h2>How to read these curves (and why the derivative matters)</h2>
+      <p class="lead-in">Every plot in this guide shows two lines: the function $f(x)$ in teal and its derivative $f'(x)$ in amber.</p>
+      <p>When you change the input $x$, the network's forward pass walks along the teal curve. When the network learns, gradients are multiplied by the amber curve. Watch for three things as you explore: where the curve <strong>saturates</strong> (flattens — derivative near 0, learning stalls), whether it is <strong>zero-centered</strong> (outputs balanced around 0, which speeds training), and whether the derivative ever <strong>dies</strong> (sits exactly at 0, freezing those neurons).</p>
+      <div class="note amber"><strong>Vanishing gradient</strong> is the recurring villain: when $f'(x)\approx 0$ over a wide region, the backward signal shrinks layer after layer until early layers barely update. Half the functions here were invented specifically to fight it.</div>
+    </section>
+
+    <section id="gallery" class="reveal">
+      <div class="sec-no">03</div>
+      <h2>The whole gallery, at a glance</h2>
+      <p class="lead-in">Every function from the chart, drawn small. Click any card to load it into the explorer below.</p>
+      <div class="gallery" id="gallery"></div>
+      <p style="font-family:var(--mono);font-size:12px;color:var(--muted)">Tip: the shape alone tells you a lot — flat regions = saturation, kinks = cheap to compute, smooth bends = nicer gradients.</p>
+    </section>
+
+    <section id="explorer" class="reveal">
+      <div class="sec-no">04</div>
+      <h2>The explorer — change the value, reshape the curve</h2>
+      <p class="lead-in">Pick a function, drag <b>x</b> to move the point along the curve, and drag the parameter sliders (α, β, λ) to reshape it. The readout shows the live output and gradient.</p>
+
+      <div class="explorer">
+        <h4 id="expTitle">ReLU</h4>
+        <div class="esub" id="expFormula"></div>
+        <div class="exp-grid">
+          <div>
+            <div class="plotwrap"><div id="plot"></div></div>
+            <div class="legend">
+              <span><i style="border-color:var(--teal)"></i>f(x) — output</span>
+              <span><i style="border-color:var(--amber);border-top-style:dashed"></i>f′(x) — derivative</span>
+              <span><i style="border-color:var(--gold)"></i>your point</span>
+            </div>
+          </div>
+          <div class="exp-side">
+            <select class="fnsel" id="fnSel"></select>
+            <div id="paramBox"></div>
+            <div class="ctl"><label>input &nbsp;x = <span class="v" id="xLab">1.0</span></label><input type="range" id="xVal" min="-6" max="6" step="0.1" value="1"></div>
+            <label class="toggle"><input type="checkbox" id="showD" checked> show derivative</label>
+            <div class="exp-read" id="expRead"></div>
+            <div class="exp-meta" id="expMeta"></div>
+          </div>
+        </div>
+      </div>
+      <div class="note">Things to try: set <b>Leaky ReLU</b>'s α to 0 and watch it become plain ReLU (note the flat dead zone in the amber derivative for x&lt;0). Push <b>Sigmoid</b>'s x past ±4 and see the derivative collapse toward zero — that's the vanishing gradient, live. Crank <b>Swish</b>'s β up and it sharpens toward ReLU.</div>
+    </section>
+
+    <section id="classics" class="reveal">
+      <div class="sec-no">05</div>
+      <h2>The classics: squashing functions</h2>
+      <p class="lead-in">The original non-linearities. They squash any input into a bounded range — elegant, interpretable, and prone to vanishing gradients.</p>
+      <div class="afgrid" data-cat="classic"></div>
+    </section>
+
+    <section id="relu" class="reveal">
+      <div class="sec-no">06</div>
+      <h2>The ReLU family: cheap, sparse, dominant</h2>
+      <p class="lead-in">ReLU changed deep learning: trivial to compute, no saturation for positive inputs, and gradients that don't vanish on the positive side. Its descendants patch its one flaw — the "dying" negative half.</p>
+      <div class="afgrid" data-cat="relu"></div>
+    </section>
+
+    <section id="modern" class="reveal">
+      <div class="sec-no">07</div>
+      <h2>Smooth &amp; modern: the Transformer-era favorites</h2>
+      <p class="lead-in">Replace ReLU's hard corner with a smooth bend and you get better-behaved gradients. These power most modern vision and language models.</p>
+      <div class="afgrid" data-cat="modern"></div>
+    </section>
+
+    <section id="shrink" class="reveal">
+      <div class="sec-no">08</div>
+      <h2>The shrink family: thresholding by subtraction</h2>
+      <p class="lead-in">Less common in standard nets, these appear in signal processing, sparse coding, and denoising autoencoders. They zero-out or pull-in small values.</p>
+      <div class="afgrid" data-cat="shrink"></div>
+    </section>
+
+    <section id="output" class="reveal">
+      <div class="sec-no">09</div>
+      <h2>Output-layer &amp; special cases</h2>
+      <p class="lead-in">Some functions live at the very end of the network, turning raw scores into usable predictions.</p>
+      <div class="afgrid" data-cat="output"></div>
+
+      <h3>Softmax — the multi-class output workhorse</h3>
+      <p>Softmax isn't a single-variable curve; it takes a whole vector of scores (logits) and turns them into a probability distribution that sums to 1. Bigger scores get exponentially more probability. It's the standard final layer for multi-class classification. Drag the logits and watch the probabilities redistribute:</p>
+      <div class="keybox">$$ \text{softmax}(z_i)=\frac{e^{z_i}}{\sum_j e^{z_j}} $$</div>
+      <div class="smx" id="smx">
+        <h4>Softmax playground — 4 class scores → probabilities</h4>
+        <div id="smxRows"></div>
+        <div class="smx-sum" id="smxSum"></div>
+      </div>
+      <div class="note">Notice it's <em>relative</em>: shifting every logit by the same amount changes nothing, but widening the gaps sharpens the winner toward 1. That "soft" argmax is why it's called softmax.</div>
+    </section>
+
+    <section id="choose" class="reveal">
+      <div class="sec-no">10</div>
+      <h2>How to choose — conditions &amp; scenarios</h2>
+      <p class="lead-in">There's no universal best. The pick depends on the layer (hidden vs output), the architecture, and the failure mode you're guarding against. A practical playbook:</p>
+
+      <h3>By layer position</h3>
+      <div class="note"><strong>Hidden layers:</strong> default to <b>ReLU</b>. If you see dead neurons or want a small accuracy bump, try <b>Leaky ReLU / GELU / Swish</b>. For Transformers and modern LLMs, <b>GELU</b> or <b>SwiGLU</b>-style gating is standard.</div>
+      <div class="note amber"><strong>Output layer — pick by task:</strong> regression → <b>Identity (linear)</b>; binary classification → <b>Sigmoid</b>; multi-class classification → <b>Softmax</b>; multi-label → <b>Sigmoid</b> per class.</div>
+
+      <h3>By architecture</h3>
+      <p>CNNs favour <strong>ReLU and its variants</strong> (cheap, sparse, work great with conv stacks). RNNs/LSTMs historically use <strong>Tanh and Sigmoid</strong> for their gates (bounded outputs keep recurrent state stable). Transformers and large language models lean on <strong>GELU</strong>. Self-normalizing feed-forward nets use <strong>SELU</strong> to hold activations at zero mean / unit variance without explicit normalization.</p>
+
+      <h3>By the problem you're fighting</h3>
+      <table>
+        <thead><tr><th>Symptom</th><th>Likely cause</th><th>Try instead</th></tr></thead>
+        <tbody>
+          <tr><td>Training stalls in deep nets, early layers don't move</td><td>Vanishing gradient from saturating Sigmoid/Tanh</td><td class="mono">ReLU, GELU, Swish</td></tr>
+          <tr><td>Many neurons output 0 forever</td><td>Dying ReLU (stuck in negative zone)</td><td class="mono">Leaky/Parametric ReLU, ELU</td></tr>
+          <tr><td>Want zero-centered activations, faster convergence</td><td>ReLU is non-negative only</td><td class="mono">Tanh, ELU, GELU</td></tr>
+          <tr><td>Want self-normalizing FFN, no BatchNorm</td><td>Activations drift in mean/variance</td><td class="mono">SELU</td></tr>
+          <tr><td>Need probabilities out</td><td>Raw logits aren't normalized</td><td class="mono">Sigmoid / Softmax</td></tr>
+        </tbody>
+      </table>
+      <div class="note violet"><strong>The honest answer from the references:</strong> start with ReLU in the hidden layers, match the output activation to your task, and treat the rest as trial-and-error tuning. The differences between modern smooth activations are usually small accuracy bumps, not night-and-day.</div>
+    </section>
+
+    <section id="table" class="reveal">
+      <div class="sec-no">11</div>
+      <h2>Master comparison table</h2>
+      <p class="lead-in">Every function in this guide — formula, range, gradient behaviour, and where it shines.</p>
+      <div class="tbl-scroll">
+        <table id="masterTable">
+          <caption>All activation functions — at a glance</caption>
+          <thead><tr><th>Function</th><th>Output range</th><th>Smooth?</th><th>Zero-centered?</th><th>Key strength</th><th>Watch out for</th><th>Typical use</th></tr></thead>
+          <tbody id="masterBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="big">No bend, no brain — a network without non-linearity is just a line.</div>
+  <div>Squash with Sigmoid/Tanh · rectify with the ReLU family · smooth it with GELU, Swish, Mish.</div>
+  <div class="links">
+    <a href="https://ml-explained.com/blog/activation-functions-explained" target="_blank" rel="noopener">ML-Explained</a> ·
+    <a href="https://encord.com/blog/activation-functions-neural-networks/" target="_blank" rel="noopener">Encord</a> ·
+    <a href="https://www.superannotate.com/blog/activation-functions-in-neural-networks" target="_blank" rel="noopener">SuperAnnotate</a> ·
+    <a href="https://en.wikipedia.org/wiki/Activation_function" target="_blank" rel="noopener">Wikipedia</a>
+  </div>
+  <div class="sub">An interactive companion to the activation-functions explainers above.</div>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const exp=Math.exp, tanh=Math.tanh, abs=Math.abs, log=Math.log;
+function sig(x){ return x>=0 ? 1/(1+exp(-x)) : exp(x)/(1+exp(x)); }
+function softplus(x){ return x>0 ? x+Math.log1p(exp(-x)) : Math.log1p(exp(x)); }
+const SELU_A=1.6732632, SELU_L=1.0507009;
+
+/* ---- function registry ---- */
+const FUNCS=[
+ {key:'identity',name:'Identity / Linear',cat:'output',range:'(−∞, ∞)',smooth:'Yes',zero:'Yes',
+  f:x=>x, latex:'f(x)=x', dlatex:"f'(x)=1",
+  intu:'A pass-through window — the signal leaves exactly as it arrived.',
+  pros:'Unbounded; perfect for regression outputs.', cons:'Linear — useless in hidden layers (collapses depth).',
+  when:'Output layer of regression models.', strength:'Unbounded real output', watch:'No non-linearity', use:'Regression output'},
+
+ {key:'binstep',name:'Binary Step',cat:'output',range:'{0, 1}',smooth:'No',zero:'No',
+  f:x=>x>=0?1:0, latex:'f(x)=\\begin{cases}1 & x\\ge 0\\\\ 0 & x<0\\end{cases}', dlatex:"f'(x)=0\\ (x\\ne0)",
+  intu:'A light switch: on or off, nothing between.',
+  pros:'Dead simple, interpretable.', cons:'Zero gradient → cannot train by backprop; no multi-class.',
+  when:'Toy perceptrons, theory.', strength:'Simplest threshold', watch:'Not differentiable', use:'Historical / theory'},
+
+ {key:'sigmoid',name:'Sigmoid (Logistic)',cat:'classic',range:'(0, 1)',smooth:'Yes',zero:'No',
+  f:x=>sig(x), latex:'\\sigma(x)=\\dfrac{1}{1+e^{-x}}', dlatex:"f'(x)=\\sigma(x)\\,(1-\\sigma(x))",
+  intu:'A dimmer switch squashing everything into a 0–1 "probability".',
+  pros:'Smooth, bounded, reads as a probability.', cons:'Saturates → vanishing gradients; not zero-centered.',
+  when:'Binary-classification output; gates in LSTMs.', strength:'Probability-like output', watch:'Vanishing gradient', use:'Binary output, gates'},
+
+ {key:'tanh',name:'Tanh',cat:'classic',range:'(−1, 1)',smooth:'Yes',zero:'Yes',
+  f:x=>tanh(x), latex:'\\tanh(x)=\\dfrac{e^{x}-e^{-x}}{e^{x}+e^{-x}}', dlatex:"f'(x)=1-\\tanh^2(x)",
+  intu:'A zero-centered sigmoid — strong negatives map to −1, strong positives to +1.',
+  pros:'Zero-centered (faster convergence than sigmoid).', cons:'Still saturates at the tails.',
+  when:'RNN/LSTM states; shallow nets.', strength:'Zero-centered squashing', watch:'Tail saturation', use:'RNN hidden states'},
+
+ {key:'softsign',name:'Softsign',cat:'classic',range:'(−1, 1)',smooth:'Yes',zero:'Yes',
+  f:x=>x/(1+abs(x)), latex:'f(x)=\\dfrac{x}{1+|x|}', dlatex:"f'(x)=\\dfrac{1}{(1+|x|)^2}",
+  intu:'A gentler tanh — approaches its limits more slowly, polynomially not exponentially.',
+  pros:'Zero-centered; softer saturation than tanh.', cons:'Still bounded; gradients shrink for large |x|.',
+  when:'Alternative to tanh; some regression nets.', strength:'Soft, cheap squashing', watch:'Bounded output', use:'Tanh alternative'},
+
+ {key:'hardsig',name:'Hard Sigmoid',cat:'classic',range:'[0, 1]',smooth:'No',zero:'No',
+  f:x=>x<=-3?0:(x>=3?1:x/6+0.5), latex:'f(x)=\\begin{cases}0 & x\\le-3\\\\ 1 & x\\ge 3\\\\ x/6+\\tfrac12 & \\text{else}\\end{cases}', dlatex:"f'(x)=\\tfrac16\\ (-3<x<3)",
+  intu:'A piecewise-linear, cheap stand-in for sigmoid — three straight pieces.',
+  pros:'Very fast; good for mobile / quantized models.', cons:'Hard corners; approximate.',
+  when:'Edge devices, efficient nets.', strength:'Cheap sigmoid', watch:'Corners, approximate', use:'Mobile / efficient nets'},
+
+ {key:'hardtanh',name:'Hard Tanh',cat:'classic',range:'[−1, 1]',smooth:'No',zero:'Yes',
+  f:x=>x<-1?-1:(x>1?1:x), latex:'f(x)=\\begin{cases}-1 & x<-1\\\\ 1 & x>1\\\\ x & \\text{else}\\end{cases}', dlatex:"f'(x)=1\\ (-1<x<1)",
+  intu:'Tanh with the curves replaced by straight clamps — clip to [−1, 1].',
+  pros:'Cheap, zero-centered, bounded.', cons:'Flat outside [−1,1] → dead gradient there.',
+  when:'Efficient RNNs, quantized models.', strength:'Cheap bounded clamp', watch:'Flat saturation zones', use:'Efficient bounded act.'},
+
+ {key:'relu',name:'ReLU',cat:'relu',range:'[0, ∞)',smooth:'No',zero:'No',
+  f:x=>x>0?x:0, latex:'f(x)=\\max(0,x)', dlatex:"f'(x)=\\begin{cases}1 & x>0\\\\ 0 & x<0\\end{cases}",
+  intu:'A one-way valve: positive signals pass untouched, negatives are clipped to zero.',
+  pros:'Trivial to compute; no positive-side saturation; sparse.', cons:'"Dying ReLU" — neurons stuck at 0 never recover.',
+  when:'Default for CNNs and most hidden layers.', strength:'Fast, no vanishing (x>0)', watch:'Dying neurons', use:'CNN / default hidden'},
+
+ {key:'leaky',name:'Leaky ReLU',cat:'relu',range:'(−∞, ∞)',smooth:'No',zero:'≈',
+  params:[{k:'a',label:'leak α',min:0,max:0.3,step:0.01,def:0.01}],
+  f:(x,p)=>x>0?x:p.a*x, latex:'f(x)=\\begin{cases}x & x>0\\\\ \\alpha x & x\\le 0\\end{cases}', dlatex:"f'(x)=\\begin{cases}1 & x>0\\\\ \\alpha & x<0\\end{cases}",
+  intu:'ReLU with a small downhill slope on the negative side, so neurons never fully die.',
+  pros:'Fixes dying ReLU; still cheap.', cons:'α is a guess; the leak is linear.',
+  when:'When ReLU produces too many dead units.', strength:'No dead neurons', watch:'Fixed α may not be ideal', use:'ReLU with dead-unit issues'},
+
+ {key:'prelu',name:'Parametric ReLU (PReLU)',cat:'relu',range:'(−∞, ∞)',smooth:'No',zero:'≈',
+  params:[{k:'a',label:'learned α',min:-0.2,max:1,step:0.01,def:0.25}],
+  f:(x,p)=>x>0?x:p.a*x, latex:'f(x)=\\begin{cases}x & x>0\\\\ \\alpha x & x\\le 0\\end{cases},\\ \\alpha\\ \\text{learned}', dlatex:"f'(x)=\\begin{cases}1 & x>0\\\\ \\alpha & x<0\\end{cases}",
+  intu:'Leaky ReLU where the network learns the best leak slope α itself.',
+  pros:'Adapts the negative slope per channel; strong on ImageNet.', cons:'Extra parameters; can overfit on small data.',
+  when:'Large image models (ResNet, etc.).', strength:'Learned negative slope', watch:'More params', use:'Deep CNNs'},
+
+ {key:'rrelu',name:'Randomized ReLU (RReLU)',cat:'relu',range:'(−∞, ∞)',smooth:'No',zero:'≈',
+  params:[{k:'a',label:'sampled α',min:0,max:0.33,step:0.01,def:0.12}],
+  f:(x,p)=>x>0?x:p.a*x, latex:'f(x)=\\begin{cases}x & x>0\\\\ \\alpha x & x\\le 0\\end{cases},\\ \\alpha\\sim U(l,u)', dlatex:"f'(x)=\\begin{cases}1 & x>0\\\\ \\alpha & x<0\\end{cases}",
+  intu:'Leaky ReLU whose slope is drawn at random each pass during training — a mild regularizer.',
+  pros:'Randomness reduces overfitting.', cons:'Noisy; α fixed to its mean at test time.',
+  when:'Smaller datasets needing regularization.', strength:'Built-in regularization', watch:'Train/test slope differ', use:'Regularized CNNs'},
+
+ {key:'elu',name:'ELU',cat:'relu',range:'(−α, ∞)',smooth:'~',zero:'≈',
+  params:[{k:'a',label:'α',min:0.1,max:2,step:0.05,def:1}],
+  f:(x,p)=>x>0?x:p.a*(exp(x)-1), latex:'f(x)=\\begin{cases}x & x>0\\\\ \\alpha(e^{x}-1) & x\\le 0\\end{cases}', dlatex:"f'(x)=\\begin{cases}1 & x>0\\\\ \\alpha e^{x} & x<0\\end{cases}",
+  intu:'ReLU with a smooth exponential dip below zero, pulling the mean activation toward zero.',
+  pros:'Smoother; negative saturation resists noise; mean closer to 0.', cons:'Exponential is costlier than ReLU.',
+  when:'Deep nets where ReLU dies; want near-zero mean.', strength:'Near-zero mean, robust', watch:'Slower than ReLU', use:'Deep nets, robustness'},
+
+ {key:'selu',name:'SELU',cat:'relu',range:'(−λα, ∞)',smooth:'~',zero:'≈',
+  f:x=>SELU_L*(x>0?x:SELU_A*(exp(x)-1)), latex:'f(x)=\\lambda\\begin{cases}x & x>0\\\\ \\alpha(e^{x}-1) & x\\le 0\\end{cases}', dlatex:"f'(x)=\\lambda\\begin{cases}1 & x>0\\\\ \\alpha e^{x} & x<0\\end{cases}",
+  intu:'A precisely-scaled ELU (fixed λ≈1.05, α≈1.67) that keeps activations at zero mean / unit variance on its own.',
+  pros:'Self-normalizing — no BatchNorm needed in plain FFNs.', cons:'Needs specific init (lecun normal) & architecture.',
+  when:'Self-normalizing feed-forward networks.', strength:'Self-normalizing', watch:'Strict init requirements', use:'Self-normalizing FFN'},
+
+ {key:'softplus',name:'Softplus',cat:'modern',range:'(0, ∞)',smooth:'Yes',zero:'No',
+  params:[{k:'b',label:'β',min:0.3,max:3,step:0.1,def:1}],
+  f:(x,p)=>softplus(p.b*x)/p.b, latex:'f(x)=\\tfrac1\\beta\\ln(1+e^{\\beta x})', dlatex:"f'(x)=\\sigma(\\beta x)",
+  intu:'A smooth, everywhere-differentiable version of ReLU — the corner rounded off.',
+  pros:'Smooth gradient everywhere; always positive.', cons:'Costlier than ReLU; not zero-centered.',
+  when:'When you need a soft, differentiable ReLU.', strength:'Smooth ReLU', watch:'Compute cost', use:'Smooth positive act.'},
+
+ {key:'gelu',name:'GELU',cat:'modern',range:'≈(−0.17, ∞)',smooth:'Yes',zero:'≈',
+  f:x=>0.5*x*(1+tanh(Math.sqrt(2/Math.PI)*(x+0.044715*x*x*x))),
+  latex:'f(x)=x\\,\\Phi(x)\\approx \\tfrac{x}{2}\\!\\left(1+\\tanh\\!\\big[\\sqrt{\\tfrac2\\pi}(x+0.0447x^3)\\big]\\right)', dlatex:"\\text{(smooth, gated by }\\Phi)",
+  intu:'Weights each input by the probability it is positive under a Gaussian — a smooth, probabilistic ReLU.',
+  pros:'Smooth; tiny negative dip; excellent in Transformers.', cons:'More expensive; formula is approximate.',
+  when:'Transformers, BERT/GPT-family, modern NLP.', strength:'Best-in-class for Transformers', watch:'Compute cost', use:'Transformers / LLMs'},
+
+ {key:'swish',name:'Swish / SiLU',cat:'modern',range:'≈(−0.28, ∞)',smooth:'Yes',zero:'≈',
+  params:[{k:'b',label:'β',min:0.1,max:3,step:0.1,def:1}],
+  f:(x,p)=>x*sig(p.b*x), latex:'f(x)=x\\,\\sigma(\\beta x)', dlatex:"f'(x)=\\sigma(\\beta x)+\\beta x\\,\\sigma(\\beta x)(1-\\sigma(\\beta x))",
+  intu:'x gated by its own sigmoid — non-monotonic, with a small dip before rising. β sharpens it toward ReLU.',
+  pros:'Often beats ReLU on deep nets; smooth.', cons:'Costlier; benefit is task-dependent.',
+  when:'Deep CNNs (EfficientNet), as a ReLU upgrade.', strength:'Smooth, self-gated', watch:'Compute cost', use:'Deep vision nets'},
+
+ {key:'mish',name:'Mish',cat:'modern',range:'≈(−0.31, ∞)',smooth:'Yes',zero:'≈',
+  f:x=>x*tanh(softplus(x)), latex:'f(x)=x\\,\\tanh\\!\\big(\\ln(1+e^{x})\\big)', dlatex:"\\text{(smooth, self-gated)}",
+  intu:'A cousin of Swish using tanh-of-softplus as the gate — very smooth, slightly negative tail.',
+  pros:'Smooth, non-monotonic; strong on some vision tasks.', cons:'The most expensive of the bunch.',
+  when:'Object detection (YOLO variants), experimentation.', strength:'Very smooth gradients', watch:'Highest compute', use:'Detection / vision'},
+
+ {key:'hardswish',name:'Hard Swish',cat:'modern',range:'[0, ∞)',smooth:'No',zero:'No',
+  f:x=>x<=-3?0:(x>=3?x:x*(x+3)/6), latex:'f(x)=x\\cdot\\dfrac{\\mathrm{ReLU6}(x+3)}{6}', dlatex:"\\text{piecewise quadratic}",
+  intu:'A cheap piecewise approximation of Swish for mobile networks — no exponential needed.',
+  pros:'Near-Swish quality at ReLU-like cost.', cons:'Hard corners; approximate.',
+  when:'Mobile/efficient CNNs (MobileNetV3).', strength:'Cheap Swish', watch:'Approximate corners', use:'Mobile nets'},
+
+ {key:'tanhshrink',name:'Tanh Shrink',cat:'shrink',range:'(−∞, ∞)',smooth:'Yes',zero:'Yes',
+  f:x=>x-tanh(x), latex:'f(x)=x-\\tanh(x)', dlatex:"f'(x)=\\tanh^2(x)",
+  intu:'Removes the central, linear-ish part of the signal, keeping the large-magnitude tails.',
+  pros:'Highlights large values; smooth.', cons:'Near-zero gradient around the origin.',
+  when:'Signal processing, residual/encoding tricks.', strength:'Suppresses small values', watch:'Flat near 0', use:'Signal processing'},
+
+ {key:'softshrink',name:'Soft Shrink',cat:'shrink',range:'(−∞, ∞)',smooth:'No',zero:'Yes',
+  params:[{k:'l',label:'λ',min:0.1,max:2,step:0.1,def:0.5}],
+  f:(x,p)=>x>p.l?x-p.l:(x<-p.l?x+p.l:0), latex:'f(x)=\\begin{cases}x-\\lambda & x>\\lambda\\\\ x+\\lambda & x<-\\lambda\\\\ 0 & |x|\\le\\lambda\\end{cases}', dlatex:"f'(x)=1\\ (|x|>\\lambda)",
+  intu:'Zeroes out small values and pulls the rest toward zero by λ — classic denoising shrinkage.',
+  pros:'Induces sparsity; used in wavelet denoising.', cons:'Dead zone has zero gradient.',
+  when:'Sparse coding, denoising autoencoders.', strength:'Sparsity / denoising', watch:'Dead zone', use:'Sparse / denoise'},
+
+ {key:'hardshrink',name:'Hard Shrink',cat:'shrink',range:'(−∞, ∞)',smooth:'No',zero:'Yes',
+  params:[{k:'l',label:'λ',min:0.1,max:2,step:0.1,def:0.5}],
+  f:(x,p)=>abs(x)>p.l?x:0, latex:'f(x)=\\begin{cases}x & |x|>\\lambda\\\\ 0 & |x|\\le\\lambda\\end{cases}', dlatex:"f'(x)=1\\ (|x|>\\lambda)",
+  intu:'Keep large values exactly; snap everything small to zero — a hard gate.',
+  pros:'Strong sparsity; simple thresholding.', cons:'Discontinuous; dead zone.',
+  when:'Sparse representations, feature selection.', strength:'Hard sparsity', watch:'Discontinuity', use:'Sparse features'},
+];
+const BYKEY={}; FUNCS.forEach(f=>BYKEY[f.key]=f);
+
+/* numeric derivative */
+function deriv(fn,x,p){const h=1e-3; return (fn(x+h,p)-fn(x-h,p))/(2*h);}
+function callF(fd,x){ return fd.params? fd.f(x, paramState(fd)) : fd.f(x); }
+function paramState(fd){ const o={}; (fd.params||[]).forEach(pp=>o[pp.k]=P[pp.k]); return o; }
+let P={};
+
+/* ---- mini sparkline for gallery ---- */
+function sparkline(fd){
+  const w=150,h=54,pad=6,xmin=-5,xmax=5,N=80;
+  const xs=[],ys=[]; const p=(fd.params? Object.fromEntries(fd.params.map(pp=>[pp.k,pp.def])):null);
+  for(let i=0;i<=N;i++){const x=xmin+(xmax-xmin)*i/N; xs.push(x); ys.push(p?fd.f(x,p):fd.f(x));}
+  let lo=Math.min(...ys),hi=Math.max(...ys); if(hi-lo<1e-6){hi+=1;lo-=1;} const pd=(hi-lo)*0.12; lo-=pd;hi+=pd;
+  const X=x=>pad+(x-xmin)/(xmax-xmin)*(w-2*pad), Y=y=>h-pad-(y-lo)/(hi-lo)*(h-2*pad);
+  let d='M'; xs.forEach((x,i)=>{d+=`${X(x).toFixed(1)},${Y(ys[i]).toFixed(1)} `; if(i===0)d+='L';});
+  const zeroY=(lo<0&&hi>0)?Y(0):null;
+  return `<svg viewBox="0 0 ${w} ${h}">${zeroY!==null?`<line x1="${pad}" y1="${zeroY}" x2="${w-pad}" y2="${zeroY}" stroke="#E4DBCB"/>`:''}
+    <path d="${d}" fill="none" stroke="#0E5C58" stroke-width="2"/></svg>`;
+}
+const CATLABEL={classic:'squashing',relu:'relu family',modern:'smooth/modern',shrink:'shrink',output:'output/special'};
+function buildGallery(){
+  $('gallery').innerHTML=FUNCS.map(fd=>
+    `<div class="gcard" data-k="${fd.key}"><div class="gname">${fd.name.replace(/ \(.*\)/,'')}</div>${sparkline(fd)}<div class="gcat">${CATLABEL[fd.cat]}</div></div>`).join('');
+  $('gallery').querySelectorAll('.gcard').forEach(c=>c.onclick=()=>{selectFn(c.dataset.k);document.getElementById('explorer').scrollIntoView({behavior:'smooth'});});
+}
+
+/* ---- doc cards ---- */
+function buildDocs(){
+  document.querySelectorAll('.afgrid[data-cat]').forEach(grid=>{
+    const cat=grid.dataset.cat;
+    grid.innerHTML=FUNCS.filter(f=>f.cat===cat).map(fd=>`
+      <div class="af">
+        <div class="afhead"><h4>${fd.name}</h4><span class="rng">range ${fd.range}</span></div>
+        <div class="formula">$$ ${fd.latex} \\qquad ${fd.dlatex} $$</div>
+        <div class="intu">“${fd.intu}”</div>
+        <div class="pc"><div class="pros"><b>＋</b> ${fd.pros}</div><div class="cons"><b>－</b> ${fd.cons}</div></div>
+        <div class="when"><b>When</b> &nbsp;${fd.when}</div>
+      </div>`).join('');
+  });
+}
+
+/* ---- master table ---- */
+function buildTable(){
+  $('masterBody').innerHTML=FUNCS.map(fd=>
+    `<tr><td><b>${fd.name}</b></td><td class="mono">${fd.range}</td><td>${fd.smooth}</td><td>${fd.zero}</td><td>${fd.strength}</td><td>${fd.watch}</td><td>${fd.use}</td></tr>`).join('');
+}
+
+/* ---- explorer plot ---- */
+let CUR='relu', xSel=1, showD=true;
+function buildSelect(){
+  const groups={classic:'Classic squashing',relu:'ReLU family',modern:'Smooth & modern',shrink:'Shrink family',output:'Output & special'};
+  let html='';
+  Object.keys(groups).forEach(cat=>{ html+=`<optgroup label="${groups[cat]}">`+
+    FUNCS.filter(f=>f.cat===cat).map(f=>`<option value="${f.key}">${f.name}</option>`).join('')+`</optgroup>`; });
+  $('fnSel').innerHTML=html; $('fnSel').value=CUR;
+  $('fnSel').onchange=e=>selectFn(e.target.value);
+}
+function buildParams(fd){
+  const box=$('paramBox'); P={};
+  if(!fd.params){box.innerHTML='';return;}
+  box.innerHTML=fd.params.map(pp=>{P[pp.k]=pp.def;
+    return `<div class="ctl"><label>${pp.label} = <span class="v" id="pv_${pp.k}">${pp.def}</span></label>
+      <input type="range" id="pr_${pp.k}" min="${pp.min}" max="${pp.max}" step="${pp.step}" value="${pp.def}"></div>`;}).join('');
+  fd.params.forEach(pp=>{ $('pr_'+pp.k).oninput=e=>{P[pp.k]=+e.target.value; $('pv_'+pp.k).textContent=(+e.target.value).toFixed(2); drawPlot();}; });
+}
+function selectFn(key){ CUR=key; const fd=BYKEY[key]; $('fnSel').value=key;
+  $('expTitle').textContent=fd.name;
+  $('expFormula').innerHTML=`\\( ${fd.latex} \\)`;
+  buildParams(fd); drawPlot();
+  if(window.MathJax&&MathJax.typesetPromise) MathJax.typesetPromise([$('expFormula')]);
+}
+function drawPlot(){
+  const fd=BYKEY[CUR], w=560,h=360,padL=44,padR=14,padT=16,padB=30;
+  const xmin=-6,xmax=6,N=240; const p=paramState(fd);
+  const F=x=>fd.params?fd.f(x,p):fd.f(x);
+  const xs=[],ys=[],ds=[];
+  for(let i=0;i<=N;i++){const x=xmin+(xmax-xmin)*i/N;xs.push(x);
+    let y=F(x); if(!isFinite(y))y=0; ys.push(y);
+    let d=showD?deriv(fd.f,x,p):0; if(!isFinite(d))d=0; ds.push(Math.max(-4,Math.min(6,d)));}
+  let lo=Math.min(...ys), hi=Math.max(...ys);
+  if(showD){lo=Math.min(lo,...ds);hi=Math.max(hi,...ds);}
+  if(hi-lo<1) {hi+=0.5;lo-=0.5;}
+  const pad=(hi-lo)*0.1; lo-=pad; hi+=pad; if(lo>0)lo=-0.3*hi; if(lo<-4)lo=-4; if(hi>6.5)hi=6.5;
+  const X=x=>padL+(x-xmin)/(xmax-xmin)*(w-padL-padR);
+  const Y=y=>h-padB-(y-lo)/(hi-lo)*(h-padT-padB);
+  const path=(arr)=>{let d='M';xs.forEach((x,i)=>{const yy=Y(arr[i]);d+=`${X(x).toFixed(1)},${yy.toFixed(1)} `;if(i===0)d+='L';});return d;};
+  // gridlines
+  let grid='';
+  for(let gx=xmin;gx<=xmax;gx+=2){grid+=`<line x1="${X(gx)}" y1="${padT}" x2="${X(gx)}" y2="${h-padB}" stroke="#EEE7D8"/><text x="${X(gx)}" y="${h-padB+16}" font-family="JetBrains Mono" font-size="9" fill="#9aa3a3" text-anchor="middle">${gx}</text>`;}
+  const yticks=[];for(let t=Math.ceil(lo);t<=Math.floor(hi);t++)yticks.push(t);
+  yticks.forEach(t=>{grid+=`<line x1="${padL}" y1="${Y(t)}" x2="${w-padR}" y2="${Y(t)}" stroke="${t===0?'#D8CDB8':'#EEE7D8'}" stroke-width="${t===0?1.4:1}"/><text x="${padL-6}" y="${Y(t)+3}" font-family="JetBrains Mono" font-size="9" fill="#9aa3a3" text-anchor="end">${t}</text>`;});
+  // marker
+  const yv=F(xSel), dv=deriv(fd.f,xSel,p);
+  const mx=X(xSel),my=Y(isFinite(yv)?Math.max(lo,Math.min(hi,yv)):0);
+  const marker=`<line x1="${mx}" y1="${padT}" x2="${mx}" y2="${h-padB}" stroke="#C9A24B" stroke-width="1" stroke-dasharray="3 3"/>
+    <line x1="${padL}" y1="${my}" x2="${mx}" y2="${my}" stroke="#C9A24B" stroke-width="1" stroke-dasharray="3 3"/>
+    <circle cx="${mx}" cy="${my}" r="5" fill="#C9A24B" stroke="#fff" stroke-width="1.5"/>`;
+  $('plot').innerHTML=`<svg viewBox="0 0 ${w} ${h}">${grid}
+    ${showD?`<path d="${path(ds)}" fill="none" stroke="#D9663B" stroke-width="2" stroke-dasharray="5 4" opacity=".9"/>`:''}
+    <path d="${path(ys)}" fill="none" stroke="#0E5C58" stroke-width="2.6"/>
+    ${marker}</svg>`;
+  // readout
+  const zc={Yes:'zero-centered',No:'not zero-centered','≈':'≈ zero-centered','~':''}[fd.zero]||'';
+  $('expRead').innerHTML=`at x = <span class="amb">${xSel.toFixed(1)}</span><br>
+    f(x) = <span class="big">${isFinite(yv)?yv.toFixed(3):'—'}</span><br>
+    f′(x) = <span class="big">${isFinite(dv)?dv.toFixed(3):'—'}</span> &nbsp;${Math.abs(dv)<0.02?'⚠ gradient ≈ 0 (would stall learning here)':''}`;
+  $('expMeta').innerHTML=`<b>Range:</b> ${fd.range} &nbsp;·&nbsp; <b>Smooth:</b> ${fd.smooth} &nbsp;·&nbsp; ${zc}<br><b>Best for:</b> ${fd.use}.`;
+}
+$('xVal').oninput=e=>{xSel=+e.target.value;$('xLab').textContent=xSel.toFixed(1);drawPlot();};
+$('showD').onchange=e=>{showD=e.target.checked;drawPlot();};
+
+/* ---- hero ---- */
+function hero(){
+  const w=440,h=300,padL=30,padR=14,padT=14,padB=24,xmin=-5,xmax=5;
+  const fns=[{f:x=>sig(x),c:'#0E5C58'},{f:x=>tanh(x),c:'#C9A24B'},{f:x=>x>0?x:0,c:'#D9663B'},{f:x=>x*sig(x),c:'#2E86DE'}];
+  let lo=-1.2,hi=3.2; const X=x=>padL+(x-xmin)/(xmax-xmin)*(w-padL-padR),Y=y=>h-padB-(y-lo)/(hi-lo)*(h-padT-padB);
+  let g=`<line x1="${padL}" y1="${Y(0)}" x2="${w-padR}" y2="${Y(0)}" stroke="#E4DBCB"/><line x1="${X(0)}" y1="${padT}" x2="${X(0)}" y2="${h-padB}" stroke="#E4DBCB"/>`;
+  fns.forEach(fn=>{let d='M';for(let i=0;i<=120;i++){const x=xmin+(xmax-xmin)*i/120;d+=`${X(x).toFixed(1)},${Y(Math.max(lo,Math.min(hi,fn.f(x)))).toFixed(1)} `;if(i===0)d+='L';}
+    g+=`<path d="${d}" fill="none" stroke="${fn.c}" stroke-width="2.4" opacity=".92"/>`;});
+  $('heroSvg').innerHTML=`<svg viewBox="0 0 ${w} ${h}">${g}
+    <text x="${w-padR}" y="${padT+10}" font-family="JetBrains Mono" font-size="10" fill="#7E8888" text-anchor="end">sigmoid · tanh · relu · swish</text></svg>`;
+}
+
+/* ---- softmax ---- */
+let LOGITS=[2.0,1.0,0.1,-0.5];
+function buildSmx(){
+  $('smxRows').innerHTML=LOGITS.map((z,i)=>`
+    <div class="smx-row">
+      <span>z<sub>${i+1}</sub> = <span id="zl${i}">${z.toFixed(1)}</span></span>
+      <input type="range" id="zr${i}" min="-4" max="4" step="0.1" value="${z}">
+      <div><div class="smx-bar-wrap"><div class="smx-bar" id="zb${i}"></div></div><div class="smx-prob" id="zp${i}"></div></div>
+    </div>`).join('');
+  LOGITS.forEach((_,i)=>{$('zr'+i).oninput=e=>{LOGITS[i]=+e.target.value;$('zl'+i).textContent=(+e.target.value).toFixed(1);drawSmx();};});
+  drawSmx();
+}
+function drawSmx(){
+  const m=Math.max(...LOGITS); const ex=LOGITS.map(z=>Math.exp(z-m)); const s=ex.reduce((a,b)=>a+b,0);
+  ex.forEach((e,i)=>{const pr=e/s; $('zb'+i).style.width=(pr*100).toFixed(1)+'%'; $('zp'+i).textContent=(pr*100).toFixed(1)+'%';});
+  $('smxSum').textContent='probabilities always sum to 100%';
+}
+
+/* ---- chrome: progress, reveal, spy ---- */
+const prog=$('progress'),tb=$('topbar');
+function onScroll(){const hh=document.documentElement,m=hh.scrollHeight-hh.clientHeight;prog.style.width=(m>0?hh.scrollTop/m*100:0)+'%';tb.classList.toggle('solid',hh.scrollTop>40);}
+document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in');}),{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+const tl=[...document.querySelectorAll('.toc a')];
+const spy=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;tl.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));}}),{rootMargin:'-28% 0px -60% 0px'});
+document.querySelectorAll('main section[id]').forEach(s=>spy.observe(s));
+
+/* ---- boot ---- */
+hero(); buildGallery(); buildDocs(); buildTable(); buildSelect(); buildSmx(); selectFn('relu');
+window.addEventListener('load',()=>{ if(window.MathJax&&MathJax.typesetPromise) MathJax.typesetPromise(); });
+</script>
+</body>
+</html>

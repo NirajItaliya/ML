@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Encoder, In Motion — A Transformer Pipeline You Can Watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F1E7; --paper2:#FBF7EF; --card:#FFFFFF;
+  --ink:#22282A; --ink-soft:#4C5658; --muted:#7E8888; --line:#E4DBCB;
+  --teal:#0E5C58; --teal-deep:#093F3C; --teal-soft:#E3EEEC;
+  --amber:#D9663B; --amber-soft:#F7E4D8; --gold:#C9A24B;
+  --violet:#6C5CE7; --blue:#2E86DE; --green:#2E9E5B; --neg:#D9663B;
+  --shadow:0 1px 2px rgba(20,40,38,.04),0 8px 30px -12px rgba(20,40,38,.18);
+  --shadow-lg:0 30px 60px -24px rgba(14,92,88,.30);
+  --radius:18px; --maxw:1180px;
+  --mono:'JetBrains Mono',ui-monospace,monospace; --disp:'Fraunces',Georgia,serif; --body:'Spectral',Georgia,serif;
+  --code-bg:#0E2A28; --code-border:#15403c; --code-text:#CFE9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.72;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 12% -10%, #FCEBDD55, transparent 40%),radial-gradient(circle at 100% 0%, #DCEBE955, transparent 45%);background-attachment:fixed;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;line-height:1.12;color:var(--teal-deep);letter-spacing:-.01em}
+a{color:var(--teal);text-decoration:none}
+code,kbd,.mono{font-family:var(--mono)}
+.layout{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;padding:20px clamp(20px,5vw,48px) 80px;display:grid;grid-template-columns:240px 1fr;gap:48px;align-items:start}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.toc{display:none}}
+main{min-width:0}
+section{margin-bottom:60px;scroll-margin-top:90px}
+section h2{font-size:clamp(28px,4vw,40px);margin:6px 0 20px}
+section h3{font-size:23px;margin:34px 0 12px;color:var(--teal)}
+p{margin:0 0 18px;color:var(--ink-soft)}
+.lead-in{font-size:20px;color:var(--ink-soft)}
+strong{color:var(--ink)}
+
+#progress{position:fixed;top:0;left:0;height:4px;width:0%;z-index:60;background:linear-gradient(90deg,var(--teal),var(--gold),var(--amber))}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:14px clamp(16px,4vw,40px);backdrop-filter:blur(8px);background:linear-gradient(var(--paper),rgba(246,241,231,0));transition:background .3s,box-shadow .3s}
+.topbar.solid{background:rgba(246,241,231,.9);box-shadow:0 1px 0 var(--line)}
+.brand{font-family:var(--disp);font-weight:600;font-size:18px;color:var(--teal-deep);display:flex;align-items:center;gap:10px}
+.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-soft)}
+.topnav a{margin-left:22px;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.topnav a:hover{color:var(--amber)}
+@media(max-width:820px){.topnav{display:none}}
+
+.hero{max-width:var(--maxw);margin:0 auto;padding:140px clamp(20px,5vw,48px) 30px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;position:relative;z-index:2}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:120px}}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:18px}
+.hero h1{font-size:clamp(38px,6vw,72px);font-weight:600;margin:0 0 18px}
+.hero h1 .em{font-style:italic;color:var(--amber)}
+.hero p.lead{font-size:20px;color:var(--ink-soft);max-width:42ch;margin:0 0 26px}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:13px 22px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.btn.ghost{background:transparent;color:var(--teal)}
+.btn.ghost:hover{background:var(--teal-soft)}
+.hero-fig{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.hero-fig svg{display:block;width:100%;height:auto}
+.beam{stroke-linecap:round;fill:none;stroke-dasharray:9 200;animation:flow 2.8s linear infinite}
+@keyframes flow{from{stroke-dashoffset:209}to{stroke-dashoffset:0}}
+.pnode{animation:breathe 3.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+
+.toc{position:sticky;top:96px;font-family:var(--mono);font-size:12.5px}
+.toc h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.toc a{display:block;color:var(--ink-soft);padding:5px 0 5px 14px;border-left:2px solid var(--line);transition:.2s;line-height:1.35}
+.toc a:hover{color:var(--teal)}
+.toc a.active{color:var(--teal-deep);border-left-color:var(--amber);font-weight:600}
+
+.sec-no{font-family:var(--mono);font-size:13px;color:var(--amber);letter-spacing:.1em}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+.note{background:var(--teal-soft);border-left:4px solid var(--teal);border-radius:10px;padding:16px 20px;margin:22px 0;font-size:17px;color:var(--teal-deep)}
+.note.amber{background:var(--amber-soft);border-left-color:var(--amber);color:#8a3f1e}
+.note.violet{background:#ECEAFB;border-left-color:var(--violet);color:#3d3380}
+
+.icards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:22px 0}
+.icard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s,border-color .25s}
+.icard:hover{transform:translateY(-4px);border-color:var(--amber);box-shadow:var(--shadow-lg)}
+.icard .emoji{font-size:26px;margin-bottom:10px}
+.icard h4{font-size:19px;color:var(--teal-deep);margin:0 0 6px}
+.icard p{font-size:15.5px;color:var(--ink-soft);margin:0}
+
+.fig{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:24px 0;box-shadow:var(--shadow)}
+.fig svg{display:block;width:100%;height:auto;max-width:840px;margin:0 auto}
+.fig figcaption{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;margin-top:14px;letter-spacing:.02em}
+.legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:10px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:14px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+thead{background:var(--teal);color:#fff;font-family:var(--mono);font-size:11px;letter-spacing:.02em}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--paper2)}
+td.mono,th.mono{font-family:var(--mono)}
+table caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--amber);padding:0 0 10px;font-weight:600}
+.tbl-scroll{overflow-x:auto}
+
+.keybox{background:linear-gradient(180deg,#fff,#FBF7EF);border:1.5px solid var(--gold);border-radius:14px;padding:10px 18px;margin:18px auto;text-align:center;box-shadow:var(--shadow);font-family:var(--mono);font-size:15px;color:var(--teal-deep)}
+.eqcard{background:var(--paper2);border:1px dashed var(--line);border-radius:12px;padding:10px 18px;margin:18px 0;overflow-x:auto;font-family:var(--mono);font-size:14px;color:var(--ink-soft)}
+.eqcard sub,.eqcard sup,.keybox sub,.keybox sup{font-size:.75em}
+.shape{display:inline-block;font-family:var(--mono);font-size:12.5px;background:#ECEAFB;color:#3d3380;border:1px solid #d8d3f5;border-radius:6px;padding:2px 9px;margin:2px 2px}
+.shape.t{background:var(--teal-soft);color:var(--teal-deep);border-color:#bcdedb}
+.shape.a{background:var(--amber-soft);color:#8a3f1e;border-color:#ecc7b4}
+
+/* ===================== THE CINEMA (central GIF-like animation) ===================== */
+.cinema{background:linear-gradient(160deg,#0E5C58,#072e2b);border-radius:var(--radius);padding:22px;margin:24px 0;box-shadow:var(--shadow-lg);color:#DCEFEC}
+.cinema h4{color:#fff;margin:0 0 2px;font-size:20px}
+.cinema .csub{font-family:var(--mono);font-size:12px;color:#9fc9c3;margin-bottom:16px}
+.track{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:thin}
+.track::-webkit-scrollbar{height:6px}.track::-webkit-scrollbar-thumb{background:#2a564f;border-radius:6px}
+.tchip{flex:0 0 auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.02em;padding:7px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:#a9d2cc;white-space:nowrap;transition:.25s;cursor:pointer}
+.tchip.on{background:var(--gold);border-color:var(--gold);color:#23190a;font-weight:600;transform:scale(1.05)}
+.tchip.done{color:#cfe9e4;border-color:#3a6b64}
+.pline{height:4px;background:rgba(255,255,255,.12);border-radius:4px;overflow:hidden;margin:2px 0 16px}
+.pfill{height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--amber));transition:width .5s}
+.stage-view{display:grid;grid-template-columns:1.25fr .9fr;gap:18px}
+@media(max-width:720px){.stage-view{grid-template-columns:1fr}}
+.stage-visual{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:14px;min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center}
+.stage-visual .vtitle{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#7fb4ad}
+.stage-info{display:flex;flex-direction:column;gap:12px}
+.stage-info h5{margin:0;font-family:var(--disp);font-size:21px;color:#fff}
+.stage-info .blurb{font-size:15px;color:#cfe9e4;line-height:1.55}
+.sgrid{font-family:var(--mono);font-size:12px;border:1px solid rgba(255,255,255,.12);border-radius:10px;overflow:hidden}
+.sgrid .r{display:grid;grid-template-columns:84px 1fr;border-bottom:1px solid rgba(255,255,255,.08)}
+.sgrid .r:last-child{border-bottom:0}
+.sgrid .k{background:rgba(255,255,255,.05);padding:8px 10px;color:#8fbdb7}
+.sgrid .v{padding:8px 10px;color:#eafaf7}
+.sgrid .v b{color:#f0dca6}
+.cine-ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
+.cine-ctrl button{font-family:var(--mono);font-size:12px;padding:9px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:transparent;color:#dcefec;cursor:pointer;transition:.2s}
+.cine-ctrl button:hover{background:rgba(255,255,255,.12)}
+.cine-ctrl button.primary{background:var(--gold);border-color:var(--gold);color:#23190a;font-weight:600}
+.cine-ctrl .stepwrap{margin-left:auto;font-family:var(--mono);font-size:11px;color:#9fc9c3}
+
+/* mini matrices / chips inside cinema */
+.mrow{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap}
+.mlab{font-family:var(--mono);font-size:10px;color:#7fb4ad;margin-bottom:5px;letter-spacing:.06em}
+.mat{display:inline-grid;gap:3px;padding:6px;border-radius:8px;background:rgba(0,0,0,.18)}
+.cell{width:30px;height:24px;border-radius:4px;font-family:var(--mono);font-size:9px;display:flex;align-items:center;justify-content:center;color:#eafaf7}
+.op{font-family:var(--mono);font-size:18px;color:#f0dca6;font-weight:600}
+.wchip{font-family:var(--mono);font-size:12px;padding:8px 12px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:#dcefec}
+.wchip .id{display:block;font-size:9px;color:#f0c98a;margin-top:3px}
+.bars{display:flex;align-items:flex-end;gap:6px;height:90px}
+.bar{width:26px;border-radius:5px 5px 0 0;background:linear-gradient(180deg,#3fb0a4,#0E5C58);transition:height .6s,background .4s}
+.bar.wide{background:linear-gradient(180deg,#f0c98a,#C9A24B)}
+.pulse{animation:pul 1.1s ease-in-out infinite}
+@keyframes pul{0%,100%{opacity:1}50%{opacity:.45}}
+.flowdot{animation:none}
+
+/* ===================== static architecture diagram ===================== */
+.archwrap{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin:24px 0;box-shadow:var(--shadow)}
+.arch{display:flex;flex-direction:column;align-items:center}
+.ablock{width:min(360px,100%);border-radius:12px;padding:12px 16px;text-align:center;font-family:var(--mono);font-size:13px;border:1.5px solid var(--line);background:var(--paper2)}
+.ablock .t{font-weight:600;color:var(--teal-deep)}
+.ablock .s{font-size:10px;color:var(--muted);margin-top:2px}
+.ablock.emb{background:#EAF1FB;border-color:#bcd6f5}
+.ablock.attn{background:var(--teal-soft);border-color:#bcdedb}
+.ablock.norm{background:#FBF1DD;border-color:#ecd9af}
+.ablock.ffn{background:#EAF5EE;border-color:#bfe0cb}
+.arrow{width:2px;height:20px;background:var(--line);position:relative}
+.arrow::after{content:"";position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--line)}
+.encbox{border:2px dashed var(--teal);border-radius:16px;padding:16px 12px;width:min(420px,100%);display:flex;flex-direction:column;align-items:center;position:relative;margin:6px 0;background:rgba(227,238,236,.35)}
+.encbox .xn{position:absolute;top:-11px;right:14px;background:var(--teal);color:#fff;font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:999px}
+.resid{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin:2px 0}
+
+footer{position:relative;z-index:2;background:var(--teal-deep);color:#BFD8D4;padding:48px clamp(20px,5vw,48px);text-align:center;font-family:var(--mono);font-size:13px}
+footer .big{font-family:var(--disp);font-size:24px;color:#fff;margin-bottom:10px}
+footer .links{margin:18px 0 6px;line-height:2}
+footer .links a{color:#9fd9d2}
+footer .sub{opacity:.7;margin-top:10px;font-size:12px}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+  .reveal{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="topbar" id="topbar">
+  <style>
+  .nbar-left{display:flex;align-items:center;gap:10px}
+  .nbtn{font-family:var(--mono,'JetBrains Mono',monospace);font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+    display:inline-flex;align-items:center;padding:7px 13px;border-radius:999px;
+    border:1px solid var(--line,#E4DBCB);background:var(--card,#fff);color:var(--teal,#0E5C58);cursor:pointer;
+    text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s,border-color .2s}
+  .nbtn:hover{transform:translateY(-1px);border-color:var(--amber,#D9663B);background:var(--teal-soft,#E3EEEC);
+    box-shadow:var(--shadow,0 8px 30px -12px rgba(20,40,38,.18))}
+  @media(max-width:560px){.nbtn .lbl{display:none}.nbtn{padding:7px 10px}}
+  </style>
+  <div class="nbar-left">
+  <a class="nbtn" href="javascript:history.back()" title="Go back">←<span class="lbl">&nbsp;Back</span></a>
+  <a class="nbtn" href="../index.html" title="Home">⌂<span class="lbl">&nbsp;Home</span></a>
+  <div class="brand"><span class="dot"></span> Encoder · In Motion</div>
+  </div>
+  <nav class="topnav">
+    <a href="#cinema">Animation</a><a href="#diagram">Diagram</a><a href="#layer">Layer</a>
+    <a href="#attention">Attention</a><a href="#ffn">FFN</a><a href="#norm">Norm</a><a href="#shapes">Shapes</a>
+  </nav>
+</div>
+
+<header class="hero">
+  <div>
+    <div class="eyebrow reveal">Transformers · Encoder pipeline</div>
+    <h1 class="reveal">Watch a sentence <span class="em">flow.</span></h1>
+    <p class="lead reveal">One auto-playing animation carries the words "the cat sat" through the whole encoder — tokenizer, embeddings, positional encoding, attention, Add&nbsp;&amp;&nbsp;Norm, feed-forward — showing the data, the parameters, and the tensor shape at every single step.</p>
+    <div class="cta reveal">
+      <a class="btn" href="#cinema">Play the animation</a>
+      <a class="btn ghost" href="#diagram">See the diagram</a>
+    </div>
+  </div>
+  <div class="hero-fig reveal"><div id="heroSvg"></div></div>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <h5>Contents</h5>
+    <a href="#intro">1 · The big picture</a>
+    <a href="#cinema">2 · The animation ▶</a>
+    <a href="#diagram">3 · Full encoder diagram</a>
+    <a href="#layer">4 · Inside one layer</a>
+    <a href="#embed">5 · Tokens → embeddings</a>
+    <a href="#pos">6 · Positional encoding</a>
+    <a href="#attention">7 · Multi-head attention</a>
+    <a href="#norm">8 · Add &amp; LayerNorm</a>
+    <a href="#ffn">9 · Feed-forward (MLP)</a>
+    <a href="#shapes">10 · Shape tracking</a>
+    <a href="#summary">11 · Summary</a>
+  </aside>
+
+  <main>
+
+    <section id="intro" class="reveal">
+      <div class="sec-no">01</div>
+      <h2>The big picture</h2>
+      <p class="lead-in">A Transformer encoder turns raw text into context-rich vectors — one per token, each rewritten in light of every other token. It's a pipeline of simple, shape-preserving steps repeated N times.</p>
+      <p>Below, the entire pipeline is laid out as a single animation you can watch like a GIF. Every stage names the <strong>data</strong> passing through it, the <strong>operation</strong> applied, the <strong>tensor shape</strong> before and after, and the number of <strong>learnable parameters</strong> involved. We'll use a running example with these sizes throughout:</p>
+      <div class="keybox">batch = 32 &nbsp;·&nbsp; sequence length L = 24 &nbsp;·&nbsp; d<sub>model</sub> = 64 &nbsp;·&nbsp; heads = 4 &nbsp;·&nbsp; head dim = 16 &nbsp;·&nbsp; d<sub>ff</sub> = 256</div>
+      <div class="icards">
+        <div class="icard"><div class="emoji">🎞️</div><h4>One animation</h4><p>The central reel auto-plays through all 14 stages and loops — pause, restart, or click any stage chip to jump.</p></div>
+        <div class="icard"><div class="emoji">📐</div><h4>Shapes everywhere</h4><p>Each stage shows input shape, output shape, and parameter count, so you always know what's flowing.</p></div>
+        <div class="icard"><div class="emoji">🧱</div><h4>Shape-preserving</h4><p>Every sub-layer maps <span class="shape">[32,24,64]</span> → <span class="shape">[32,24,64]</span>, which is why the layer can stack N times.</p></div>
+      </div>
+    </section>
+
+    <!-- ===================== THE ANIMATION ===================== -->
+    <section id="cinema" class="reveal">
+      <div class="sec-no">02</div>
+      <h2>The animation — a sentence travels the encoder</h2>
+      <p class="lead-in">Press play (it auto-starts) and watch "the cat sat" move stage by stage. The toy visual uses 3 tokens and a 4-dim model so the matrices are readable; the shape panel reports the real sizes.</p>
+
+      <div class="cinema">
+        <h4>End-to-end encoder reel</h4>
+        <div class="csub" id="cineSub">stage 1 / 14</div>
+        <div class="track" id="track"></div>
+        <div class="pline"><div class="pfill" id="pfill"></div></div>
+        <div class="stage-view">
+          <div class="stage-visual" id="stageVisual"></div>
+          <div class="stage-info">
+            <h5 id="siTitle"></h5>
+            <div class="blurb" id="siBlurb"></div>
+            <div class="sgrid">
+              <div class="r"><div class="k">Input</div><div class="v" id="siIn"></div></div>
+              <div class="r"><div class="k">Operation</div><div class="v" id="siOp"></div></div>
+              <div class="r"><div class="k">Output</div><div class="v" id="siOut"></div></div>
+              <div class="r"><div class="k">Params</div><div class="v" id="siParam"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="cine-ctrl">
+          <button id="cPlay" class="primary">⏸ Pause</button>
+          <button id="cPrev">‹ Prev</button>
+          <button id="cNext">Next ›</button>
+          <button id="cRestart">↺ Restart</button>
+          <span class="stepwrap" id="cStep"></span>
+        </div>
+      </div>
+      <div class="note">The reel loops forever like a GIF, but it's pure HTML/CSS/JS — no images, no libraries. Each frame is generated live, so the embedding colours and attention heatmap are computed from the actual toy numbers.</div>
+    </section>
+
+    <!-- ===================== FULL DIAGRAM ===================== -->
+    <section id="diagram" class="reveal">
+      <div class="sec-no">03</div>
+      <h2>Full encoder diagram</h2>
+      <p class="lead-in">The same pipeline as a static map you can scan top-to-bottom: text in, contextual embeddings out.</p>
+      <div class="archwrap">
+        <div class="arch">
+          <div class="ablock"><div class="t">Text input</div><div class="s">"the cat sat"</div></div>
+          <div class="arrow"></div>
+          <div class="ablock"><div class="t">Tokenizer → Token IDs</div><div class="s">→ [32, 24]</div></div>
+          <div class="arrow"></div>
+          <div class="ablock emb"><div class="t">Input Embeddings</div><div class="s">[32,24] → [32,24,64]</div></div>
+          <div class="arrow"></div>
+          <div class="ablock emb"><div class="t">＋ Positional Encoding</div><div class="s">[32,24,64] (sin/cos)</div></div>
+          <div class="arrow"></div>
+          <div class="encbox">
+            <span class="xn">× N layers</span>
+            <div class="ablock attn"><div class="t">Multi-Head Self-Attention</div><div class="s">[32,24,64] → [32,24,64]</div></div>
+            <div class="resid">└ residual ┐</div>
+            <div class="arrow"></div>
+            <div class="ablock norm"><div class="t">Add &amp; LayerNorm</div></div>
+            <div class="arrow"></div>
+            <div class="ablock ffn"><div class="t">Feed-Forward (MLP)</div><div class="s">64 → 256 → 64</div></div>
+            <div class="resid">└ residual ┐</div>
+            <div class="arrow"></div>
+            <div class="ablock norm"><div class="t">Add &amp; LayerNorm</div></div>
+          </div>
+          <div class="arrow"></div>
+          <div class="ablock attn"><div class="t">Final contextual embeddings</div><div class="s">[32, 24, 64]</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== INSIDE ONE LAYER ===================== -->
+    <section id="layer" class="reveal">
+      <div class="sec-no">04</div>
+      <h2>Inside one encoder layer</h2>
+      <p class="lead-in">Each of the N layers is the same four moves: attention, Add&amp;Norm, feed-forward, Add&amp;Norm — with a residual skip wrapped around each sub-layer.</p>
+      <div class="fig">
+        <svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono">
+          <defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#0E5C58"/></marker></defs>
+          <rect x="20" y="120" width="80" height="46" rx="9" fill="#EAF1FB" stroke="#2E86DE"/><text x="60" y="148" text-anchor="middle" font-size="12" fill="#22282A">Input</text>
+          <line x1="100" y1="143" x2="158" y2="143" stroke="#0E5C58" stroke-width="1.6" marker-end="url(#ar)"/>
+          <rect x="160" y="112" width="150" height="62" rx="10" fill="#E3EEEC" stroke="#0E5C58"/><text x="235" y="138" text-anchor="middle" font-size="12" fill="#093F3C" font-weight="600">Multi-Head</text><text x="235" y="155" text-anchor="middle" font-size="12" fill="#093F3C">Self-Attention</text>
+          <line x1="310" y1="143" x2="368" y2="143" stroke="#0E5C58" stroke-width="1.6" marker-end="url(#ar)"/>
+          <rect x="370" y="120" width="120" height="46" rx="10" fill="#FBF1DD" stroke="#C9A24B"/><text x="430" y="142" text-anchor="middle" font-size="11.5" fill="#7a5f12">Add &amp; Norm</text><text x="430" y="157" text-anchor="middle" font-size="9" fill="#9a7a1e">x + Attn(x)</text>
+          <line x1="490" y1="143" x2="540" y2="143" stroke="#0E5C58" stroke-width="1.6" marker-end="url(#ar)"/>
+          <rect x="542" y="112" width="140" height="62" rx="10" fill="#EAF5EE" stroke="#2E9E5B"/><text x="612" y="138" text-anchor="middle" font-size="12" fill="#1f6b3e" font-weight="600">Feed-Forward</text><text x="612" y="155" text-anchor="middle" font-size="10" fill="#2E9E5B">64→256→64</text>
+          <line x1="682" y1="143" x2="724" y2="143" stroke="#0E5C58" stroke-width="1.6" marker-end="url(#ar)"/>
+          <rect x="690" y="120" width="60" height="46" rx="9" fill="#E3EEEC" stroke="#0E5C58"/><text x="720" y="148" text-anchor="middle" font-size="11" fill="#093F3C">Out</text>
+          <!-- residual skips -->
+          <path d="M130 120 C 130 70, 430 70, 430 116" fill="none" stroke="#D9663B" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+          <text x="280" y="64" text-anchor="middle" font-size="10" fill="#D9663B">residual skip (Add)</text>
+          <path d="M500 120 C 500 86, 612 86, 612 116" fill="none" stroke="#D9663B" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+          <text x="556" y="80" text-anchor="middle" font-size="10" fill="#D9663B">residual</text>
+          <text x="380" y="220" text-anchor="middle" font-size="11" fill="#7E8888">every box maps [32, 24, 64] → [32, 24, 64] — shape never changes</text>
+        </svg>
+        <figcaption>One encoder layer · attention mixes tokens, the MLP rethinks each token, residuals + LayerNorm keep it stable</figcaption>
+      </div>
+      <div class="note amber"><strong>Why the residual skip?</strong> Adding the input back (<code class="mono">x + SubLayer(x)</code>) gives gradients a clean shortcut straight back through the network, so very deep stacks don't lose signal. The sub-layer only has to learn a small <em>correction</em> to x, not rebuild it.</div>
+    </section>
+
+    <!-- ===================== EMBEDDINGS ===================== -->
+    <section id="embed" class="reveal">
+      <div class="sec-no">05</div>
+      <h2>Tokens → embeddings</h2>
+      <p class="lead-in">Text becomes numbers in two steps: a tokenizer splits the string into IDs, then an embedding table maps each ID to a dense vector.</p>
+      <p>The tokenizer turns "the cat sat" into integer IDs of shape <span class="shape">[32, 24]</span> (batch × sequence). The embedding layer is a lookup table with one learnable row per vocabulary entry; it expands each ID into a <span class="shape t">d<sub>model</sub>=64</span> vector, giving <span class="shape">[32, 24, 64]</span>. Similar words land near each other — but at this point each vector is still <em>context-free</em>.</p>
+      <div class="eqcard">tokens [32, 24] &nbsp;—embed→&nbsp; X [32, 24, 64] &nbsp;·&nbsp; params = vocab_size × 64</div>
+    </section>
+
+    <!-- ===================== POSITIONAL ===================== -->
+    <section id="pos" class="reveal">
+      <div class="sec-no">06</div>
+      <h2>Positional encoding</h2>
+      <p class="lead-in">Self-attention is order-blind — it sees a set, not a sequence. Positional encoding stamps order back in by <strong>adding</strong> a position-dependent vector to every embedding.</p>
+      <p>The original Transformer builds these from sine and cosine waves of many frequencies. Each position gets a unique, smooth signature; nearby positions look similar, and the pattern extrapolates to longer sequences than seen in training. It's parameter-free.</p>
+      <div class="fig">
+        <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" id="posSvg"></svg>
+        <figcaption>Each dimension is a wave of a different wavelength; a position is the unique combination of where all the waves sit</figcaption>
+      </div>
+      <div class="eqcard">PE<sub>(p,2i)</sub> = sin( p / 10000<sup>2i/d</sup> ) &nbsp;&nbsp; PE<sub>(p,2i+1)</sub> = cos( p / 10000<sup>2i/d</sup> )</div>
+      <p>Shapes don't change — we just add: <span class="shape">[32,24,64]</span> ＋ <span class="shape a">PE [24,64]</span> → <span class="shape">[32,24,64]</span>. This sum is the actual input to encoder layer 1.</p>
+    </section>
+
+    <!-- ===================== ATTENTION ===================== -->
+    <section id="attention" class="reveal">
+      <div class="sec-no">07</div>
+      <h2>Multi-head self-attention</h2>
+      <p class="lead-in">The heart of the encoder. Each token asks "who else is relevant to me?" and blends in their information. Done in several parallel heads.</p>
+
+      <h3>7.1 — Q, K, V projection</h3>
+      <p>The input is projected by three learned matrices into a <strong>Query</strong>, a <strong>Key</strong>, and a <strong>Value</strong>, then split across heads. With 4 heads, the 64-dim model splits into four 16-dim subspaces:</p>
+      <div class="keybox">
+        Q, K, V each: <span class="shape">[32, 4, 24, 16]</span> &nbsp; (batch, heads, seq, head&nbsp;dim)
+      </div>
+      <div class="icards">
+        <div class="icard"><div class="emoji">🔍</div><h4>Query (Q)</h4><p>What this token is looking for.</p></div>
+        <div class="icard"><div class="emoji">🏷️</div><h4>Key (K)</h4><p>What each token advertises, to be matched against queries.</p></div>
+        <div class="icard"><div class="emoji">📦</div><h4>Value (V)</h4><p>The content a token contributes once it's matched.</p></div>
+      </div>
+
+      <h3>7.2 — Scores: Q × Kᵀ, scaled</h3>
+      <p>Every query dots with every key to produce a relevance score. Transpose K to <span class="shape">[32,4,16,24]</span> so the matmul lines up, then divide by √d<sub>k</sub> = √16 = 4 to keep scores from exploding:</p>
+      <div class="eqcard">
+        Q <span class="shape">[32,4,24,16]</span> × Kᵀ <span class="shape">[32,4,16,24]</span> &nbsp;=&nbsp; scores <span class="shape a">[32,4,24,24]</span> &nbsp;÷ √d<sub>k</sub>
+      </div>
+      <p>That <span class="shape a">[32,4,24,24]</span> is one 24×24 attention map per head — every token's relevance to every other token.</p>
+
+      <h3>7.3 — Softmax → weights → weighted sum</h3>
+      <p>Each row of the score matrix goes through softmax, becoming positive weights that sum to 1. Multiply those weights by V to get each token's context vector. Below is a real 8-token attention map (rows = queries, columns = keys); brighter = more attention.</p>
+      <div class="fig">
+        <div id="heatmap" style="display:flex;justify-content:center"></div>
+        <figcaption>Attention weights after softmax — each row sums to 1 · the bright diagonal-plus means tokens attend to themselves and a few relevant neighbours</figcaption>
+        <div class="legend"><span><i style="background:#E3EEEC"></i>≈0 (ignored)</span><span><i style="background:#0E5C58"></i>≈1 (strong attention)</span></div>
+      </div>
+      <div class="keybox">Attention(Q,K,V) = softmax( Q·Kᵀ / √d<sub>k</sub> ) · V</div>
+
+      <h3>7.4 — Concatenate heads &amp; project</h3>
+      <p>The four head outputs <span class="shape">[32,4,24,16]</span> are concatenated back to <span class="shape">[32,24,64]</span> and passed through a final output projection W<sup>O</sup>. The block's output shape exactly matches its input — ready for Add&nbsp;&amp;&nbsp;Norm.</p>
+      <div class="fig">
+        <svg viewBox="0 0 720 170" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono" font-size="10">
+          <rect x="40" y="64" width="150" height="40" rx="8" fill="#E3EEEC" stroke="#0E5C58"/><text x="115" y="88" text-anchor="middle" fill="#093F3C">input  d=64</text>
+          <text x="250" y="40" text-anchor="middle" fill="#7E8888">split into 4 heads ×16</text>
+          <g>
+            <rect x="230" y="56" width="40" height="24" rx="5" fill="#FBF1DD" stroke="#C9A24B"/><text x="250" y="72" text-anchor="middle" fill="#7a5f12">h1·16</text>
+            <rect x="230" y="84" width="40" height="24" rx="5" fill="#FBF1DD" stroke="#C9A24B"/><text x="250" y="100" text-anchor="middle" fill="#7a5f12">h2·16</text>
+            <rect x="276" y="56" width="40" height="24" rx="5" fill="#FBF1DD" stroke="#C9A24B"/><text x="296" y="72" text-anchor="middle" fill="#7a5f12">h3·16</text>
+            <rect x="276" y="84" width="40" height="24" rx="5" fill="#FBF1DD" stroke="#C9A24B"/><text x="296" y="100" text-anchor="middle" fill="#7a5f12">h4·16</text>
+          </g>
+          <line x1="190" y1="84" x2="228" y2="84" stroke="#0E5C58" stroke-width="1.5"/>
+          <text x="400" y="40" text-anchor="middle" fill="#7E8888">each head: own attention</text>
+          <rect x="360" y="60" width="90" height="48" rx="8" fill="#E3EEEC" stroke="#0E5C58"/><text x="405" y="80" text-anchor="middle" fill="#093F3C">attention</text><text x="405" y="95" text-anchor="middle" fill="#093F3C">per head</text>
+          <line x1="316" y1="84" x2="358" y2="84" stroke="#0E5C58" stroke-width="1.5"/>
+          <rect x="490" y="64" width="90" height="40" rx="8" fill="#FBF1DD" stroke="#C9A24B"/><text x="535" y="80" text-anchor="middle" fill="#7a5f12">concat</text><text x="535" y="94" text-anchor="middle" fill="#7a5f12">→ 64</text>
+          <line x1="450" y1="84" x2="488" y2="84" stroke="#0E5C58" stroke-width="1.5"/>
+          <rect x="610" y="64" width="90" height="40" rx="8" fill="#E3EEEC" stroke="#0E5C58"/><text x="655" y="80" text-anchor="middle" fill="#093F3C">W^O proj</text><text x="655" y="94" text-anchor="middle" fill="#093F3C">d=64</text>
+          <line x1="580" y1="84" x2="608" y2="84" stroke="#0E5C58" stroke-width="1.5"/>
+        </svg>
+        <figcaption>Multi-head: split → attend independently → concatenate → project back to d_model</figcaption>
+      </div>
+    </section>
+
+    <!-- ===================== ADD & NORM ===================== -->
+    <section id="norm" class="reveal">
+      <div class="sec-no">08</div>
+      <h2>Add &amp; LayerNorm</h2>
+      <p class="lead-in">After each sub-layer: add the residual, then normalize. LayerNorm steadies the activations so the deep stack stays trainable.</p>
+      <div class="fig">
+        <svg viewBox="0 0 720 110" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono" font-size="10.5">
+          <defs><marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#C9A24B"/></marker></defs>
+          <g>
+          <rect x="14" y="40" width="84" height="34" rx="8" fill="#EAF1FB" stroke="#2E86DE"/><text x="56" y="61" text-anchor="middle" fill="#22282A">x + sub(x)</text>
+          <line x1="98" y1="57" x2="132" y2="57" stroke="#C9A24B" stroke-width="1.6" marker-end="url(#ar2)"/>
+          <rect x="134" y="40" width="92" height="34" rx="8" fill="#FBF1DD" stroke="#C9A24B"/><text x="180" y="56" text-anchor="middle" fill="#7a5f12">mean μ</text><text x="180" y="69" text-anchor="middle" fill="#9a7a1e">per token</text>
+          <line x1="226" y1="57" x2="258" y2="57" stroke="#C9A24B" stroke-width="1.6" marker-end="url(#ar2)"/>
+          <rect x="260" y="40" width="92" height="34" rx="8" fill="#FBF1DD" stroke="#C9A24B"/><text x="306" y="56" text-anchor="middle" fill="#7a5f12">variance σ²</text>
+          <line x1="352" y1="57" x2="384" y2="57" stroke="#C9A24B" stroke-width="1.6" marker-end="url(#ar2)"/>
+          <rect x="386" y="40" width="120" height="34" rx="8" fill="#E3EEEC" stroke="#0E5C58"/><text x="446" y="56" text-anchor="middle" fill="#093F3C">normalize</text><text x="446" y="69" text-anchor="middle" fill="#0E5C58">(x−μ)/√(σ²+ε)</text>
+          <line x1="506" y1="57" x2="538" y2="57" stroke="#C9A24B" stroke-width="1.6" marker-end="url(#ar2)"/>
+          <rect x="540" y="40" width="80" height="34" rx="8" fill="#FBF1DD" stroke="#C9A24B"/><text x="580" y="61" text-anchor="middle" fill="#7a5f12">· γ + β</text>
+          <line x1="620" y1="57" x2="652" y2="57" stroke="#C9A24B" stroke-width="1.6" marker-end="url(#ar2)"/>
+          <rect x="654" y="40" width="56" height="34" rx="8" fill="#E3EEEC" stroke="#0E5C58"/><text x="682" y="61" text-anchor="middle" fill="#093F3C">out</text>
+          </g>
+        </svg>
+        <figcaption>LayerNorm: compute mean &amp; variance across each token's features, normalize, then apply learnable scale γ and shift β</figcaption>
+      </div>
+      <div class="keybox">out = γ · (x − μ) / √(σ² + ε) + β &nbsp;·&nbsp; params = 2 × 64 = 128 per norm</div>
+      <p><strong>γ (scale)</strong> and <strong>β (shift)</strong> are the only learnable parameters — they let the network undo the normalization if a layer needs to.</p>
+      <div class="note violet"><strong>LayerNorm vs BatchNorm.</strong> BatchNorm normalizes each feature <em>across the batch</em> (needs a big, stable batch). LayerNorm normalizes <em>within each token vector</em>, independent of the batch and other positions — perfect for variable-length sequences and batch-size-1 inference. That independence is exactly why Transformers use LayerNorm.</p></div>
+    </section>
+
+    <!-- ===================== FFN ===================== -->
+    <section id="ffn" class="reveal">
+      <div class="sec-no">09</div>
+      <h2>Feed-forward network (MLP)</h2>
+      <p class="lead-in">Attention mixes information <em>across</em> tokens. The FFN then processes each token <em>independently</em>, adding non-linear depth — the same little MLP applied at every position.</p>
+      <div class="fig">
+        <svg viewBox="0 0 720 180" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono" font-size="10.5">
+          <defs><marker id="ar3" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2E9E5B"/></marker></defs>
+          <rect x="20" y="74" width="70" height="34" rx="8" fill="#EAF1FB" stroke="#2E86DE"/><text x="55" y="95" text-anchor="middle" fill="#22282A">x · 64</text>
+          <line x1="90" y1="91" x2="124" y2="91" stroke="#2E9E5B" stroke-width="1.6" marker-end="url(#ar3)"/>
+          <rect x="126" y="64" width="110" height="54" rx="8" fill="#EAF5EE" stroke="#2E9E5B"/><text x="181" y="86" text-anchor="middle" fill="#1f6b3e">Linear 1</text><text x="181" y="101" text-anchor="middle" fill="#2E9E5B">64 → 256</text>
+          <line x1="236" y1="91" x2="268" y2="91" stroke="#2E9E5B" stroke-width="1.6" marker-end="url(#ar3)"/>
+          <rect x="270" y="64" width="96" height="54" rx="8" fill="#FBF1DD" stroke="#C9A24B"/><text x="318" y="86" text-anchor="middle" fill="#7a5f12">ReLU / GELU</text><text x="318" y="101" text-anchor="middle" fill="#9a7a1e">+ dropout</text>
+          <line x1="366" y1="91" x2="398" y2="91" stroke="#2E9E5B" stroke-width="1.6" marker-end="url(#ar3)"/>
+          <rect x="400" y="64" width="110" height="54" rx="8" fill="#EAF5EE" stroke="#2E9E5B"/><text x="455" y="86" text-anchor="middle" fill="#1f6b3e">Linear 2</text><text x="455" y="101" text-anchor="middle" fill="#2E9E5B">256 → 64</text>
+          <line x1="510" y1="91" x2="542" y2="91" stroke="#2E9E5B" stroke-width="1.6" marker-end="url(#ar3)"/>
+          <rect x="544" y="74" width="70" height="34" rx="8" fill="#E3EEEC" stroke="#0E5C58"/><text x="579" y="95" text-anchor="middle" fill="#093F3C">out · 64</text>
+          <text x="360" y="150" text-anchor="middle" fill="#7E8888">widen to 256, squeeze a non-linearity through it, project back to 64</text>
+        </svg>
+        <figcaption>The position-wise FFN: expand → activate → project back · the widening is where much of the model's capacity lives</figcaption>
+      </div>
+      <div class="tbl-scroll">
+        <table>
+          <caption>FFN shapes &amp; parameters (per layer)</caption>
+          <thead><tr><th>Step</th><th class="mono">Shape</th><th class="mono">Params</th></tr></thead>
+          <tbody>
+            <tr><td>Input</td><td class="mono">[32, 24, 64]</td><td class="mono">—</td></tr>
+            <tr><td>Linear 1 (64→256)</td><td class="mono">[32, 24, 256]</td><td class="mono">64×256 + 256 = 16,640</td></tr>
+            <tr><td>ReLU / GELU + dropout</td><td class="mono">[32, 24, 256]</td><td class="mono">0</td></tr>
+            <tr><td>Linear 2 (256→64)</td><td class="mono">[32, 24, 64]</td><td class="mono">256×64 + 64 = 16,448</td></tr>
+            <tr><td><b>FFN total</b></td><td class="mono">[32, 24, 64]</td><td class="mono"><b>33,088</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===================== SHAPE TRACKING ===================== -->
+    <section id="shapes" class="reveal">
+      <div class="sec-no">10</div>
+      <h2>Tensor shape tracking</h2>
+      <p class="lead-in">The whole pipeline on one page — what goes in, what comes out, and how many parameters each stage holds. (batch 32, L 24, d 64, 4 heads, d_ff 256.)</p>
+      <div class="tbl-scroll">
+        <table>
+          <caption>Every stage, end to end</caption>
+          <thead><tr><th>Stage</th><th class="mono">Input</th><th class="mono">Output</th><th class="mono">Params</th></tr></thead>
+          <tbody>
+            <tr><td>Tokenizer</td><td class="mono">"the cat sat"</td><td class="mono">[32, 24]</td><td class="mono">0</td></tr>
+            <tr><td>Input embedding</td><td class="mono">[32, 24]</td><td class="mono">[32, 24, 64]</td><td class="mono">vocab × 64</td></tr>
+            <tr><td>＋ Positional encoding</td><td class="mono">[32, 24, 64]</td><td class="mono">[32, 24, 64]</td><td class="mono">0 (sinusoidal)</td></tr>
+            <tr><td>Q / K / V projection</td><td class="mono">[32, 24, 64]</td><td class="mono">[32, 4, 24, 16] ×3</td><td class="mono">12,480</td></tr>
+            <tr><td>Scores Q·Kᵀ / √dₖ</td><td class="mono">[32,4,24,16]·[32,4,16,24]</td><td class="mono">[32, 4, 24, 24]</td><td class="mono">0</td></tr>
+            <tr><td>Softmax</td><td class="mono">[32, 4, 24, 24]</td><td class="mono">[32, 4, 24, 24]</td><td class="mono">0</td></tr>
+            <tr><td>Weighted sum · V</td><td class="mono">[32,4,24,24]·[32,4,24,16]</td><td class="mono">[32, 4, 24, 16]</td><td class="mono">0</td></tr>
+            <tr><td>Concat + W·O</td><td class="mono">[32, 4, 24, 16]</td><td class="mono">[32, 24, 64]</td><td class="mono">4,160</td></tr>
+            <tr><td>Add &amp; LayerNorm</td><td class="mono">[32, 24, 64]</td><td class="mono">[32, 24, 64]</td><td class="mono">128</td></tr>
+            <tr><td>Feed-forward (MLP)</td><td class="mono">[32, 24, 64]</td><td class="mono">[32, 24, 64]</td><td class="mono">33,088</td></tr>
+            <tr><td>Add &amp; LayerNorm</td><td class="mono">[32, 24, 64]</td><td class="mono">[32, 24, 64]</td><td class="mono">128</td></tr>
+            <tr><td><b>Encoder output</b></td><td class="mono">[32, 24, 64]</td><td class="mono">[32, 24, 64]</td><td class="mono"><b>≈ 50K / layer</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">Notice the through-line: from positional encoding onward, every shape is <span class="shape">[32, 24, 64]</span>. That invariance is the whole trick — it lets you stack N identical layers without any glue between them.</div>
+    </section>
+
+    <section id="summary" class="reveal">
+      <div class="sec-no">11</div>
+      <h2>Summary</h2>
+      <p class="lead-in">Embed the words, stamp in their positions, then repeat a two-step refinement N times: let every token attend to every other token, then let each token rethink itself — residuals and LayerNorm keeping it stable enough to stack deep.</p>
+      <div class="note"><strong>The one-line mental model:</strong> attention lets tokens <em>talk</em>; the feed-forward net lets each token <em>think</em>; Add&nbsp;&amp;&nbsp;Norm keeps the conversation stable — and the shape never changes, so the block stacks N times into the final contextual embeddings.</div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="big">Tokenize → embed → +position → (attention → Add&amp;Norm → FFN → Add&amp;Norm) × N → output</div>
+  <div>One pipeline, every shape preserved, watched end to end.</div>
+  <div class="links">
+    <a href="https://poloclub.github.io/transformer-explainer/" target="_blank" rel="noopener">Transformer Explainer</a> ·
+    <a href="https://www.comet.com/site/blog/explainable-ai-for-transformers/" target="_blank" rel="noopener">Comet · Explainable AI</a> ·
+    <a href="https://jalammar.github.io/illustrated-transformer/" target="_blank" rel="noopener">The Illustrated Transformer</a> ·
+    <a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Attention Is All You Need</a>
+  </div>
+  <div class="sub">A self-contained, no-library interactive companion. Built in the Editorial Notebook style.</div>
+</footer>
+
+<script>
+const $=id=>document.getElementById(id);
+
+/* ---------- chrome ---------- */
+const prog=$('progress'),tb=$('topbar');
+function onScroll(){const h=document.documentElement,m=h.scrollHeight-h.clientHeight;prog.style.width=(m>0?h.scrollTop/m*100:0)+'%';tb.classList.toggle('solid',h.scrollTop>40);}
+document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in');}),{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+const tl=[...document.querySelectorAll('.toc a')];
+const spy=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;tl.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));}}),{rootMargin:'-25% 0px -65% 0px'});
+document.querySelectorAll('main section[id]').forEach(s=>spy.observe(s));
+
+/* ---------- math helpers ---------- */
+function mat(rows,cols,fn){const m=[];for(let i=0;i<rows;i++){const r=[];for(let j=0;j<cols;j++)r.push(fn(i,j));m.push(r);}return m;}
+function transpose(M){return M[0].map((_,j)=>M.map(r=>r[j]));}
+function matmul(A,B){const Bt=transpose(B);return A.map(r=>Bt.map(c=>r.reduce((s,v,k)=>s+v*c[k],0)));}
+function scale(M,s){return M.map(r=>r.map(v=>v*s));}
+function softmaxRows(M){return M.map(r=>{const mx=Math.max(...r);const ex=r.map(v=>Math.exp(v-mx));const sum=ex.reduce((a,b)=>a+b,0);return ex.map(v=>v/sum);});}
+
+/* ---------- toy data (3 tokens, d=4) ---------- */
+const TOKENS=['the','cat','sat'], IDS=[1996,4937,2938];
+const E=[[0.8,-0.3,0.5,0.1],[-0.2,0.9,-0.4,0.6],[0.4,0.2,0.7,-0.5]];
+const P=mat(3,4,(p,k)=>{const i=Math.floor(k/2);const d=Math.pow(10000,(2*i)/4);return k%2===0?Math.sin(p/d):Math.cos(p/d);});
+const X=E.map((r,i)=>r.map((v,j)=>v+P[i][j]));           // input
+const SCORES=scale(matmul(X,transpose(X)),1/Math.sqrt(4)); // Q=K=V=X (toy)
+const W=softmaxRows(SCORES);                              // attention weights
+const CTX=matmul(W,X);                                    // weighted sum
+// a normalized-ish output for the final frame
+const OUT=CTX.map(r=>{const mu=r.reduce((a,b)=>a+b,0)/r.length;const v=r.reduce((a,b)=>a+(b-mu)**2,0)/r.length;return r.map(x=>(x-mu)/Math.sqrt(v+1e-5));});
+
+/* ---------- colour helpers (on dark) ---------- */
+const BASE=[32,52,49], TEAL=[80,200,182], AMBER=[240,150,108], GOLD=[240,200,90];
+function mix(a,b,t){t=Math.max(0,Math.min(1,t));return `rgb(${Math.round(a[0]+(b[0]-a[0])*t)},${Math.round(a[1]+(b[1]-a[1])*t)},${Math.round(a[2]+(b[2]-a[2])*t)})`;}
+function embColor(v){const t=Math.min(Math.abs(v)/1.4,1);return mix(BASE,v>=0?TEAL:AMBER,t);}
+function probColor(p){return mix(BASE,GOLD,p);}
+
+function gridHTML(M,opts={}){
+  const cols=M[0].length;
+  let inner=M.map((row,i)=>row.map(v=>{
+    const c=opts.prob?probColor(v):embColor(v);
+    const txt=opts.num? (Math.abs(v)<1?v.toFixed(2).replace(/^0/,'').replace(/^-0/,'-'):v.toFixed(1)) : '';
+    return `<div class="cell" style="background:${c}">${txt}</div>`;}).join('')).join('');
+  const labs=opts.rowlabs? `<div style="display:flex;flex-direction:column;gap:3px;justify-content:center;margin-right:6px">${opts.rowlabs.map(l=>`<div style="height:24px;display:flex;align-items:center;font:600 10px var(--mono);color:#9fc9c3">${l}</div>`).join('')}</div>`:'';
+  return `<div style="display:flex;align-items:center">${labs}<div class="mat" style="grid-template-columns:repeat(${cols},1fr)">${inner}</div></div>`;
+}
+
+/* ---------- the cinema stages ---------- */
+const STAGES=[
+ {tag:'Text', title:'1 · Raw text', op:'read string',
+  blurb:'It all starts with a plain sentence. The model can\'t use letters directly — everything downstream is numbers.',
+  in:'"the cat sat"', out:'string', param:'0',
+  vis:()=>`<div class="vtitle">input string</div><div style="font:600 26px var(--disp);color:#fff">"the&nbsp;cat&nbsp;sat"</div>`},
+ {tag:'Tokenizer', title:'2 · Tokenizer', op:'split into tokens',
+  blurb:'A tokenizer chops the string into known pieces (here, whole words). Real models use sub-word pieces.',
+  in:'"the cat sat"', out:'3 tokens', param:'0',
+  vis:()=>`<div class="vtitle">tokens</div><div class="mrow">${TOKENS.map(t=>`<div class="wchip">${t}</div>`).join('')}</div>`},
+ {tag:'Token IDs', title:'3 · Token IDs', op:'vocabulary lookup',
+  blurb:'Each token maps to an integer ID from the vocabulary. This is the [batch, sequence] tensor.',
+  in:'3 tokens', out:'[32, 24]', param:'0',
+  vis:()=>`<div class="vtitle">integer ids</div><div class="mrow">${TOKENS.map((t,i)=>`<div class="wchip">${t}<span class="id">${IDS[i]}</span></div>`).join('')}</div>`},
+ {tag:'Embedding', title:'4 · Input embeddings', op:'lookup table → vectors',
+  blurb:'Each ID expands into a dense d-dim vector (toy: 4 dims). Colour = value (teal +, amber −). Still context-free.',
+  in:'[32, 24]', out:'[32, 24, 64]', param:'vocab × 64',
+  vis:()=>`<div class="vtitle">embedding matrix  (3 × 4 toy)</div>${gridHTML(E,{num:true,rowlabs:TOKENS})}`},
+ {tag:'+ Position', title:'5 · Positional encoding', op:'add sin/cos vectors',
+  blurb:'A position vector (sin/cos waves) is ADDED to each embedding so the model knows word order. Shape unchanged.',
+  in:'[32, 24, 64]', out:'[32, 24, 64]', param:'0',
+  vis:()=>`<div class="vtitle">embedding + position = input</div><div class="mrow">${gridHTML(E,{num:false,rowlabs:TOKENS})}<span class="op">+</span>${gridHTML(P)}<span class="op">=</span>${gridHTML(X)}</div>`},
+ {tag:'Q · K · V', title:'6 · Q, K, V projection', op:'3 linear maps + split heads',
+  blurb:'The input is projected into Query, Key and Value, then split across 4 heads (64 → 4 × 16).',
+  in:'[32, 24, 64]', out:'[32, 4, 24, 16] ×3', param:'12,480',
+  vis:()=>`<div class="vtitle">query · key · value</div><div class="mrow"><div><div class="mlab">Q</div>${gridHTML(X)}</div><div><div class="mlab">K</div>${gridHTML(X)}</div><div><div class="mlab">V</div>${gridHTML(X)}</div></div>`},
+ {tag:'Scores', title:'7 · Scores  Q·Kᵀ / √dₖ', op:'matmul + scale',
+  blurb:'Every query dots with every key → a relevance score for each pair. Divide by √dₖ (=4) to keep scores tame.',
+  in:'[32,4,24,16]·[32,4,16,24]', out:'[32, 4, 24, 24]', param:'0',
+  vis:()=>`<div class="vtitle">raw scores  (3 × 3 toy)</div>${gridHTML(SCORES,{num:true,rowlabs:TOKENS})}`},
+ {tag:'Softmax', title:'8 · Softmax', op:'row-wise softmax',
+  blurb:'Each row of scores becomes positive weights that sum to 1 — how much each token attends to every other.',
+  in:'[32, 4, 24, 24]', out:'[32, 4, 24, 24]', param:'0',
+  vis:()=>`<div class="vtitle">attention weights · rows sum to 1</div>${gridHTML(W,{num:true,prob:true,rowlabs:TOKENS})}`},
+ {tag:'× V', title:'9 · Weighted sum · V', op:'weights × Value',
+  blurb:'Multiply weights by V: each token\'s output is a blend of all values, weighted by relevance. Context appears.',
+  in:'[32,4,24,24]·[32,4,24,16]', out:'[32, 4, 24, 16]', param:'0',
+  vis:()=>`<div class="vtitle">attention output</div>${gridHTML(CTX,{num:true,rowlabs:TOKENS})}`},
+ {tag:'Concat', title:'10 · Concat heads + Wᴼ', op:'merge heads, project',
+  blurb:'The 4 head outputs concatenate back to 64 and pass through an output projection — shape matches the input.',
+  in:'[32, 4, 24, 16]', out:'[32, 24, 64]', param:'4,160',
+  vis:()=>`<div class="vtitle">4 heads → concat → project</div><div class="bars">${[16,16,16,16].map((h,i)=>`<div class="bar" style="height:${40}px"></div>`).join('')}<span class="op">→</span><div class="bar wide" style="height:70px;width:54px"></div></div><div class="mlab" style="margin-top:8px">4 × 16  =  64</div>`},
+ {tag:'Add+Norm', title:'11 · Add &amp; LayerNorm', op:'residual + normalize',
+  blurb:'Add the input back (residual skip), then LayerNorm each token vector to mean 0 / variance 1, scale γ, shift β.',
+  in:'[32, 24, 64]', out:'[32, 24, 64]', param:'128',
+  vis:()=>`<div class="vtitle">x + attn(x), then normalize</div><div class="mrow">${gridHTML(X)}<span class="op">+</span>${gridHTML(CTX)}<span class="op">→</span>${gridHTML(OUT,{rowlabs:TOKENS})}</div>`},
+ {tag:'FFN', title:'12 · Feed-forward (MLP)', op:'64 → 256 → 64',
+  blurb:'Each token is processed independently: expand to 256, apply ReLU/GELU, project back to 64. Adds non-linear depth.',
+  in:'[32, 24, 64]', out:'[32, 24, 64]', param:'33,088',
+  vis:()=>`<div class="vtitle">widen → activate → narrow</div><div class="bars"><div class="bar" style="height:36px">64</div><span class="op">→</span><div class="bar wide pulse" style="height:88px;width:46px">256</div><span class="op">→</span><div class="bar" style="height:36px">64</div></div>`},
+ {tag:'Add+Norm', title:'13 · Add &amp; LayerNorm', op:'residual + normalize',
+  blurb:'Second residual + LayerNorm, this time around the FFN. One full encoder layer is now complete.',
+  in:'[32, 24, 64]', out:'[32, 24, 64]', param:'128',
+  vis:()=>`<div class="vtitle">x + ffn(x), then normalize</div>${gridHTML(OUT,{rowlabs:TOKENS})}`},
+ {tag:'Output', title:'14 · Encoder output', op:'× N layers → result',
+  blurb:'After N stacked layers, out come context-rich vectors — one per token, each aware of the whole sentence.',
+  in:'[32, 24, 64]', out:'[32, 24, 64]', param:'≈ 50K / layer',
+  vis:()=>`<div class="vtitle">contextual embeddings ✓</div>${gridHTML(OUT,{num:true,prob:false,rowlabs:TOKENS})}`}
+];
+
+/* build track chips */
+$('track').innerHTML=STAGES.map((s,i)=>`<div class="tchip" data-i="${i}">${i+1}. ${s.tag}</div>`).join('');
+const chips=[...document.querySelectorAll('#track .tchip')];
+chips.forEach(c=>c.onclick=()=>{pause();show(+c.dataset.i);});
+
+let ci=0, timer=null;
+function show(i){
+  ci=(i+STAGES.length)%STAGES.length; const s=STAGES[ci];
+  $('stageVisual').innerHTML=s.vis();
+  $('siTitle').innerHTML=s.title;
+  $('siBlurb').textContent=s.blurb;
+  $('siIn').innerHTML=s.in; $('siOp').innerHTML=s.op; $('siOut').innerHTML='<b>'+s.out+'</b>'; $('siParam').innerHTML=s.param;
+  $('cineSub').textContent=`stage ${ci+1} / ${STAGES.length}`;
+  $('cStep').textContent=`${ci+1} / ${STAGES.length}`;
+  $('pfill').style.width=((ci+1)/STAGES.length*100)+'%';
+  chips.forEach((c,k)=>{c.classList.toggle('on',k===ci);c.classList.toggle('done',k<ci);});
+  const on=chips[ci]; if(on) on.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+}
+function play(){ if(timer) return; $('cPlay').textContent='⏸ Pause';
+  timer=setInterval(()=>show(ci+1),2200);}
+function pause(){ if(timer){clearInterval(timer);timer=null;} $('cPlay').textContent='▶ Play';}
+$('cPlay').onclick=()=>{timer?pause():play();};
+$('cNext').onclick=()=>{pause();show(ci+1);};
+$('cPrev').onclick=()=>{pause();show(ci-1);};
+$('cRestart').onclick=()=>{pause();show(0);play();};
+show(0); play();
+
+/* ---------- attention heatmap (section 7.3) ---------- */
+(function(){
+  const n=8, words=['the','cat','sat','on','the','warm','mat','.'];
+  // structured weights: self + a couple neighbours
+  const raw=mat(n,n,(i,j)=>{let v=(i===j?2.4:0)+Math.exp(-Math.abs(i-j)/1.4)*1.2;if((i===1&&j===6)||(i===6&&j===1))v+=1.6;return v;});
+  const Wt=softmaxRows(raw);
+  const cell=26,pad=54,W=pad+n*cell+10,H=pad+n*cell+10;
+  function col(p){const base=[227,238,236],teal=[14,92,88];const t=Math.min(p*2.2,1);return `rgb(${Math.round(base[0]+(teal[0]-base[0])*t)},${Math.round(base[1]+(teal[1]-base[1])*t)},${Math.round(base[2]+(teal[2]-base[2])*t)})`;}
+  let s=`<svg viewBox="0 0 ${W} ${H}" style="max-width:420px" font-family="JetBrains Mono" font-size="9">`;
+  for(let j=0;j<n;j++) s+=`<text x="${pad+j*cell+cell/2}" y="${pad-8}" text-anchor="middle" fill="#7E8888" transform="rotate(-45 ${pad+j*cell+cell/2} ${pad-8})">${words[j]}</text>`;
+  for(let i=0;i<n;i++){
+    s+=`<text x="${pad-8}" y="${pad+i*cell+cell/2+3}" text-anchor="end" fill="#7E8888">${words[i]}</text>`;
+    for(let j=0;j<n;j++) s+=`<rect x="${pad+j*cell}" y="${pad+i*cell}" width="${cell-2}" height="${cell-2}" rx="3" fill="${col(Wt[i][j])}"/>`;
+  }
+  s+=`<text x="${pad+n*cell/2}" y="${H-2}" text-anchor="middle" fill="#7E8888">keys →</text></svg>`;
+  $('heatmap').innerHTML=s;
+})();
+
+/* ---------- positional waves (section 6) ---------- */
+(function(){
+  const w=720,h=200,padL=30,padR=14,padT=16,padB=24,xmin=0,xmax=24;
+  const X=x=>padL+(x/xmax)*(w-padL-padR), Y=v=>h/2-v*((h-padT-padB)/2);
+  const freqs=[1,0.45,0.2,0.08], cols=['#0E5C58','#C9A24B','#2E86DE','#D9663B'];
+  let s=`<line x1="${padL}" y1="${h/2}" x2="${w-padR}" y2="${h/2}" stroke="#E4DBCB"/>`;
+  freqs.forEach((f,k)=>{let d='M';for(let i=0;i<=240;i++){const x=xmin+(xmax-xmin)*i/240;const y=(k%2===0?Math.sin(x*f):Math.cos(x*f));d+=`${X(x).toFixed(1)},${Y(y).toFixed(1)} `;if(i===0)d+='L';}s+=`<path d="${d}" fill="none" stroke="${cols[k]}" stroke-width="2" opacity=".9"/>`;});
+  s+=`<text x="${w-padR}" y="${padT+8}" text-anchor="end" font-family="JetBrains Mono" font-size="10" fill="#7E8888">dim 0 · dim 1 · dim 2 · dim 3 (different wavelengths)</text>`;
+  s+=`<text x="${X(xmax)}" y="${h-6}" text-anchor="end" font-family="JetBrains Mono" font-size="10" fill="#7E8888">position →</text>`;
+  $('posSvg').innerHTML=s;
+})();
+
+/* ---------- hero ---------- */
+(function(){
+  const w=440,h=300;
+  const box=(x,y,wd,t,fill,stroke)=>`<rect x="${x}" y="${y}" width="${wd}" height="32" rx="9" fill="${fill}" stroke="${stroke}" stroke-width="1.4"/><text x="${x+wd/2}" y="${y+21}" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#22282A">${t}</text>`;
+  let s=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+  ['the','cat','sat'].forEach((t,i)=>{s+=`<circle class="pnode" cx="${78+i*64}" cy="36" r="15" fill="#EAF1FB" stroke="#2E86DE" style="animation-delay:${i*.5}s"/><text x="${78+i*64}" y="40" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#2E86DE">${t}</text>`;});
+  s+=`<g stroke-width="2.5">
+    <path class="beam" d="M78 51 C 78 78, 160 84, 160 100" stroke="#0E5C58"/>
+    <path class="beam" d="M142 51 C 142 78, 180 84, 180 100" stroke="#0E5C58" style="animation-delay:.6s"/>
+    <path class="beam" d="M206 51 C 206 78, 200 84, 200 100" stroke="#0E5C58" style="animation-delay:1.2s"/></g>`;
+  s+=`<rect x="60" y="100" width="320" height="156" rx="14" fill="rgba(227,238,236,.5)" stroke="#0E5C58" stroke-dasharray="5 4"/>`;
+  s+=`<text x="368" y="116" text-anchor="end" font-family="JetBrains Mono" font-size="9" fill="#0E5C58">encoder ×N</text>`;
+  s+=box(120,118,200,'Self-Attention','#E3EEEC','#0E5C58');
+  s+=box(120,164,200,'Add & Norm','#FBF1DD','#C9A24B');
+  s+=box(120,210,200,'Feed-Forward 64→256→64','#EAF5EE','#2E9E5B');
+  s+=`<text x="${w/2}" y="284" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#7E8888">context-rich vectors out ↓  [32,24,64]</text>`;
+  s+=`</svg>`;
+  $('heroSvg').innerHTML=s;
+})();
+</script>
+</body>
+</html>
