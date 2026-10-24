@@ -45,7 +45,7 @@ widgets still run, and MathJax equations still render.
 - **Scroll UI wiring depends on exact selectors/IDs:** `#progress`, `#topbar`, `.reveal`,
   `.toc a`, `main section[id]`. Renaming any of these silently kills the progress bar, scroll
   reveal, or scrollspy.
-- **Stepped-walkthrough widgets** (notably inclaude --resume 9461ed95-23f3-4f77-abba-a425162c4712 `self_attention.html` and `backpropagation.html`)
+- **Stepped-walkthrough widgets** (notably in `self_attention.html` and `backpropagation.html`)
   are driven by a `STEPS` array plus fixed DOM IDs; each step declares the *full* visual state,
   not a diff. Update the step state and the element IDs together.
 - **Keep the `@media (prefers-reduced-motion: reduce)` guard as the last rule** in each page's
@@ -57,5 +57,3 @@ widgets still run, and MathJax equations still render.
 - MathJax from jsDelivr on every page **except** `transformer-encoder-animated.html`. If you
   inject or change math after initial render, call `MathJax.typesetPromise()` (see
   `activation-functions-blog.html` and `normalization-guide.html` for the pattern).
-
-claude --resume 9461ed95-23f3-4f77-abba-a425162c4712
