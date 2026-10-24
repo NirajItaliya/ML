@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STT Conformer Architecture A4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Spectral:ital,wght@0,400;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#fff;--ink:#22282A;--soft:#4C5658;--muted:#7E8888;--line:#D9D0BF;--teal:#0E5C58;--teal-deep:#093F3C;--teal-soft:#E3EEEC;--amber:#D9663B;--amber-soft:#F7E4D8;--gold:#C9A24B;--gold-soft:#F3EAD3;--violet:#6C5CE7;--violet-soft:#ECEAFB;--blue:#2E86DE;--blue-soft:#E2EEF9;--green:#2E9E5B;--mono:'JetBrains Mono',monospace;--disp:'Fraunces',Georgia,serif;--body:'Spectral',Georgia,serif}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{display:flex;justify-content:center;min-height:100vh;background:#EDE7DA;color:var(--ink)}
+.sheet-nav{position:fixed;top:14px;right:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;z-index:5;max-width:calc(100vw - 28px)}
+.sheet-nav a,.sheet-nav button{font-family:var(--mono);font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding:8px 13px;min-height:36px;border-radius:999px;border:1px solid #E4DBCB;background:#fff;color:var(--teal);cursor:pointer;text-decoration:none;transition:border-color .2s,transform .2s,background .2s}
+.sheet-nav a:hover,.sheet-nav button:hover{border-color:var(--amber);background:#FBF7EF;transform:translateY(-1px)}
+.sheet-nav a:focus-visible,.sheet-nav button:focus-visible{outline:3px solid rgba(217,102,59,.35);outline-offset:2px}
+svg{display:block;width:min(1240px,calc(100vw - 24px));height:auto;margin:24px 0;box-shadow:0 10px 40px -12px rgba(20,40,38,.3);background:#fff}
+svg .stage{transform-box:fill-box;transform-origin:center;transition:filter .25s,opacity .25s}
+svg .stage.is-active{animation:stageFocus .72s ease-out both}
+svg .flow-line{transition:stroke .2s,stroke-width .2s}
+svg .flow-line.is-active{stroke:#D9663B!important;stroke-width:4!important;stroke-dasharray:9 13;animation:signalDash .72s linear both;filter:drop-shadow(0 0 4px rgba(217,102,59,.55))}
+svg .wave-live{stroke-dasharray:620;animation:waveDraw 5.8s ease-in-out infinite}
+svg .heat-live{animation:heatPulse 3.6s ease-in-out infinite;animation-delay:var(--delay,0s)}
+svg .head-live{animation:headBreathe 4.2s ease-in-out infinite;animation-delay:var(--delay,0s)}
+body.paused svg *{animation-play-state:paused!important}
+@keyframes stageFocus{0%{filter:none;opacity:.84}42%{filter:drop-shadow(0 0 10px rgba(217,102,59,.68));opacity:1}100%{filter:none;opacity:1}}
+@keyframes signalDash{from{stroke-dashoffset:32}to{stroke-dashoffset:-32}}
+@keyframes waveDraw{0%,100%{stroke-dashoffset:620;opacity:.45}45%,75%{stroke-dashoffset:0;opacity:1}}
+@keyframes heatPulse{0%,100%{opacity:.42}50%{opacity:1}}
+@keyframes headBreathe{0%,100%{opacity:.65}50%{opacity:1;filter:drop-shadow(0 0 5px rgba(108,92,231,.45))}}
+@media(max-width:700px){body{padding-top:62px}.sheet-nav{top:8px;left:8px;right:8px;justify-content:center}.sheet-nav a,.sheet-nav button{font-size:10px;padding:7px 10px}svg{margin:8px 0;width:calc(100vw - 12px)}}
+@media print{.sheet-nav{display:none}body{background:#fff;padding:0}svg{box-shadow:none;margin:0;width:210mm;height:297mm}@page{size:A4 portrait;margin:0}}
+body.export{background:#fff;padding:0}body.export .sheet-nav{display:none}body.export svg{width:1240px;height:1754px;margin:0;box-shadow:none}
+@media(prefers-reduced-motion:reduce){svg *{animation:none!important;transition:none!important}.motion-toggle{display:none}}
+</style>
+</head>
+<body>
+<nav class="sheet-nav" aria-label="Reference sheet actions">
+  <a href="../index.html">Home</a>
+  <a href="../stt.html">Full guide</a>
+  <a href="stt-conformer-architecture-A4.png" download>Download PNG</a>
+  <button class="motion-toggle" id="motionToggle" type="button" aria-pressed="false">Pause motion</button>
+  <button type="button" onclick="print()">Print / PDF</button>
+</nav>
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754" role="img" aria-labelledby="sheetTitle sheetDesc">
+<title id="sheetTitle">Speech-to-text Conformer architecture A4 reference sheet</title>
+<desc id="sheetDesc">An end-to-end speech recognition pipeline from waveform through STFT, log-Mel features, CNN subsampling, Conformer blocks, a vocabulary head and CTC decoding, with tensor shapes and module details.</desc>
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0,0 L8,3.5 L0,7 Z" fill="#4C5658"/></marker>
+  <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0,0 L8,3.5 L0,7 Z" fill="#2E9E5B"/></marker>
+  <linearGradient id="spec" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#093F3C"/><stop offset=".52" stop-color="#C9A24B"/><stop offset="1" stop-color="#D9663B"/></linearGradient>
+</defs>
+<rect width="1240" height="1754" fill="#fff"/>
+
+<!-- Header -->
+<text x="50" y="62" font-family="'JetBrains Mono',monospace" font-size="13" fill="#D9663B" font-weight="600">SPEECH-TO-TEXT · CONFORMER · END-TO-END ARCHITECTURE</text>
+<text x="50" y="102" font-family="Fraunces,Georgia,serif" font-size="32" fill="#093F3C" font-weight="600">From waveform samples to a CTC transcript, step by step</text>
+<text x="50" y="130" font-family="'JetBrains Mono',monospace" font-size="12.5" fill="#4C5658">Worked CTC example: 5 s · 16 kHz · 80 Mel bins · d_model 256 · 4 heads · d_ff 1024 · 16 blocks · conv kernel 32</text>
+<line x1="50" y1="146" x2="1190" y2="146" stroke="#D9D0BF" stroke-width="1.2"/>
+
+<!-- Main flow heading -->
+<text x="50" y="178" font-family="'JetBrains Mono',monospace" font-size="11" fill="#7E8888" font-weight="600">MAIN SIGNAL FLOW · ONE FIVE-SECOND UTTERANCE</text>
+
+<!-- 01 waveform -->
+<g class="stage" data-step="0">
+  <rect x="130" y="190" width="400" height="68" rx="11" fill="#E3EEEC" stroke="#0E5C58" stroke-width="1.7"/>
+  <path class="wave-live" d="M158 225 C168 190 178 257 188 211 S208 201 218 235 S238 252 248 207 S268 194 278 239 S298 250 308 205 S328 196 338 238 S358 252 368 210 S388 196 398 237 S418 250 428 208 S448 198 468 228 S492 243 505 216" fill="none" stroke="#0E5C58" stroke-width="3"/>
+  <text x="330" y="211" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Digital waveform</text>
+  <text x="330" y="249" font-family="'JetBrains Mono',monospace" font-size="11" fill="#4C5658" text-anchor="middle">5 s × 16,000 samples/s = 80,000 samples</text>
+  <text x="116" y="230" font-family="'JetBrains Mono',monospace" font-size="15" fill="#D9663B" text-anchor="end" font-weight="600">01</text>
+  <text x="548" y="230" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#6C5CE7" font-weight="600">(80,000)</text>
+</g>
+<line class="flow-line" data-step="1" x1="330" y1="258" x2="330" y2="282" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+<!-- 02 framing and STFT -->
+<g class="stage" data-step="1">
+  <rect x="130" y="284" width="400" height="72" rx="11" fill="#E2EEF9" stroke="#2E86DE" stroke-width="1.7"/>
+  <text x="330" y="307" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Framing + Hann window + STFT</text>
+  <text x="330" y="329" font-family="'JetBrains Mono',monospace" font-size="11" fill="#4C5658" text-anchor="middle">25 ms window · 10 ms hop · rFFT per frame</text>
+  <text x="330" y="346" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#7E8888" text-anchor="middle">time samples → frequency power over time</text>
+  <text x="116" y="325" font-family="'JetBrains Mono',monospace" font-size="15" fill="#D9663B" text-anchor="end" font-weight="600">02</text>
+  <text x="548" y="325" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#6C5CE7" font-weight="600">≈ (500, 201)</text>
+</g>
+<line class="flow-line" data-step="2" x1="330" y1="356" x2="330" y2="380" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+<!-- 03 log Mel -->
+<g class="stage" data-step="2">
+  <rect x="130" y="382" width="400" height="74" rx="11" fill="#0E2A28" stroke="#C9A24B" stroke-width="1.7"/>
+  <g>
+    <rect class="heat-live" style="--delay:0s" x="153" y="400" width="14" height="37" rx="2" fill="#0E5C58"/><rect class="heat-live" style="--delay:.15s" x="170" y="395" width="14" height="42" rx="2" fill="#C9A24B"/><rect class="heat-live" style="--delay:.3s" x="187" y="405" width="14" height="32" rx="2" fill="#D9663B"/><rect class="heat-live" style="--delay:.45s" x="204" y="392" width="14" height="45" rx="2" fill="#C9A24B"/><rect class="heat-live" style="--delay:.6s" x="221" y="401" width="14" height="36" rx="2" fill="#0E5C58"/>
+  </g>
+  <text x="360" y="410" font-family="Fraunces,Georgia,serif" font-size="16" fill="#fff" text-anchor="middle" font-weight="600">Mel filter bank + log compression</text>
+  <text x="360" y="432" font-family="'JetBrains Mono',monospace" font-size="11" fill="#BFD8D4" text-anchor="middle">speech-friendly continuous feature frames</text>
+  <text x="116" y="425" font-family="'JetBrains Mono',monospace" font-size="15" fill="#D9663B" text-anchor="end" font-weight="600">03</text>
+  <text x="548" y="425" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#6C5CE7" font-weight="600">(1, 500, 80)</text>
+</g>
+<line class="flow-line" data-step="3" x1="330" y1="456" x2="330" y2="480" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+<!-- 04 CNN subsampling -->
+<g class="stage" data-step="3">
+  <rect x="100" y="482" width="460" height="112" rx="12" fill="#F3EAD3" stroke="#C9A24B" stroke-width="1.8"/>
+  <text x="330" y="505" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">2D CNN subsampling · two stride-2 layers</text>
+  <rect x="130" y="522" width="112" height="42" rx="8" fill="#fff" stroke="#C9A24B"/><text x="186" y="540" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#22282A" text-anchor="middle" font-weight="600">Conv2d 1→32</text><text x="186" y="555" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#7E8888" text-anchor="middle">k3 · s2 · p1</text>
+  <line class="flow-line" data-step="4" x1="242" y1="543" x2="278" y2="543" stroke="#4C5658" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="280" y="522" width="112" height="42" rx="8" fill="#fff" stroke="#D9663B"/><text x="336" y="540" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#22282A" text-anchor="middle" font-weight="600">Conv2d 32→64</text><text x="336" y="555" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#7E8888" text-anchor="middle">k3 · s2 · p1</text>
+  <line class="flow-line" data-step="4" x1="392" y1="543" x2="428" y2="543" stroke="#4C5658" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="430" y="522" width="100" height="42" rx="8" fill="#F7E4D8" stroke="#D9663B"/><text x="480" y="540" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#D9663B" text-anchor="middle" font-weight="600">time ÷ 4</text><text x="480" y="555" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#7E8888" text-anchor="middle">cost ≈ ÷16</text>
+  <text x="330" y="583" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#4C5658" text-anchor="middle">(1,1,500,80) → (1,32,250,40) → (1,64,125,20)</text>
+  <text x="86" y="544" font-family="'JetBrains Mono',monospace" font-size="15" fill="#D9663B" text-anchor="end" font-weight="600">04</text>
+</g>
+<line class="flow-line" data-step="5" x1="330" y1="594" x2="330" y2="618" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+<!-- 05 flatten and project -->
+<g class="stage" data-step="5">
+  <rect x="130" y="620" width="400" height="68" rx="11" fill="#E3EEEC" stroke="#0E5C58" stroke-width="1.7"/>
+  <text x="330" y="644" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Permute · flatten channel × frequency · project</text>
+  <text x="330" y="670" font-family="'JetBrains Mono',monospace" font-size="11" fill="#4C5658" text-anchor="middle">(1,64,125,20) → (1,125,1280) → Linear(1280,256)</text>
+  <text x="116" y="660" font-family="'JetBrains Mono',monospace" font-size="15" fill="#D9663B" text-anchor="end" font-weight="600">05</text>
+  <text x="548" y="660" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#6C5CE7" font-weight="600">X : (1,125,256)</text>
+</g>
+<line class="flow-line" data-step="6" x1="330" y1="688" x2="330" y2="724" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+<!-- 06 Conformer stack -->
+<rect x="60" y="708" width="560" height="510" rx="18" fill="#FFFDF8" stroke="#0E5C58" stroke-width="2.2" stroke-dasharray="8 5"/>
+<rect x="80" y="694" width="322" height="29" rx="14" fill="#0E5C58"/>
+<text x="241" y="714" font-family="'JetBrains Mono',monospace" font-size="13" fill="#fff" text-anchor="middle" font-weight="600">CONFORMER BLOCK × N = 16</text>
+<text x="605" y="734" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#0E5C58" text-anchor="end" font-style="italic">each block has its own weights</text>
+
+<g class="stage" data-step="6">
+  <rect x="140" y="746" width="380" height="72" rx="11" fill="#F3EAD3" stroke="#C9A24B" stroke-width="1.7"/>
+  <text x="330" y="770" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Macaron FFN 1 · half-step residual</text>
+  <text x="330" y="793" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#4C5658" text-anchor="middle">LN → Linear 256→1024 → SiLU → Linear 1024→256</text>
+  <text x="330" y="810" font-family="'JetBrains Mono',monospace" font-size="10" fill="#D9663B" text-anchor="middle" font-weight="600">x₁ = x + 0.5 · FFN₁(x)</text>
+</g>
+<line class="flow-line" data-step="7" x1="330" y1="818" x2="330" y2="842" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="7">
+  <rect x="140" y="844" width="380" height="80" rx="11" fill="#ECEAFB" stroke="#6C5CE7" stroke-width="1.7"/>
+  <text x="330" y="869" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Relative-position multi-head self-attention</text>
+  <text x="330" y="892" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#4C5658" text-anchor="middle">4 heads × d_head 64 · global content-dependent context</text>
+  <g fill="#6C5CE7"><rect class="head-live" style="--delay:0s" x="235" y="902" width="38" height="10" rx="3"/><rect class="head-live" style="--delay:.2s" x="284" y="902" width="38" height="10" rx="3"/><rect class="head-live" style="--delay:.4s" x="333" y="902" width="38" height="10" rx="3"/><rect class="head-live" style="--delay:.6s" x="382" y="902" width="38" height="10" rx="3"/></g>
+</g>
+<line class="flow-line" data-step="8" x1="330" y1="924" x2="330" y2="948" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="8">
+  <rect x="120" y="950" width="420" height="112" rx="12" fill="#F7E4D8" stroke="#D9663B" stroke-width="1.8"/>
+  <text x="330" y="974" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Convolution module · local speech patterns</text>
+  <text x="330" y="997" font-family="'JetBrains Mono',monospace" font-size="10" fill="#4C5658" text-anchor="middle">LN → PW Conv D→2D → GLU 2D→D → depthwise Conv1d k32</text>
+  <text x="330" y="1017" font-family="'JetBrains Mono',monospace" font-size="10" fill="#4C5658" text-anchor="middle">→ BatchNorm → SiLU → PW Conv D→D → dropout</text>
+  <text x="330" y="1046" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#D9663B" text-anchor="middle" font-weight="600">pointwise mixes channels · depthwise mixes nearby time</text>
+</g>
+<line class="flow-line" data-step="9" x1="330" y1="1062" x2="330" y2="1086" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="9">
+  <rect x="140" y="1088" width="380" height="70" rx="11" fill="#F3EAD3" stroke="#C9A24B" stroke-width="1.7"/>
+  <text x="330" y="1112" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Macaron FFN 2 · half-step residual</text>
+  <text x="330" y="1136" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#4C5658" text-anchor="middle">x₄ = x₃ + 0.5 · FFN₂(x₃)</text>
+</g>
+<line class="flow-line" data-step="10" x1="330" y1="1158" x2="330" y2="1172" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="10">
+  <rect x="190" y="1174" width="280" height="34" rx="10" fill="#E3EEEC" stroke="#0E5C58" stroke-width="1.6"/>
+  <text x="330" y="1196" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#093F3C" text-anchor="middle" font-weight="600">Final LayerNorm → same (1,125,256)</text>
+</g>
+<text x="82" y="1204" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#2E9E5B" font-weight="600">four residual additions per block</text>
+<line class="flow-line" data-step="11" x1="330" y1="1218" x2="330" y2="1244" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+<!-- 07 vocab head -->
+<g class="stage" data-step="11">
+  <rect x="130" y="1246" width="400" height="66" rx="11" fill="#E3EEEC" stroke="#093F3C" stroke-width="1.7"/>
+  <text x="330" y="1270" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Contextual acoustics → shared vocabulary head</text>
+  <text x="330" y="1295" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#4C5658" text-anchor="middle">Linear(256,V) · softmax over blank / characters / subwords</text>
+  <text x="116" y="1285" font-family="'JetBrains Mono',monospace" font-size="15" fill="#D9663B" text-anchor="end" font-weight="600">07</text>
+  <text x="548" y="1285" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#6C5CE7" font-weight="600">(1,125,V)</text>
+</g>
+<line class="flow-line" data-step="12" x1="330" y1="1312" x2="330" y2="1336" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+<!-- 08 CTC -->
+<g class="stage" data-step="12">
+  <rect x="90" y="1338" width="480" height="102" rx="12" fill="#FFFDF8" stroke="#D9663B" stroke-width="1.8"/>
+  <text x="330" y="1362" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Greedy CTC collapse</text>
+  <text x="330" y="1385" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#4C5658" text-anchor="middle">frame path: _ h h _ e _ l _ l l _ o _</text>
+  <text x="330" y="1407" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#D9663B" text-anchor="middle" font-weight="600">1. merge consecutive repeats   2. remove blank</text>
+  <text x="76" y="1395" font-family="'JetBrains Mono',monospace" font-size="15" fill="#D9663B" text-anchor="end" font-weight="600">08</text>
+</g>
+<line class="flow-line" data-step="13" x1="330" y1="1440" x2="330" y2="1462" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+<!-- Transcript -->
+<g class="stage" data-step="13">
+  <rect x="190" y="1464" width="280" height="58" rx="29" fill="#0E5C58" stroke="#0E5C58" stroke-width="1.8"/>
+  <text x="330" y="1500" font-family="Fraunces,Georgia,serif" font-size="25" fill="#fff" text-anchor="middle" font-weight="600">“hello”</text>
+  <text x="486" y="1498" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#6C5CE7" font-weight="600">variable-length text</text>
+</g>
+
+<!-- Right panel A -->
+<rect x="670" y="170" width="520" height="324" rx="14" fill="#fff" stroke="#D9D0BF" stroke-width="1.4"/>
+<text x="688" y="195" font-family="'JetBrains Mono',monospace" font-size="11" fill="#D9663B" font-weight="600">PANEL A · FEATURE EXTRACTION</text>
+<text x="688" y="221" font-family="Fraunces,Georgia,serif" font-size="19" fill="#093F3C" font-weight="600">Time-frequency speech representation</text>
+<g class="stage" data-step="1">
+  <path d="M700 276 C710 240 720 309 730 262 S750 253 760 285 S780 302 790 258 S810 246 820 286 S840 298 850 260" fill="none" stroke="#0E5C58" stroke-width="2.4"/>
+  <g fill="rgba(217,102,59,.08)" stroke="#D9663B" stroke-dasharray="4 3"><rect x="726" y="239" width="72" height="75" rx="7"/><rect x="766" y="239" width="72" height="75" rx="7"/></g>
+  <text x="775" y="333" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#4C5658" text-anchor="middle">overlapping windows</text>
+</g>
+<line class="flow-line" data-step="1" x1="858" y1="276" x2="892" y2="276" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+<g class="stage" data-step="1">
+  <rect x="898" y="238" width="112" height="82" rx="8" fill="url(#spec)" opacity=".9"/>
+  <g stroke="#fff" opacity=".18"><line x1="916" y1="238" x2="916" y2="320"/><line x1="934" y1="238" x2="934" y2="320"/><line x1="952" y1="238" x2="952" y2="320"/><line x1="970" y1="238" x2="970" y2="320"/><line x1="988" y1="238" x2="988" y2="320"/></g>
+  <text x="954" y="340" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#4C5658" text-anchor="middle">STFT power</text>
+</g>
+<line class="flow-line" data-step="2" x1="1016" y1="276" x2="1047" y2="276" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+<g class="stage" data-step="2">
+  <rect x="1052" y="238" width="108" height="82" rx="8" fill="#0E2A28"/>
+  <path d="M1060 311 L1072 273 L1084 311 M1072 311 L1088 258 L1104 311 M1093 311 L1111 247 L1129 311 M1117 311 L1138 266 L1158 311" fill="none" stroke="#C9A24B" stroke-width="1.6"/>
+  <text x="1106" y="340" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#4C5658" text-anchor="middle">Mel filter bank</text>
+</g>
+<rect x="694" y="364" width="470" height="46" rx="9" fill="#FBF7EF" stroke="#D9D0BF"/>
+<text x="708" y="383" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#D9663B" font-weight="600">STFT</text><text x="776" y="383" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#22282A">short frames preserve when each frequency occurs</text>
+<text x="708" y="400" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#D9663B" font-weight="600">LOG-MEL</text><text x="776" y="400" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#22282A">80 weighted bands + dynamic-range compression</text>
+<text x="688" y="441" font-family="'JetBrains Mono',monospace" font-size="11" fill="#093F3C" font-weight="600">x-axis = time · y-axis = frequency · colour = strength</text>
+<text x="688" y="469" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#7E8888">One Mel frame is 80 real values — not a token ID and not a letter.</text>
+
+<!-- Right panel B -->
+<rect x="670" y="512" width="520" height="250" rx="14" fill="#fff" stroke="#D9D0BF" stroke-width="1.4"/>
+<text x="688" y="537" font-family="'JetBrains Mono',monospace" font-size="11" fill="#D9663B" font-weight="600">PANEL B · CNN SUBSAMPLING</text>
+<text x="688" y="563" font-family="Fraunces,Georgia,serif" font-size="19" fill="#093F3C" font-weight="600">Shorten time before quadratic attention</text>
+<g font-family="'JetBrains Mono',monospace" text-anchor="middle">
+  <rect x="694" y="592" width="95" height="68" rx="8" fill="#E2EEF9" stroke="#2E86DE"/><text x="741" y="616" font-size="10" fill="#093F3C" font-weight="600">LOG-MEL</text><text x="741" y="637" font-size="9.5" fill="#4C5658">1×500×80</text>
+  <line class="flow-line" data-step="3" x1="789" y1="626" x2="822" y2="626" stroke="#4C5658" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="826" y="584" width="105" height="84" rx="8" fill="#F3EAD3" stroke="#C9A24B"/><text x="878" y="610" font-size="10" fill="#093F3C" font-weight="600">CONV ×2</text><text x="878" y="630" font-size="9.5" fill="#4C5658">64×125×20</text><text x="878" y="649" font-size="9" fill="#D9663B">time ÷4</text>
+  <line class="flow-line" data-step="5" x1="931" y1="626" x2="964" y2="626" stroke="#4C5658" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="968" y="592" width="102" height="68" rx="8" fill="#E3EEEC" stroke="#0E5C58"/><text x="1019" y="616" font-size="10" fill="#093F3C" font-weight="600">FLATTEN</text><text x="1019" y="637" font-size="9.5" fill="#4C5658">125×1280</text>
+  <line class="flow-line" data-step="5" x1="1070" y1="626" x2="1092" y2="626" stroke="#4C5658" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="1096" y="592" width="72" height="68" rx="8" fill="#E3EEEC" stroke="#0E5C58"/><text x="1132" y="616" font-size="10" fill="#093F3C" font-weight="600">PROJ</text><text x="1132" y="637" font-size="9.5" fill="#4C5658">125×256</text>
+</g>
+<rect x="694" y="692" width="470" height="43" rx="8" fill="#F7E4D8" stroke="#D9663B"/>
+<text x="708" y="710" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#22282A">attention cells: 500² = 250,000 → 125² = 15,625</text>
+<text x="708" y="727" font-family="'JetBrains Mono',monospace" font-size="10" fill="#D9663B" font-weight="600">4× shorter time → about 16× smaller score matrix</text>
+
+<!-- Right panel C -->
+<rect x="670" y="780" width="520" height="510" rx="14" fill="#fff" stroke="#D9D0BF" stroke-width="1.4"/>
+<text x="688" y="805" font-family="'JetBrains Mono',monospace" font-size="11" fill="#D9663B" font-weight="600">PANEL C · ONE CONFORMER BLOCK</text>
+<text x="688" y="831" font-family="Fraunces,Georgia,serif" font-size="19" fill="#093F3C" font-weight="600">Global attention + local temporal convolution</text>
+<text x="688" y="854" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#4C5658">Input and output stay (B,T′,D). Content changes; sequence length does not.</text>
+
+<g font-family="'JetBrains Mono',monospace" text-anchor="middle">
+  <rect class="stage" data-step="6" x="690" y="878" width="95" height="58" rx="8" fill="#F3EAD3" stroke="#C9A24B"/><text x="737" y="902" font-size="10" fill="#093F3C" font-weight="600">½ FFN 1</text><text x="737" y="920" font-size="9" fill="#4C5658">per frame</text>
+  <line class="flow-line" data-step="7" x1="785" y1="907" x2="815" y2="907" stroke="#4C5658" marker-end="url(#arrow)"/>
+  <rect class="stage" data-step="7" x="819" y="878" width="95" height="58" rx="8" fill="#ECEAFB" stroke="#6C5CE7"/><text x="866" y="902" font-size="10" fill="#093F3C" font-weight="600">MHSA</text><text x="866" y="920" font-size="9" fill="#4C5658">global</text>
+  <line class="flow-line" data-step="8" x1="914" y1="907" x2="944" y2="907" stroke="#4C5658" marker-end="url(#arrow)"/>
+  <rect class="stage" data-step="8" x="948" y="878" width="95" height="58" rx="8" fill="#F7E4D8" stroke="#D9663B"/><text x="995" y="902" font-size="10" fill="#093F3C" font-weight="600">CONV</text><text x="995" y="920" font-size="9" fill="#4C5658">local</text>
+  <line class="flow-line" data-step="9" x1="1043" y1="907" x2="1073" y2="907" stroke="#4C5658" marker-end="url(#arrow)"/>
+  <rect class="stage" data-step="9" x="1077" y="878" width="93" height="58" rx="8" fill="#F3EAD3" stroke="#C9A24B"/><text x="1123" y="902" font-size="10" fill="#093F3C" font-weight="600">½ FFN 2</text><text x="1123" y="920" font-size="9" fill="#4C5658">per frame</text>
+</g>
+
+<rect x="690" y="958" width="480" height="116" rx="10" fill="#FBF7EF" stroke="#D9D0BF"/>
+<text x="705" y="980" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#D9663B" font-weight="600">MACARON RESIDUAL EQUATIONS</text>
+<text x="705" y="1001" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#22282A">x₁ = x  + 0.5 · FFN₁(x)</text>
+<text x="705" y="1020" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#22282A">x₂ = x₁ + RelPos-MHSA(x₁)</text>
+<text x="705" y="1039" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#22282A">x₃ = x₂ + Conv(x₂)</text>
+<text x="705" y="1058" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#22282A">y  = LayerNorm(x₃ + 0.5 · FFN₂(x₃))</text>
+<text x="1045" y="1006" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#2E9E5B" text-anchor="middle" font-weight="600">residual paths</text>
+<path d="M1002 1020 C1090 970 1148 1000 1148 1049" fill="none" stroke="#2E9E5B" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+<rect x="690" y="1092" width="480" height="164" rx="10" fill="#F7E4D8" stroke="#D9663B"/>
+<text x="705" y="1115" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#D9663B" font-weight="600">INSIDE THE CONVOLUTION MODULE</text>
+<g font-family="'JetBrains Mono',monospace" text-anchor="middle">
+  <rect x="704" y="1134" width="66" height="38" rx="7" fill="#fff" stroke="#0E5C58"/><text x="737" y="1150" font-size="9" fill="#093F3C" font-weight="600">PW CONV</text><text x="737" y="1164" font-size="8" fill="#4C5658">D→2D</text>
+  <text x="779" y="1158" font-size="13" fill="#D9663B">→</text>
+  <rect x="793" y="1134" width="58" height="38" rx="7" fill="#fff" stroke="#D9663B"/><text x="822" y="1157" font-size="9.5" fill="#D9663B" font-weight="600">GLU</text>
+  <text x="860" y="1158" font-size="13" fill="#D9663B">→</text>
+  <rect x="874" y="1128" width="82" height="50" rx="7" fill="#fff" stroke="#D9663B"/><text x="915" y="1148" font-size="9" fill="#093F3C" font-weight="600">DEPTHWISE</text><text x="915" y="1163" font-size="8" fill="#4C5658">k32 · groups D</text>
+  <text x="965" y="1158" font-size="13" fill="#D9663B">→</text>
+  <rect x="979" y="1134" width="58" height="38" rx="7" fill="#fff" stroke="#0E5C58"/><text x="1008" y="1157" font-size="9" fill="#093F3C" font-weight="600">BN</text>
+  <text x="1046" y="1158" font-size="13" fill="#D9663B">→</text>
+  <rect x="1060" y="1134" width="58" height="38" rx="7" fill="#fff" stroke="#C9A24B"/><text x="1089" y="1157" font-size="9" fill="#093F3C" font-weight="600">SiLU</text>
+  <text x="1127" y="1158" font-size="13" fill="#D9663B">→</text>
+  <rect x="1141" y="1134" width="20" height="38" rx="6" fill="#0E5C58"/>
+</g>
+<text x="705" y="1203" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" font-weight="600">Pointwise:</text><text x="792" y="1203" font-family="'JetBrains Mono',monospace" font-size="10" fill="#4C5658">mix channels at one time step</text>
+<text x="705" y="1222" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" font-weight="600">GLU:</text><text x="792" y="1222" font-family="'JetBrains Mono',monospace" font-size="10" fill="#4C5658">split [A|B], output A · sigmoid(B)</text>
+<text x="705" y="1241" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" font-weight="600">Depthwise:</text><text x="792" y="1241" font-family="'JetBrains Mono',monospace" font-size="10" fill="#4C5658">one temporal filter per channel</text>
+<text x="1160" y="1241" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#D9663B" text-anchor="end" font-weight="600">local + efficient</text>
+<text x="688" y="1276" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#7E8888">Relative position directly represents distance between acoustic steps.</text>
+
+<!-- Right panel D -->
+<rect x="670" y="1308" width="520" height="230" rx="14" fill="#fff" stroke="#D9D0BF" stroke-width="1.4"/>
+<text x="688" y="1333" font-family="'JetBrains Mono',monospace" font-size="11" fill="#D9663B" font-weight="600">PANEL D · CTC ALIGNMENT</text>
+<text x="688" y="1359" font-family="Fraunces,Georgia,serif" font-size="19" fill="#093F3C" font-weight="600">Many acoustic steps collapse to fewer symbols</text>
+<text x="688" y="1384" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#4C5658">125 contextual vectors ≠ 125 letters. Duration and alignment are unknown.</text>
+<g font-family="'JetBrains Mono',monospace" text-anchor="middle">
+  <text x="715" y="1420" font-size="9" fill="#7E8888" text-anchor="start">frame path</text>
+  <g class="stage" data-step="12">
+    <rect x="786" y="1402" width="26" height="28" rx="5" fill="#FBF7EF" stroke="#D9D0BF"/><text x="799" y="1420" font-size="11" fill="#7E8888">_</text><rect x="817" y="1402" width="26" height="28" rx="5" fill="#E3EEEC" stroke="#0E5C58"/><text x="830" y="1420" font-size="11" fill="#093F3C">h</text><rect x="848" y="1402" width="26" height="28" rx="5" fill="#E3EEEC" stroke="#0E5C58"/><text x="861" y="1420" font-size="11" fill="#093F3C">h</text><rect x="879" y="1402" width="26" height="28" rx="5" fill="#FBF7EF" stroke="#D9D0BF"/><text x="892" y="1420" font-size="11" fill="#7E8888">_</text><rect x="910" y="1402" width="26" height="28" rx="5" fill="#E3EEEC" stroke="#0E5C58"/><text x="923" y="1420" font-size="11" fill="#093F3C">e</text><rect x="941" y="1402" width="26" height="28" rx="5" fill="#FBF7EF" stroke="#D9D0BF"/><text x="954" y="1420" font-size="11" fill="#7E8888">_</text><rect x="972" y="1402" width="26" height="28" rx="5" fill="#E3EEEC" stroke="#0E5C58"/><text x="985" y="1420" font-size="11" fill="#093F3C">l</text><rect x="1003" y="1402" width="26" height="28" rx="5" fill="#FBF7EF" stroke="#D9D0BF"/><text x="1016" y="1420" font-size="11" fill="#7E8888">_</text><rect x="1034" y="1402" width="26" height="28" rx="5" fill="#E3EEEC" stroke="#0E5C58"/><text x="1047" y="1420" font-size="11" fill="#093F3C">l</text><rect x="1065" y="1402" width="26" height="28" rx="5" fill="#E3EEEC" stroke="#0E5C58"/><text x="1078" y="1420" font-size="11" fill="#093F3C">l</text><rect x="1096" y="1402" width="26" height="28" rx="5" fill="#FBF7EF" stroke="#D9D0BF"/><text x="1109" y="1420" font-size="11" fill="#7E8888">_</text><rect x="1127" y="1402" width="26" height="28" rx="5" fill="#E3EEEC" stroke="#0E5C58"/><text x="1140" y="1420" font-size="11" fill="#093F3C">o</text>
+  </g>
+  <text x="715" y="1464" font-size="9" fill="#7E8888" text-anchor="start">collapse</text>
+  <path d="M787 1450 H1152" stroke="#D9663B" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <g class="stage" data-step="13"><rect x="866" y="1476" width="190" height="38" rx="19" fill="#0E5C58"/><text x="961" y="1501" font-family="Fraunces,Georgia,serif" font-size="20" fill="#fff">hello</text></g>
+</g>
+<text x="688" y="1524" font-family="'JetBrains Mono',monospace" font-size="10" fill="#D9663B" font-weight="600">blank between the two l symbols keeps “ll” from merging</text>
+
+<!-- Bottom shape trace -->
+<line x1="50" y1="1562" x2="1190" y2="1562" stroke="#D9D0BF" stroke-width="1.2"/>
+<text x="50" y="1592" font-family="'JetBrains Mono',monospace" font-size="12" fill="#D9663B" font-weight="600">SHAPE TRACE</text>
+<rect x="50" y="1604" width="620" height="24" rx="4" fill="#FBF7EF"/><text x="62" y="1620" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#22282A">waveform → log-Mel → CNN input</text><text x="658" y="1620" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#6C5CE7" text-anchor="end" font-weight="600">80,000 → 500×80 → 1×1×500×80</text>
+<text x="62" y="1646" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#22282A">two stride-2 convolutions</text><text x="658" y="1646" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#6C5CE7" text-anchor="end" font-weight="600">1×64×125×20</text>
+<rect x="50" y="1654" width="620" height="24" rx="4" fill="#FBF7EF"/><text x="62" y="1670" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#22282A">flatten + projection → Conformer ×16</text><text x="658" y="1670" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#6C5CE7" text-anchor="end" font-weight="600">1×125×1280 → 1×125×256</text>
+<text x="62" y="1696" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#22282A">vocabulary head → CTC collapse</text><text x="658" y="1696" font-family="'JetBrains Mono',monospace" font-size="11.5" fill="#6C5CE7" text-anchor="end" font-weight="600">1×125×V → variable string</text>
+
+<text x="700" y="1592" font-family="'JetBrains Mono',monospace" font-size="12" fill="#D9663B" font-weight="600">MEMORY MAP</text>
+<rect x="700" y="1604" width="490" height="94" rx="10" fill="#E3EEEC" stroke="#0E5C58"/>
+<text x="716" y="1627" font-family="'JetBrains Mono',monospace" font-size="11" fill="#093F3C" font-weight="600">audio → features → shorter sequence → context → symbols → text</text>
+<text x="716" y="1652" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#4C5658">attention = global · convolution = local · FFN = per time step</text>
+<text x="716" y="1676" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#4C5658">subsampling changes T · Conformer preserves T · CTC changes length</text>
+
+<!-- Footer legend -->
+<rect x="50" y="1720" width="18" height="13" rx="3" fill="#E2EEF9" stroke="#2E86DE"/><text x="77" y="1731" font-family="'JetBrains Mono',monospace" font-size="10" fill="#4C5658">features</text>
+<rect x="160" y="1720" width="18" height="13" rx="3" fill="#F3EAD3" stroke="#C9A24B"/><text x="187" y="1731" font-family="'JetBrains Mono',monospace" font-size="10" fill="#4C5658">FFN / CNN</text>
+<rect x="292" y="1720" width="18" height="13" rx="3" fill="#ECEAFB" stroke="#6C5CE7"/><text x="319" y="1731" font-family="'JetBrains Mono',monospace" font-size="10" fill="#4C5658">attention / shapes</text>
+<rect x="470" y="1720" width="18" height="13" rx="3" fill="#F7E4D8" stroke="#D9663B"/><text x="497" y="1731" font-family="'JetBrains Mono',monospace" font-size="10" fill="#4C5658">conv / CTC</text>
+<text x="1190" y="1731" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#0E5C58" text-anchor="end" font-weight="600">STT Conformer · animated A4 reference sheet</text>
+</svg>
+
+<script>
+(function(){
+  if(new URLSearchParams(location.search).has('export')) document.body.classList.add('export');
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)');
+  const toggle=document.getElementById('motionToggle');
+  const steps=[...new Set([...document.querySelectorAll('[data-step]')].map(el=>Number(el.dataset.step)))].sort((a,b)=>a-b);
+  let current=-1,timer=null,paused=false;
+  function show(step){
+    document.querySelectorAll('[data-step].is-active').forEach(el=>el.classList.remove('is-active'));
+    document.querySelectorAll(`[data-step="${step}"]`).forEach(el=>el.classList.add('is-active'));
+  }
+  function advance(){current=(current+1)%steps.length;show(steps[current])}
+  function start(){if(reduce.matches||document.body.classList.contains('export'))return;advance();timer=setInterval(advance,760)}
+  function stop(){clearInterval(timer);timer=null}
+  toggle.addEventListener('click',()=>{
+    paused=!paused;document.body.classList.toggle('paused',paused);toggle.setAttribute('aria-pressed',String(paused));toggle.textContent=paused?'Resume motion':'Pause motion';
+    if(paused)stop();else start();
+  });
+  reduce.addEventListener('change',event=>{if(event.matches){stop();document.querySelectorAll('.is-active').forEach(el=>el.classList.remove('is-active'))}else if(!paused)start()});
+  start();
+})();
+</script>
+</body>
+</html>

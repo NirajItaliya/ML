@@ -148,6 +148,40 @@ code.inl{background:var(--teal-soft);color:var(--teal-deep);padding:2px 7px;bord
 .metric.hl .mfill{background:var(--gold)}
 .metric .mform{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:6px}
 
+/* ===================== BANKING77 WORKED EXAMPLE ===================== */
+.bank-example{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:clamp(18px,3vw,28px);margin:28px 0 6px;box-shadow:var(--shadow)}
+.bank-example h3{margin:0 0 8px;color:var(--teal-deep)}
+.bank-lead{font-size:17px;max-width:70ch}
+.bank-case{background:var(--amber-soft);border-left:4px solid var(--amber);border-radius:0 10px 10px 0;padding:14px 18px;margin:18px 0 22px;font-size:16px;color:#733719}
+.bank-example code{font-family:var(--mono);font-size:.84em;background:rgba(255,255,255,.72);padding:2px 6px;border-radius:5px}
+.bank-terms{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.bank-term{border:1px solid var(--line);border-top:4px solid var(--term-color);border-radius:12px;padding:14px;background:var(--paper2)}
+.bank-term.tp{--term-color:#2E9E5B}.bank-term.fp{--term-color:#C9A24B}.bank-term.fn{--term-color:#D9663B}.bank-term.tn{--term-color:#2E86DE}
+.bank-term .term-name{display:flex;align-items:baseline;gap:7px;margin-bottom:6px}
+.bank-term .term-abbr{font:600 17px var(--mono);color:var(--term-color)}
+.bank-term .term-full{font:600 15px var(--disp);color:var(--teal-deep)}
+.bank-term p{font-size:14px;line-height:1.5;margin:0}
+.bank-grid{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);gap:18px;align-items:start}
+.bank-panel{border:1px solid var(--line);border-radius:14px;padding:17px;background:#fff}
+.bank-panel h4{font-size:19px;margin:0 0 5px}
+.bank-panel-sub{font:11.5px/1.5 var(--mono);color:var(--muted);margin:0 0 12px}
+.bank-confusion{width:100%;border-collapse:separate;border-spacing:4px;margin:0;box-shadow:none;background:transparent;font-size:13px}
+.bank-confusion caption{text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400;padding-bottom:7px}
+.bank-confusion th,.bank-confusion td{padding:10px 8px;border:0;border-radius:8px;line-height:1.4}
+.bank-confusion thead th{background:var(--teal);color:#fff;font:11px var(--mono)}
+.bank-confusion tbody th{background:var(--teal-soft);color:var(--teal-deep);font:11px var(--mono)}
+.bank-confusion td{border:1px solid var(--line);color:var(--ink-soft)}
+.bank-confusion td strong{display:block;color:var(--ink);font:600 14px var(--mono)}
+.bank-confusion .tp{background:#E7F5EC}.bank-confusion .fn{background:#FFF0E8}.bank-confusion .fp{background:#FFF6DD}.bank-confusion .tn{background:#EDF3F8}
+.bank-metrics{display:grid;gap:8px;margin:0}
+.bank-metrics div{display:grid;grid-template-columns:82px 1fr;gap:9px;padding:9px 0;border-bottom:1px solid var(--line)}
+.bank-metrics div:last-child{border-bottom:0}
+.bank-metrics dt{font:600 12px var(--mono);color:var(--teal)}
+.bank-metrics dd{font-size:14px;line-height:1.5;color:var(--ink-soft);margin:0}
+.bank-takeaway{margin:18px 0 0;background:var(--teal-soft);border-radius:12px;padding:14px 17px;color:var(--teal-deep);font-size:15.5px}
+@media(max-width:850px){.bank-terms{grid-template-columns:repeat(2,1fr)}.bank-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.bank-terms{grid-template-columns:1fr}.bank-example{padding:16px 12px}.bank-confusion th,.bank-confusion td{padding:8px 6px;font-size:11.5px}.bank-metrics div{grid-template-columns:1fr;gap:2px}}
+
 footer{position:relative;z-index:2;background:var(--teal-deep);color:#BFD8D4;padding:48px clamp(20px,5vw,48px);text-align:center;font-family:var(--mono);font-size:13px}
 footer .big{font-family:var(--disp);font-size:24px;color:#fff;margin-bottom:10px}
 footer .links{margin:18px 0 6px;line-height:2}
@@ -241,6 +275,60 @@ footer .sub{opacity:.7;margin-top:10px;font-size:12px}
         <div class="icard"><div class="emoji">❌</div><h4>False Negative (FN)</h4><p>Predicted negative, but it was positive. A miss — Type&nbsp;II error. A disease left undetected.</p></div>
       </div>
       <div class="note amber"><strong>The cost is rarely symmetric.</strong> A false negative on a cancer screen can be fatal; a false positive on a spam filter loses a real email. Which error you fear most decides which metric you optimize — that's the whole game.</div>
+
+      <div class="bank-example" aria-labelledby="banking-example-title">
+        <h3 id="banking-example-title">Evaluation Foundations: TP, FP, FN, TN</h3>
+        <p class="bank-lead"><strong>Use one-vs-rest for Banking77.</strong> Choose one intent, such as <code>lost_or_stolen_card</code>, as positive. Treat the other 76 intents together as negative. Repeat this view for every intent.</p>
+
+        <div class="bank-case"><strong>Example:</strong> evaluate 100 messages. Twenty really are <code>lost_or_stolen_card</code>; 80 belong to other intents. The model finds 16 of the 20 lost-card messages, misses 4, and incorrectly calls 6 other messages lost-card.</div>
+
+        <div class="bank-terms">
+          <article class="bank-term tp">
+            <div class="term-name"><span class="term-abbr">TP</span><span class="term-full">True Positive</span></div>
+            <p><strong>Actual positive, predicted positive.</strong><br>“My card was stolen” → <code>lost_or_stolen_card</code>.</p>
+          </article>
+          <article class="bank-term fp">
+            <div class="term-name"><span class="term-abbr">FP</span><span class="term-full">False Positive</span></div>
+            <p><strong>Actual negative, predicted positive.</strong><br>“My PIN is blocked” is wrongly called lost-card.</p>
+          </article>
+          <article class="bank-term fn">
+            <div class="term-name"><span class="term-abbr">FN</span><span class="term-full">False Negative</span></div>
+            <p><strong>Actual positive, predicted negative.</strong><br>“I cannot find my card” is wrongly called <code>card_arrival</code>.</p>
+          </article>
+          <article class="bank-term tn">
+            <div class="term-name"><span class="term-abbr">TN</span><span class="term-full">True Negative</span></div>
+            <p><strong>Actual negative, predicted negative.</strong><br>“What is the exchange rate?” is correctly kept out of lost-card.</p>
+          </article>
+        </div>
+
+        <div class="bank-grid">
+          <div class="bank-panel">
+            <h4>Confusion matrix</h4>
+            <p class="bank-panel-sub">Rows are reality. Columns are the model's prediction.</p>
+            <table class="bank-confusion">
+              <caption>One-vs-rest counts for lost_or_stolen_card</caption>
+              <thead><tr><th scope="col">Actual ↓ / Predicted →</th><th scope="col">Positive</th><th scope="col">Negative</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Positive<br>lost-card</th><td class="tp"><strong>TP = 16</strong>Found correctly</td><td class="fn"><strong>FN = 4</strong>Missed lost cards</td></tr>
+                <tr><th scope="row">Negative<br>other intent</th><td class="fp"><strong>FP = 6</strong>False alarms</td><td class="tn"><strong>TN = 74</strong>Rejected correctly</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="bank-panel">
+            <h4>Turn counts into metrics</h4>
+            <p class="bank-panel-sub">Use the same four cells; change only what the metric asks.</p>
+            <dl class="bank-metrics">
+              <div><dt>Precision</dt><dd>When the model says lost-card, how often is it right?<br><code>16 / (16 + 6) = 72.7%</code></dd></div>
+              <div><dt>Recall</dt><dd>Of all real lost cards, how many did it find?<br><code>16 / (16 + 4) = 80%</code></dd></div>
+              <div><dt>F1</dt><dd>Balance precision and recall.<br><code>2×16 / (2×16 + 6 + 4) = 76.2%</code></dd></div>
+              <div><dt>Accuracy</dt><dd>Correct lost-card vs not-lost-card decisions.<br><code>(16 + 74) / 100 = 90%</code></dd></div>
+            </dl>
+          </div>
+        </div>
+
+        <div class="bank-takeaway"><strong>Why macro-F1 matters:</strong> this one-vs-rest accuracy is 90% partly because there are many easy true negatives, while lost-card F1 is only 76.2%. Banking77 computes an F1 for each of its 77 intents and averages them equally. For full multiclass accuracy, a prediction is correct only when the exact intent matches.</div>
+      </div>
     </section>
 
     <!-- ===================== THE LAB ===================== -->

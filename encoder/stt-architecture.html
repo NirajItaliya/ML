@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sound to Text — STT Architecture, Visually</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+window.MathJax={tex:{inlineMath:[['$','$'],['\(','\)']],displayMath:[['$$','$$'],['\[','\]']]},svg:{fontCache:'global'}};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<style>
+:root{
+  --paper:#F6F1E7;--paper2:#FBF7EF;--card:#FFFFFF;
+  --ink:#22282A;--ink-soft:#4C5658;--muted:#7E8888;--line:#E4DBCB;
+  --teal:#0E5C58;--teal-deep:#093F3C;--teal-soft:#E3EEEC;
+  --amber:#D9663B;--amber-soft:#F7E4D8;--gold:#C9A24B;
+  --violet:#6C5CE7;--blue:#2E86DE;--green:#2E9E5B;
+  --shadow:0 1px 2px rgba(20,40,38,.04),0 8px 30px -12px rgba(20,40,38,.18);
+  --shadow-lg:0 30px 60px -24px rgba(14,92,88,.30);
+  --radius:18px;--maxw:1180px;
+  --mono:'JetBrains Mono',monospace;--disp:'Fraunces',serif;--body:'Spectral',Georgia,serif;
+  --code-bg:#0E2A28;--code-border:#15403c;--code-text:#CFE9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.72;-webkit-font-smoothing:antialiased;overflow-x:hidden;background-image:radial-gradient(circle at 12% -10%,#FCEBDD55,transparent 40%),radial-gradient(circle at 100% 0%,#DCEBE955,transparent 45%);background-attachment:fixed}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E")}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;line-height:1.12;color:var(--teal-deep);letter-spacing:-.01em}
+a{color:var(--teal);text-decoration:none}code,kbd,.mono{font-family:var(--mono)}
+p{margin:0 0 18px;color:var(--ink-soft)}strong{color:var(--ink)}
+
+#progress{position:fixed;top:0;left:0;height:4px;width:0;z-index:60;background:linear-gradient(90deg,var(--teal),var(--gold),var(--amber))}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:14px clamp(16px,4vw,40px);backdrop-filter:blur(8px);background:linear-gradient(var(--paper),rgba(246,241,231,0));transition:background .3s,box-shadow .3s}
+.topbar.solid{background:rgba(246,241,231,.92);box-shadow:0 1px 0 var(--line)}
+.nbar-left{display:flex;align-items:center;gap:10px}.brand{font-family:var(--disp);font-weight:600;font-size:18px;color:var(--teal-deep);display:flex;align-items:center;gap:10px}.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-soft)}
+.nbtn{font-family:var(--mono);font-size:12px;letter-spacing:.04em;text-transform:uppercase;display:inline-flex;align-items:center;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--teal);transition:.2s}.nbtn:hover{transform:translateY(-1px);border-color:var(--amber);background:var(--teal-soft)}
+.topnav a{margin-left:18px;font-family:var(--mono);font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft)}.topnav a:hover{color:var(--amber)}
+@media(max-width:920px){.topnav{display:none}}@media(max-width:560px){.nbtn .lbl{display:none}.nbtn{padding:7px 10px}}
+
+.hero{max-width:var(--maxw);margin:0 auto;padding:140px clamp(20px,5vw,48px) 34px;display:grid;grid-template-columns:1.02fr .98fr;gap:38px;align-items:center;position:relative;z-index:2}
+.hero>*,.layout>*,main{min-width:0}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:120px}}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin-bottom:18px}.hero h1{font-size:clamp(38px,6vw,70px);margin:0 0 18px}.hero h1 .em{font-style:italic;color:var(--amber)}.hero .lead{font-size:20px;max-width:39ch}.cta{display:flex;gap:12px;flex-wrap:wrap}.btn{font-family:var(--mono);font-size:13px;padding:12px 21px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;transition:.2s}.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}.btn.ghost{background:transparent;color:var(--teal)}.btn.ghost:hover{background:var(--teal-soft)}
+.hero-fig{min-width:0;overflow:hidden;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}.hero-fig svg{width:100%;height:auto;display:block}.beam{stroke-dasharray:8 90;animation:flow 2.8s linear infinite}@keyframes flow{to{stroke-dashoffset:-98}}.pulse{animation:pulse 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}@keyframes pulse{50%{transform:scale(1.06)}}
+
+.layout{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;padding:20px clamp(20px,5vw,48px) 80px;display:grid;grid-template-columns:230px 1fr;gap:46px;align-items:start}@media(max-width:1000px){.layout{grid-template-columns:1fr}.toc{display:none}}
+.toc{position:sticky;top:96px;font-family:var(--mono);font-size:12px}.toc h5{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}.toc a{display:block;color:var(--ink-soft);padding:5px 0 5px 13px;border-left:2px solid var(--line);line-height:1.35}.toc a:hover{color:var(--teal)}.toc a.active{color:var(--teal-deep);border-left-color:var(--amber);font-weight:600}
+main{min-width:0}section{margin-bottom:64px;scroll-margin-top:90px}section h2{font-size:clamp(28px,4vw,40px);margin:6px 0 18px}section h3{font-size:23px;margin:30px 0 12px;color:var(--teal)}.sec-no{font-family:var(--mono);font-size:13px;color:var(--amber);letter-spacing:.1em}.lead-in{font-size:20px}.reveal{opacity:0;transform:translateY(24px);transition:opacity .7s,transform .7s}.reveal.in{opacity:1;transform:none}
+
+.note{background:var(--teal-soft);border-left:4px solid var(--teal);border-radius:10px;padding:15px 19px;margin:20px 0;color:var(--teal-deep)}.note.amber{background:var(--amber-soft);border-left-color:var(--amber);color:#7b3b20}.note.violet{background:#ECEAFB;border-left-color:var(--violet);color:#3d3380}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:20px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px;box-shadow:var(--shadow)}.card h4{font-size:18px;margin:0 0 7px}.card p{font-size:15px;line-height:1.55;margin:0}.tag{font:11px var(--mono);display:inline-block;padding:3px 8px;border-radius:999px;background:var(--teal-soft);color:var(--teal-deep);margin-bottom:9px}
+.fig{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:22px 0;box-shadow:var(--shadow)}.fig svg,.fig canvas{display:block;width:100%;height:auto}.fig figcaption{font:12px var(--mono);color:var(--muted);text-align:center;margin-top:12px}
+.eq{background:var(--paper2);border:1px dashed var(--line);border-radius:12px;padding:10px 16px;margin:18px 0;overflow-x:auto;text-align:center}
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}thead{background:var(--teal);color:#fff;font:11.5px var(--mono)}th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:nth-child(even){background:var(--paper2)}td.mono{font-family:var(--mono)}.table-scroll{overflow-x:auto}
+pre{background:var(--code-bg);color:var(--code-text);border-radius:13px;padding:18px 20px;overflow-x:auto;font:13px/1.65 var(--mono);border:1px solid var(--code-border)}code.inl{background:var(--teal-soft);color:var(--teal-deep);padding:2px 6px;border-radius:5px}
+
+.explorer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin:22px 0;box-shadow:var(--shadow)}.explorer h4{font-size:21px;margin:0 0 3px}.esub{font:12px var(--mono);color:var(--muted);margin-bottom:15px}.controls{display:flex;flex-wrap:wrap;gap:16px;align-items:end;padding:12px 0 16px;border-top:1px solid var(--line)}.control{display:flex;flex-direction:column;gap:4px;font:11px var(--mono);color:var(--muted)}.control select,.control input{font:13px var(--mono);accent-color:var(--amber)}.control select{padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper2)}.readout{margin-left:auto;font:12px var(--mono);color:var(--teal-deep);display:flex;gap:14px;flex-wrap:wrap}.canvas-stack{display:grid;gap:12px}.canvas-card{background:#0E2A28;border-radius:12px;padding:10px}.canvas-card canvas{width:100%;height:auto;display:block}.canvas-label{font:10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#91bbb5;margin:0 0 5px}
+.shape-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:18px 0}.shape-box{flex:1;min-width:130px;background:var(--paper2);border:1px solid var(--line);border-radius:12px;padding:13px;text-align:center}.shape-box b{display:block;font:600 13px var(--mono);color:var(--teal-deep)}.shape-box span{font:11px var(--mono);color:var(--muted)}.shape-arrow{font:18px var(--mono);color:var(--amber)}
+.ctc-path{display:flex;flex-wrap:wrap;gap:6px;padding:18px;background:var(--paper2);border-radius:12px;min-height:62px}.ctc-token{font:13px var(--mono);padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--teal-deep)}.ctc-token.blank{color:var(--muted);border-style:dashed}.step-buttons{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.step-buttons button{font:12px var(--mono);padding:9px 14px;border-radius:999px;border:1px solid var(--teal);background:#fff;color:var(--teal);cursor:pointer}.step-buttons button.on{background:var(--teal);color:#fff}
+.resource-list{display:grid;gap:10px}.resource{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:13px 15px;border:1px solid var(--line);border-radius:12px;background:#fff}.resource span{font-size:15px}.resource a{font:12px var(--mono);white-space:nowrap}
+footer{position:relative;z-index:2;background:var(--teal-deep);color:#BFD8D4;padding:46px 20px;text-align:center;font:13px var(--mono)}footer .big{font:24px var(--disp);color:#fff;margin-bottom:9px}footer a{color:#9fd9d2}
+@media(max-width:600px){.readout{margin-left:0;width:100%}.resource{align-items:flex-start;flex-direction:column}.shape-arrow{transform:rotate(90deg);margin:auto}.shape-flow{flex-direction:column}.shape-box{width:100%}}
+@media(max-width:600px){.hero h1 .em{display:block}.hero-fig{max-width:350px;padding:10px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<header class="topbar" id="topbar">
+  <div class="nbar-left">
+    <a class="nbtn" href="javascript:history.back()" title="Go back">←<span class="lbl">&nbsp;Back</span></a>
+    <a class="nbtn" href="../index.html" title="Home">⌂<span class="lbl">&nbsp;Home</span></a>
+    <div class="brand"><span class="dot"></span> STT · Visual Notebook</div>
+  </div>
+  <nav class="topnav"><a href="#pipeline">Pipeline</a><a href="#stft">STFT</a><a href="#mel">Mel</a><a href="#cnn">CNN</a><a href="#conformer">Conformer</a><a href="#ctc">CTC</a></nav>
+</header>
+
+<header class="hero">
+  <div>
+    <div class="eyebrow reveal">Speech-to-text · Audio front end · Conformer</div>
+    <h1 class="reveal">From sound to <span class="em">context.</span></h1>
+    <p class="lead reveal">Follow one utterance from waveform samples through STFT, log-Mel features, CNN subsampling, Conformer encoding and simple CTC text decoding.</p>
+    <div class="cta reveal"><a class="btn" href="#pipeline">Start the signal</a><a class="btn ghost" href="#stft-lab">Try the STFT lab</a></div>
+  </div>
+  <div class="hero-fig reveal">
+    <svg viewBox="0 0 520 330" role="img" aria-label="Animated speech signal flowing through waveform, spectrogram, CNN, encoder and text">
+      <defs><linearGradient id="specGrad" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#093F3C"/><stop offset=".55" stop-color="#C9A24B"/><stop offset="1" stop-color="#D9663B"/></linearGradient></defs>
+      <g font-family="JetBrains Mono,monospace" text-anchor="middle">
+        <rect x="18" y="120" width="88" height="72" rx="14" fill="#E3EEEC" stroke="#0E5C58"/>
+        <path d="M28 156 C35 125 42 188 49 148 S63 126 70 164 S84 185 95 146" fill="none" stroke="#0E5C58" stroke-width="3"/>
+        <text x="62" y="211" font-size="11" fill="#4C5658">waveform</text>
+        <path class="beam" d="M108 156 H150" stroke="#D9663B" stroke-width="3"/>
+        <rect class="pulse" x="152" y="102" width="94" height="108" rx="14" fill="#0E2A28" stroke="#C9A24B"/>
+        <g id="heroHeat"></g><text x="199" y="229" font-size="11" fill="#4C5658">log-Mel</text>
+        <path class="beam" d="M248 156 H286" stroke="#D9663B" stroke-width="3" style="animation-delay:.6s"/>
+        <rect x="288" y="116" width="76" height="80" rx="13" fill="#F3EAD3" stroke="#C9A24B"/>
+        <rect x="301" y="129" width="50" height="11" rx="4" fill="#C9A24B"/><rect x="301" y="146" width="50" height="11" rx="4" fill="#D9663B" opacity=".75"/><rect x="301" y="163" width="50" height="11" rx="4" fill="#0E5C58" opacity=".7"/>
+        <text x="326" y="215" font-size="11" fill="#4C5658">CNN /4</text>
+        <path class="beam" d="M366 156 H402" stroke="#D9663B" stroke-width="3" style="animation-delay:1.2s"/>
+        <rect x="404" y="104" width="98" height="104" rx="15" fill="#ECEAFB" stroke="#6C5CE7"/>
+        <g fill="#6C5CE7"><circle class="pulse" cx="429" cy="132" r="8"/><circle class="pulse" cx="453" cy="132" r="8" style="animation-delay:.4s"/><circle class="pulse" cx="477" cy="132" r="8" style="animation-delay:.8s"/><circle class="pulse" cx="429" cy="158" r="8" style="animation-delay:.2s"/><circle class="pulse" cx="453" cy="158" r="8" style="animation-delay:.6s"/><circle class="pulse" cx="477" cy="158" r="8" style="animation-delay:1s"/></g>
+        <text x="453" y="187" font-size="11" fill="#3d3380">Conformer</text>
+        <text x="260" y="286" font-family="Fraunces,serif" font-size="20" fill="#093F3C">audio → features → contextual vectors → text</text>
+      </g>
+    </svg>
+  </div>
+</header>
+
+<div class="layout">
+<aside class="toc">
+  <h5>Signal path</h5>
+  <a href="#pipeline">01 · Complete pipeline</a><a href="#waveform">02 · Waveform</a><a href="#stft">03 · STFT</a><a href="#mel">04 · Log-Mel</a><a href="#cnn">05 · CNN subsampling</a><a href="#encoder">06 · Encoder bridge</a><a href="#conformer">07 · Conformer</a><a href="#ctc">08 · CTC output</a><a href="#trace">09 · Shape trace</a><a href="#resources">10 · Learn and practise</a>
+</aside>
+
+<main>
+<section id="pipeline" class="reveal">
+  <div class="sec-no">01</div><h2>The complete STT pipeline</h2>
+  <p class="lead-in">The encoder you already know sits in the middle. Speech needs a front end before it and an output rule after it.</p>
+  <div class="shape-flow">
+    <div class="shape-box"><b>Waveform</b><span>(samples)</span></div><span class="shape-arrow">→</span>
+    <div class="shape-box"><b>Log-Mel</b><span>(B,T,80)</span></div><span class="shape-arrow">→</span>
+    <div class="shape-box"><b>CNN</b><span>(B,T/4,D)</span></div><span class="shape-arrow">→</span>
+    <div class="shape-box"><b>Conformer</b><span>(B,T/4,D)</span></div><span class="shape-arrow">→</span>
+    <div class="shape-box"><b>CTC text</b><span>variable length</span></div>
+  </div>
+  <div class="cards">
+    <div class="card"><span class="tag">Front end</span><h4>Represent sound</h4><p>STFT and Mel filters reveal frequency structure over time.</p></div>
+    <div class="card"><span class="tag">Compression</span><h4>Shorten time</h4><p>Stride-2 CNN layers learn local patterns and reduce attention cost.</p></div>
+    <div class="card"><span class="tag">Encoder</span><h4>Add context</h4><p>Conformer combines global attention and local convolution.</p></div>
+    <div class="card"><span class="tag">Output</span><h4>Produce text</h4><p>A vocabulary head plus CTC collapse maps many frames to fewer symbols.</p></div>
+  </div>
+  <div class="note">A Mel frame is not a word, and one Conformer output step is not automatically one character. Alignment is still unknown until the output method handles it.</div>
+</section>
+
+<section id="waveform" class="reveal">
+  <div class="sec-no">02</div><h2>Sound becomes a waveform</h2>
+  <p class="lead-in">At 16 kHz, the microphone stores 16,000 amplitude measurements for every second.</p>
+  <div class="eq">$$L=\\text{duration}\\times f_s,\\qquad 2\\text{ s}\\times16{,}000=32{,}000\\text{ samples}$$</div>
+  <div class="fig"><svg viewBox="0 0 760 210" role="img" aria-label="Waveform divided into overlapping frames">
+    <path d="M20 105 C35 40 50 170 65 75 S95 155 110 95 S140 50 155 130 S185 170 200 70 S230 55 245 125 S275 165 290 80 S320 48 335 140 S365 155 380 65 S410 60 425 132 S455 160 470 75 S500 55 515 127 S545 165 560 82 S590 55 605 135 S635 155 650 70 S680 58 700 110" fill="none" stroke="#0E5C58" stroke-width="3"/>
+    <g fill="rgba(217,102,59,.09)" stroke="#D9663B" stroke-dasharray="5 4"><rect x="170" y="22" width="180" height="166" rx="10"/><rect x="280" y="22" width="180" height="166" rx="10"/></g>
+    <g font-family="JetBrains Mono" font-size="11" fill="#4C5658"><text x="260" y="204">25 ms frame</text><text x="393" y="204">10 ms hop</text></g>
+  </svg><figcaption>Frames overlap so speech near a boundary is not missed.</figcaption></div>
+</section>
+
+<section id="stft" class="reveal">
+  <div class="sec-no">03</div><h2>STFT preserves time and frequency</h2>
+  <p class="lead-in">One FFT over the whole utterance loses when frequencies occur. STFT applies a windowed FFT to every short frame.</p>
+  <div class="eq">$$X[m,k]=\\sum_{n=0}^{N-1}x[n+mH]w[n]e^{-j2\\pi kn/N_{FFT}}$$</div>
+  <div class="cards"><div class="card"><h4>Window</h4><p>Usually 20–25 ms of waveform samples.</p></div><div class="card"><h4>Hop</h4><p>Movement between frames, often 10 ms.</p></div><div class="card"><h4>FFT bins</h4><p>For real audio: $N_{FFT}/2+1$ unique bins.</p></div></div>
+  <div class="explorer" id="stft-lab">
+    <h4>Synthetic STFT lab</h4><div class="esub">First half is a low tone; second half is a high tone. Change the hop and FFT size.</div>
+    <div class="controls">
+      <label class="control">hop length<select id="hopSelect"><option value="8">8</option><option value="16" selected>16</option><option value="32">32</option></select></label>
+      <label class="control">FFT size<select id="fftSelect"><option value="64" selected>64</option><option value="128">128</option></select></label>
+      <div class="readout"><span id="frameReadout"></span><span id="binReadout"></span></div>
+    </div>
+    <div class="canvas-stack"><div class="canvas-card"><div class="canvas-label">waveform</div><canvas id="waveCanvas" width="760" height="120" aria-label="Synthetic waveform"></canvas></div><div class="canvas-card"><div class="canvas-label">STFT magnitude heatmap</div><canvas id="stftCanvas" width="760" height="270" aria-label="Synthetic STFT spectrogram"></canvas></div></div>
+  </div>
+  <div class="note amber"><strong>Prediction:</strong> doubling the hop roughly halves time frames. Increasing `n_fft` increases frequency bins, but zero-padding alone does not add new sound information.</div>
+</section>
+
+<section id="mel" class="reveal">
+  <div class="sec-no">04</div><h2>Mel filters compress frequency like hearing</h2>
+  <p class="lead-in">Human perception resolves low-frequency changes more finely. Mel filters are narrow at low frequencies and wider at high frequencies.</p>
+  <div class="eq">$$m(f)=2595\\log_{10}\\left(1+\\frac{f}{700}\\right),\\qquad E[b,t]=\\sum_kM[b,k]P[k,t]$$</div>
+  <div class="explorer">
+    <h4>Mel filter-bank explorer</h4><div class="esub">Every triangle is one weighted frequency region.</div>
+    <div class="controls"><label class="control">number of filters <input id="melSlider" type="range" min="8" max="24" value="14"><span id="melValue">14</span></label><div class="readout"><span>0–8,000 Hz</span><span>HTK scale</span></div></div>
+    <div class="canvas-card"><canvas id="melCanvas" width="760" height="280" aria-label="Triangular Mel filter bank"></canvas></div>
+  </div>
+  <div class="cards"><div class="card"><h4>Overlap</h4><p>Nearby frequencies change features smoothly instead of crossing hard boundaries.</p></div><div class="card"><h4>Weighted sum</h4><p>One Mel value summarizes power from several nearby STFT bins.</p></div><div class="card"><h4>Log compression</h4><p>Large dynamic ranges shrink so quiet speech structure remains visible.</p></div></div>
+  <div class="shape-flow"><div class="shape-box"><b>STFT power</b><span>(201,T)</span></div><span class="shape-arrow">×</span><div class="shape-box"><b>Mel bank</b><span>(80,201)</span></div><span class="shape-arrow">→</span><div class="shape-box"><b>Log-Mel</b><span>(80,T)</span></div><span class="shape-arrow">→</span><div class="shape-box"><b>Encoder layout</b><span>(B,T,80)</span></div></div>
+</section>
+
+<section id="cnn" class="reveal">
+  <div class="sec-no">05</div><h2>CNN subsampling learns locally and shortens time</h2>
+  <p class="lead-in">Two stride-2 convolutions reduce time and frequency while increasing learned feature channels.</p>
+  <div class="eq">$$L_{out}=\\left\\lfloor\\frac{L_{in}+2P-D(K-1)-1}{S}+1\\right\\rfloor$$</div>
+  <div class="explorer">
+    <h4>CNN shape calculator</h4><div class="esub">Two layers: kernel 3, stride 2, padding 1; channels 1 → 32 → 64.</div>
+    <div class="controls"><label class="control">input time T <input id="timeSlider" type="range" min="100" max="400" value="198"><span id="timeValue">198</span></label><div class="readout"><span id="costReadout"></span></div></div>
+    <div class="shape-flow" id="cnnShapes"></div>
+  </div>
+  <h3>Prepare for the encoder</h3>
+  <pre data-lang="shapes">CNN output       (B, 64, 50, 20)
+permute          (B, 50, 64, 20)
+flatten C × F    (B, 50, 1280)
+Linear 1280→256  (B, 50, 256)  → encoder input</pre>
+  <div class="note">Do not flatten time. Time must remain the sequence dimension that self-attention processes.</div>
+</section>
+
+<section id="encoder" class="reveal">
+  <div class="sec-no">06</div><h2>The bridge to the encoder you know</h2>
+  <div class="table-scroll"><table><thead><tr><th>Text encoder</th><th>Speech encoder</th></tr></thead><tbody><tr><td>Token IDs</td><td>Log-Mel frames</td></tr><tr><td>Embedding lookup</td><td>CNN + linear projection</td></tr><tr><td>(B,N,D)</td><td>(B,T/4,D)</td></tr><tr><td>Token padding mask</td><td>Reduced acoustic-length mask</td></tr><tr><td>Contextual token vectors</td><td>Contextual acoustic vectors</td></tr></tbody></table></div>
+  <p>After projection, the speech tensor has the familiar shape `(B, sequence, d_model)`. Position information and a padding mask are added before contextual encoding.</p>
+  <div class="note violet">One speech time step is not one letter. Many acoustic steps can support one output symbol, and silence also occupies steps.</div>
+</section>
+
+<section id="conformer" class="reveal">
+  <div class="sec-no">07</div><h2>Conformer: global attention plus local convolution</h2>
+  <p class="lead-in">The Transformer is strong at global relationships. A convolution module adds a direct local speech bias.</p>
+  <div class="shape-flow"><div class="shape-box"><b>½ FFN</b><span>per frame</span></div><span class="shape-arrow">→</span><div class="shape-box"><b>MHSA</b><span>global context</span></div><span class="shape-arrow">→</span><div class="shape-box"><b>Conv module</b><span>local speech</span></div><span class="shape-arrow">→</span><div class="shape-box"><b>½ FFN + LN</b><span>same shape</span></div></div>
+  <div class="eq">$$x_1=x+\\tfrac12FFN(x),\\quad x_2=x_1+MHSA(x_1),\\quad x_3=x_2+Conv(x_2),\\quad y=LN(x_3+\\tfrac12FFN(x_3))$$</div>
+  <h3>Inside the convolution module</h3>
+  <pre data-lang="flow">LayerNorm → pointwise conv → GLU → depthwise temporal conv
+          → BatchNorm → SiLU → pointwise conv → dropout → residual</pre>
+  <div class="cards"><div class="card"><h4>Pointwise</h4><p>Mixes channels at each time step.</p></div><div class="card"><h4>GLU</h4><p>A learned gate controls information flow.</p></div><div class="card"><h4>Depthwise</h4><p>Each channel receives a local temporal filter.</p></div></div>
+</section>
+
+<section id="ctc" class="reveal">
+  <div class="sec-no">08</div><h2>CTC turns many acoustic steps into fewer symbols</h2>
+  <p class="lead-in">A shared linear head gives each encoder step scores for blank, characters or subwords. Greedy CTC then applies two rules.</p>
+  <div class="eq">$$H:(B,T',D)\\quad\\xrightarrow{Linear(D,V)}\\quad logits:(B,T',V)$$</div>
+  <div class="explorer">
+    <h4>CTC collapse demo</h4><div class="esub">Rule 1: merge consecutive repeats. Rule 2: remove blanks.</div>
+    <div class="step-buttons"><button data-ctc="0" class="on">1 · Raw path</button><button data-ctc="1">2 · Merge repeats</button><button data-ctc="2">3 · Remove blanks</button></div>
+    <div class="ctc-path" id="ctcPath" aria-live="polite"></div><p id="ctcCaption" style="margin-top:12px"></p>
+  </div>
+  <div class="note amber">Basic CTC does not require a large autoregressive Transformer decoder. A vocabulary projection plus collapse rule is enough for this first architecture.</div>
+</section>
+
+<section id="trace" class="reveal">
+  <div class="sec-no">09</div><h2>One five-second shape trace</h2>
+  <div class="table-scroll"><table><thead><tr><th>Stage</th><th>Shape</th><th>Meaning</th></tr></thead><tbody><tr><td>Waveform</td><td class="mono">(80,000)</td><td>5 seconds at 16 kHz</td></tr><tr><td>Log-Mel</td><td class="mono">(500,80)</td><td>About 100 frames/second</td></tr><tr><td>CNN input</td><td class="mono">(1,1,500,80)</td><td>Batch and channel added</td></tr><tr><td>CNN output</td><td class="mono">(1,64,125,20)</td><td>Time/frequency reduced</td></tr><tr><td>Flatten</td><td class="mono">(1,125,1280)</td><td>64 × 20 local features</td></tr><tr><td>Project</td><td class="mono">(1,125,256)</td><td>Ready for encoder</td></tr><tr><td>Conformer</td><td class="mono">(1,125,256)</td><td>Contextual acoustic vectors</td></tr><tr><td>CTC logits</td><td class="mono">(1,125,V)</td><td>Symbol scores per step</td></tr><tr><td>Transcript</td><td class="mono">string</td><td>Repeats/blanks removed</td></tr></tbody></table></div>
+  <div class="note"><strong>Architecture sentence:</strong> audio becomes log-Mel frames, CNN reduces and projects them, Conformer contextualizes them, and CTC resolves the many-frames-to-fewer-symbols alignment.</div>
+</section>
+
+<section id="resources" class="reveal">
+  <div class="sec-no">10</div><h2>Learn and practise in order</h2>
+  <div class="resource-list">
+    <div class="resource"><span>Short-Time Fourier Transform Explained Easily</span><a href="https://www.youtube.com/watch?v=-Yxj3yfvY-4" target="_blank" rel="noopener">Watch ↗</a></div>
+    <div class="resource"><span>How to Extract Spectrograms from Audio with Python</span><a href="https://www.youtube.com/watch?v=3gzI4Z2OFgY" target="_blank" rel="noopener">Watch ↗</a></div>
+    <div class="resource"><span>Mel Spectrograms Explained Easily</span><a href="https://www.youtube.com/watch?v=9GHCiiDLHQ4" target="_blank" rel="noopener">Watch ↗</a></div>
+    <div class="resource"><span>Extracting Mel Spectrograms with Python</span><a href="https://www.youtube.com/watch?v=TdnVE5m3o_0" target="_blank" rel="noopener">Watch ↗</a></div>
+    <div class="resource"><span>StatQuest CNN visual lesson</span><a href="https://www.youtube.com/watch?v=HGwBXDKFk9I" target="_blank" rel="noopener">Watch ↗</a></div>
+    <div class="resource"><span>Interactive CTC visual guide</span><a href="https://distill.pub/2017/ctc/" target="_blank" rel="noopener">Open ↗</a></div>
+  </div>
+  <h3>Local notebooks</h3>
+  <pre data-lang="files">/home/nobroker-tlt408/Downloads/learing/03_stft_spectrogram.ipynb
+/home/nobroker-tlt408/Downloads/learing/04_mel_spectrograms.ipynb
+/home/nobroker-tlt408/Downloads/learing/06_cnn_subsampling.ipynb</pre>
+</section>
+</main>
+</div>
+
+<footer><div class="big">Waveform → features → context → text.</div><div>Original visual companion for the STFT, Mel and CNN learning notebooks.</div><div style="margin-top:14px"><a href="../index.html">Return to ML Universe</a></div></footer>
+
+<script>
+const $=id=>document.getElementById(id);
+const progress=$('progress'),topbar=$('topbar');
+function onScroll(){const d=document.documentElement,max=d.scrollHeight-d.clientHeight;progress.style.width=(max?d.scrollTop/max*100:0)+'%';topbar.classList.toggle('solid',d.scrollTop>40)}
+document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('in');observer.unobserve(entry.target)}}),{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+const tocLinks=[...document.querySelectorAll('.toc a')];
+const spy=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting)tocLinks.forEach(link=>link.classList.toggle('active',link.getAttribute('href')==='#'+entry.target.id))}),{rootMargin:'-25% 0px -65% 0px'});
+document.querySelectorAll('main section[id]').forEach(section=>spy.observe(section));
+
+function heroHeat(){const group=$('heroHeat');let html='';for(let row=0;row<7;row++)for(let col=0;col<7;col++){const value=(Math.sin(col*.9+row*.55)+1)/2;const color=value>.68?'#D9663B':value>.38?'#C9A24B':'#1b5b56';html+=`<rect x="${162+col*11}" y="${112+row*13}" width="9" height="11" rx="2" fill="${color}" opacity="${(.35+value*.6).toFixed(2)}"/>`}group.innerHTML=html}heroHeat();
+
+function colorMap(value){const v=Math.max(0,Math.min(1,value));const low=[9,63,60],mid=[201,162,75],high=[217,102,59];const a=v<.6?low:mid,b=v<.6?mid:high,t=v<.6?v/.6:(v-.6)/.4;return `rgb(${a.map((x,i)=>Math.round(x+(b[i]-x)*t)).join(',')})`}
+function drawWave(signal){const canvas=$('waveCanvas'),ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#7fb4ad';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();ctx.strokeStyle='#F2C879';ctx.lineWidth=2;ctx.beginPath();signal.forEach((value,index)=>{const x=index/(signal.length-1)*w,y=h/2-value*h*.38;index?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()}
+function drawSTFT(){const hop=+$('hopSelect').value,fft=+$('fftSelect').value,N=512,win=64;const signal=Array.from({length:N},(_,n)=>Math.sin(2*Math.PI*(n<N/2?4:12)*n/64));drawWave(signal);const frames=1+Math.floor((N-win)/hop),bins=fft/2+1,mags=[];let max=0;for(let m=0;m<frames;m++){const column=[];for(let k=0;k<bins;k++){let re=0,im=0;for(let n=0;n<win;n++){const sample=signal[m*hop+n]*(.5-.5*Math.cos(2*Math.PI*n/win)),angle=2*Math.PI*k*n/fft;re+=sample*Math.cos(angle);im-=sample*Math.sin(angle)}const mag=Math.log1p(Math.hypot(re,im));column.push(mag);max=Math.max(max,mag)}mags.push(column)}const canvas=$('stftCanvas'),ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);const cw=w/frames,ch=h/bins;for(let m=0;m<frames;m++)for(let k=0;k<bins;k++){ctx.fillStyle=colorMap(mags[m][k]/max);ctx.fillRect(m*cw,h-(k+1)*ch,Math.ceil(cw)+1,Math.ceil(ch)+1)}$('frameReadout').textContent=`frames: ${frames}`;$('binReadout').textContent=`bins: ${bins}`}
+$('hopSelect').addEventListener('change',drawSTFT);$('fftSelect').addEventListener('change',drawSTFT);drawSTFT();
+
+function hzToMel(hz){return 2595*Math.log10(1+hz/700)}function melToHz(mel){return 700*(10**(mel/2595)-1)}
+function drawMel(){const count=+$('melSlider').value,canvas=$('melCanvas'),ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height,pad=30;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#547e79';ctx.beginPath();ctx.moveTo(pad,h-pad);ctx.lineTo(w-pad,h-pad);ctx.stroke();const edges=Array.from({length:count+2},(_,i)=>melToHz(i/(count+1)*hzToMel(8000)));for(let i=0;i<count;i++){const x1=pad+edges[i]/8000*(w-2*pad),x2=pad+edges[i+1]/8000*(w-2*pad),x3=pad+edges[i+2]/8000*(w-2*pad);ctx.strokeStyle=i%3===0?'#D9663B':i%3===1?'#C9A24B':'#7FD1E8';ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(x1,h-pad);ctx.lineTo(x2,25);ctx.lineTo(x3,h-pad);ctx.stroke()}ctx.fillStyle='#9fc9c3';ctx.font='11px JetBrains Mono';[0,1000,2000,4000,8000].forEach(hz=>ctx.fillText(hz+' Hz',pad+hz/8000*(w-2*pad)-12,h-8));$('melValue').textContent=count}
+$('melSlider').addEventListener('input',drawMel);drawMel();
+
+function convOut(length){return Math.floor((length+2-2-1)/2+1)}
+function drawCNN(){const input=+$('timeSlider').value,t1=convOut(input),t2=convOut(t1),f1=40,f2=20,before=input*input,after=t2*t2;$('timeValue').textContent=input;$('costReadout').textContent=`attention cells: ${before.toLocaleString()} → ${after.toLocaleString()} (${(before/after).toFixed(1)}× smaller)`;$('cnnShapes').innerHTML=`<div class="shape-box"><b>(B,1,${input},80)</b><span>log-Mel</span></div><span class="shape-arrow">→</span><div class="shape-box"><b>(B,32,${t1},${f1})</b><span>conv 1</span></div><span class="shape-arrow">→</span><div class="shape-box"><b>(B,64,${t2},${f2})</b><span>conv 2</span></div><span class="shape-arrow">→</span><div class="shape-box"><b>(B,${t2},256)</b><span>projected</span></div>`}
+$('timeSlider').addEventListener('input',drawCNN);drawCNN();
+
+const raw=['_','h','h','_','e','_','l','_','l','l','_','o','_'];
+function collapsed(path){return path.filter((token,index)=>index===0||token!==path[index-1])}
+const stages=[raw,collapsed(raw),collapsed(raw).filter(token=>token!=='_')];
+const captions=['One symbol choice for every acoustic step.','Consecutive repeats merge; repeats separated by blank remain separate.','Blank symbols disappear, leaving the transcript “hello”.'];
+function showCTC(stage){$('ctcPath').innerHTML=stages[stage].map(token=>`<span class="ctc-token ${token==='_'?'blank':''}">${token}</span>`).join('');$('ctcCaption').textContent=captions[stage];document.querySelectorAll('[data-ctc]').forEach(button=>button.classList.toggle('on',+button.dataset.ctc===stage))}
+document.querySelectorAll('[data-ctc]').forEach(button=>button.addEventListener('click',()=>showCTC(+button.dataset.ctc)));showCTC(0);
+</script>
+</body>
+</html>
