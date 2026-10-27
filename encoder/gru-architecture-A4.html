@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GRU Architecture A4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Spectral:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#22282A;--soft:#4C5658;--muted:#7E8888;--line:#D9D0BF;--teal:#0E5C58;--deep:#093F3C;--teal-soft:#E3EEEC;--amber:#D9663B;--amber-soft:#F7E4D8;--gold:#C9A24B;--gold-soft:#F3EAD3;--violet:#6C5CE7;--violet-soft:#ECEAFB;--blue:#2E86DE;--blue-soft:#E2EEF9;--green:#2E9E5B;--green-soft:#DFF1E5;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{display:flex;justify-content:center;min-height:100vh;background:#EDE7DA}.sheet-nav{position:fixed;z-index:5;top:14px;right:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 28px)}.sheet-nav a,.sheet-nav button{font-family:var(--mono);font-size:10px;letter-spacing:.035em;text-transform:uppercase;min-height:38px;padding:8px 11px;border-radius:999px;border:1px solid #E4DBCB;background:#fff;color:var(--teal);cursor:pointer;text-decoration:none;transition:border-color .2s,transform .2s,background .2s}.sheet-nav a:hover,.sheet-nav button:hover{border-color:var(--amber);transform:translateY(-1px);background:#FBF7EF}.sheet-nav a:focus-visible,.sheet-nav button:focus-visible{outline:3px solid rgba(217,102,59,.35);outline-offset:2px}svg{display:block;width:min(1240px,calc(100vw - 24px));height:auto;margin:24px 0;background:#fff;box-shadow:0 10px 40px -12px rgba(20,40,38,.3)}
+svg .m{font-family:'JetBrains Mono',monospace}svg .d{font-family:Fraunces,Georgia,serif;font-weight:600}svg .s{font-family:Spectral,Georgia,serif}
+svg .stage{transform-box:fill-box;transform-origin:center}svg .stage.is-active{animation:focus .8s ease-out both}svg .flow-line.is-active{stroke:#D9663B!important;stroke-width:4!important;stroke-dasharray:9 13;animation:dash .8s linear both;filter:drop-shadow(0 0 4px rgba(217,102,59,.55))}svg .pulse{animation:breathe 3.8s ease-in-out infinite;animation-delay:var(--delay,0s)}body.paused svg *{animation-play-state:paused!important}@keyframes focus{0%{filter:none;opacity:.8}45%{filter:drop-shadow(0 0 10px rgba(217,102,59,.65));opacity:1}100%{filter:none;opacity:1}}@keyframes dash{from{stroke-dashoffset:32}to{stroke-dashoffset:-32}}@keyframes breathe{0%,100%{opacity:.58}50%{opacity:1;filter:drop-shadow(0 0 5px rgba(14,92,88,.45))}}
+svg .flowdot{pointer-events:none}body.export svg .flowdot,body.paused svg .flowdot{display:none}@media print{svg .flowdot{display:none}}@media(prefers-reduced-motion:reduce){svg .flowdot{display:none}}
+@media(max-width:700px){body{padding-top:104px}.sheet-nav{top:8px;left:8px;right:8px;justify-content:center}.sheet-nav a,.sheet-nav button{font-size:9px;padding:7px 9px}svg{width:calc(100vw - 12px);margin:8px 0}}@media print{.sheet-nav{display:none}body{background:#fff;padding:0}svg{box-shadow:none;margin:0;width:210mm;height:297mm}@page{size:A4 portrait;margin:0}}body.export{background:#fff;padding:0}body.export .sheet-nav{display:none}body.export svg{width:1240px;height:1754px;margin:0;box-shadow:none}@media(prefers-reduced-motion:reduce){svg *{animation:none!important;transition:none!important}.motion-toggle{display:none}}
+</style>
+</head>
+<body>
+<nav class="sheet-nav" aria-label="Reference sheet actions">
+  <a href="../index.html">Home</a>
+  <a href="gru-blog.html">GRU blog</a>
+  <a href="rnn-birnn-architecture-A4.html">RNN sheet</a>
+  <a href="lstm-math-A4.html">LSTM sheet</a>
+  <a href="gru-architecture-A4.png" download>Download PNG</a>
+  <button class="motion-toggle" id="motionToggle" type="button" aria-pressed="false">Pause motion</button>
+  <button type="button" onclick="print()">Print / PDF</button>
+</nav>
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754" role="img" aria-labelledby="sheetTitle sheetDesc">
+<title id="sheetTitle">GRU architecture</title>
+<desc id="sheetDesc">A one-page A4 reference for the Gated Recurrent Unit: the GRU cell with reset gate, update gate and candidate state, its equations, a worked scalar step, the update gate as an interpolation between old and new state, a mapping from LSTM gates to GRU gates, paper versus PyTorch conventions, parameter counts and deployment notes.</desc>
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#4C5658"/></marker>
+  <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#0E5C58"/></marker>
+  <marker id="arrowCoral" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#D9663B"/></marker>
+  <marker id="arrowViolet" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#6C5CE7"/></marker>
+  <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#2E9E5B"/></marker>
+  <marker id="arrowGold" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#C9A24B"/></marker>
+</defs>
+<rect width="1240" height="1754" fill="#fff"/>
+
+<!-- Header -->
+<text class="m" x="50" y="58" font-size="13" fill="#D9663B" font-weight="600">SEQUENCE MODELS · GATED RECURRENT UNIT · CHO ET AL. 2014 · arXiv 1406.1078</text>
+<text class="d" x="50" y="99" font-size="32" fill="#093F3C">GRU: two gates, one state, LSTM-level memory</text>
+<text class="m" x="50" y="130" font-size="12" fill="#4C5658">Notation · x_t ∈ ℝᵈ input · h_t ∈ ℝᴴ hidden state (the only state) · r = reset gate · z = update gate · h̃ = candidate · σ = sigmoid</text>
+<line x1="50" y1="147" x2="1190" y2="147" stroke="#D9D0BF" stroke-width="1.2"/>
+
+<!-- ═════ Section A: GRU cell ═════ -->
+<text class="m" x="50" y="177" font-size="11" fill="#7E8888" font-weight="600">A · GRU CELL · THE HIDDEN STATE ITSELF IS THE HIGHWAY · UPDATE GATE z BLENDS OLD AND NEW</text>
+<rect x="50" y="190" width="1140" height="500" rx="16" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+<rect x="100" y="225" width="560" height="415" rx="18" fill="#FBF7EF" stroke="#C9A24B" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text class="m" x="112" y="632" font-size="9.5" fill="#9a7a1e">one GRU cell · time step t</text>
+
+<!-- state highway -->
+<line class="pulse" x1="72" y1="270" x2="690" y2="270" stroke="#0E5C58" stroke-width="5" marker-end="url(#arrowTeal)"/>
+<text class="m" x="74" y="258" font-size="12" fill="#0E5C58" font-weight="600">h_{t−1}</text>
+<text class="m" x="622" y="252" font-size="12" fill="#0E5C58" font-weight="600">h_t</text>
+<text class="m" x="480" y="258" font-size="9.5" fill="#0E5C58" text-anchor="middle">h is both memory and output</text>
+
+<!-- bus -->
+<line x1="120" y1="270" x2="120" y2="575" stroke="#0E5C58" stroke-width="2"/>
+<line x1="150" y1="672" x2="150" y2="579" stroke="#2E86DE" stroke-width="2"/>
+<text class="m" x="160" y="672" font-size="12" fill="#2E86DE" font-weight="600">x_t</text>
+<line x1="120" y1="575" x2="360" y2="575" stroke="#22282A" stroke-width="2"/>
+<circle cx="150" cy="575" r="5" fill="#22282A"/>
+<text class="m" x="236" y="596" font-size="9.5" fill="#4C5658">[h_{t−1}, x_t]</text>
+<line x1="220" y1="575" x2="220" y2="527" stroke="#22282A" stroke-width="1.6"/>
+<line x1="360" y1="575" x2="360" y2="527" stroke="#22282A" stroke-width="1.6"/>
+<circle cx="150" cy="620" r="4" fill="#2E86DE"/>
+<path d="M150 620H600V527" fill="none" stroke="#2E86DE" stroke-width="1.8" marker-end="url(#arrow)"/>
+<text class="m" x="470" y="612" font-size="9.5" fill="#1d5f9f">x_t only</text>
+
+<!-- reset gate -->
+<g class="stage" data-step="0">
+  <rect x="190" y="490" width="60" height="36" rx="8" fill="#ECEAFB" stroke="#6C5CE7" stroke-width="1.8"/>
+  <text class="m" x="220" y="513" font-size="14" fill="#3d3380" text-anchor="middle">σ</text>
+  <text class="m" x="182" y="512" font-size="11" fill="#6C5CE7" text-anchor="end" font-weight="600">r_t</text>
+  <line x1="220" y1="490" x2="220" y2="456" stroke="#6C5CE7" stroke-width="2" marker-end="url(#arrowViolet)"/>
+  <line x1="220" y1="270" x2="220" y2="424" stroke="#0E5C58" stroke-width="2" marker-end="url(#arrowTeal)"/>
+  <circle cx="220" cy="440" r="15" fill="#fff" stroke="#6C5CE7" stroke-width="2"/>
+  <text class="m" x="220" y="445" font-size="15" fill="#6C5CE7" text-anchor="middle">×</text>
+  <path d="M235 440H352A8 8 0 0 1 368 440H530V508H566" fill="none" stroke="#6C5CE7" stroke-width="2" marker-end="url(#arrowViolet)"/>
+  <text class="m" x="400" y="432" font-size="9.5" fill="#3d3380">r_t ⊙ h_{t−1}</text>
+  <text class="m" x="230" y="400" font-size="9.5" fill="#3d3380">reset: how much</text>
+  <text class="m" x="230" y="412" font-size="9.5" fill="#3d3380">past h̃ may see</text>
+</g>
+<!-- candidate -->
+<g class="stage" data-step="1">
+  <rect x="570" y="490" width="60" height="36" rx="8" fill="#F3EAD3" stroke="#C9A24B" stroke-width="1.8"/>
+  <text class="m" x="600" y="513" font-size="12" fill="#7a5f12" text-anchor="middle">tanh</text>
+  <text class="m" x="640" y="512" font-size="11" fill="#9a7a1e" font-weight="600">h̃_t</text>
+  <line x1="600" y1="490" x2="600" y2="416" stroke="#C9A24B" stroke-width="2" marker-end="url(#arrowGold)"/>
+  <text class="m" x="608" y="470" font-size="9.5" fill="#7a5f12">candidate</text>
+</g>
+<!-- update gate -->
+<g class="stage" data-step="2">
+  <rect x="330" y="490" width="60" height="36" rx="8" fill="#DFF1E5" stroke="#2E9E5B" stroke-width="1.8"/>
+  <text class="m" x="360" y="513" font-size="14" fill="#1f6b3e" text-anchor="middle">σ</text>
+  <text class="m" x="398" y="512" font-size="11" fill="#2E9E5B" font-weight="600">z_t</text>
+  <line x1="360" y1="490" x2="360" y2="359" stroke="#2E9E5B" stroke-width="2"/>
+  <path d="M360 400H584" fill="none" stroke="#2E9E5B" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <circle cx="360" cy="400" r="4" fill="#2E9E5B"/>
+  <circle cx="360" cy="345" r="14" fill="#DFF1E5" stroke="#2E9E5B" stroke-width="1.8"/>
+  <text class="m" x="360" y="349" font-size="10" fill="#1f6b3e" text-anchor="middle">1−</text>
+  <line x1="360" y1="331" x2="360" y2="288" stroke="#2E9E5B" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <circle cx="360" cy="270" r="15" fill="#fff" stroke="#2E9E5B" stroke-width="2"/>
+  <text class="m" x="360" y="275" font-size="15" fill="#2E9E5B" text-anchor="middle">×</text>
+  <text class="m" x="372" y="322" font-size="9.5" fill="#1f6b3e">keep (1−z)</text>
+  <text class="m" x="470" y="392" font-size="9.5" fill="#1f6b3e">take z</text>
+</g>
+<!-- combine -->
+<g class="stage" data-step="3">
+  <circle cx="600" cy="400" r="15" fill="#fff" stroke="#2E9E5B" stroke-width="2"/>
+  <text class="m" x="600" y="405" font-size="15" fill="#2E9E5B" text-anchor="middle">×</text>
+  <line x1="600" y1="385" x2="600" y2="288" stroke="#2E9E5B" stroke-width="2" marker-end="url(#arrow)"/>
+  <circle cx="600" cy="270" r="15" fill="#fff" stroke="#0E5C58" stroke-width="2"/>
+  <text class="m" x="600" y="276" font-size="17" fill="#0E5C58" text-anchor="middle">+</text>
+  <text class="m" x="610" y="345" font-size="9.5" fill="#1f6b3e">z ⊙ h̃</text>
+</g>
+
+<!-- data-flow dots -->
+<circle class="flowdot" r="5.5" fill="#0E5C58"><animateMotion dur="3.2s" begin="0s" repeatCount="indefinite" path="M72 270H686"/></circle>
+<circle class="flowdot" r="5.5" fill="#0E5C58"><animateMotion dur="3.2s" begin="0.2s" repeatCount="indefinite" path="M120 270V575H360"/></circle>
+<circle class="flowdot" r="5.5" fill="#2E86DE"><animateMotion dur="3.2s" begin="0s" repeatCount="indefinite" path="M150 672V575"/></circle>
+<circle class="flowdot" r="5.5" fill="#2E86DE"><animateMotion dur="3.2s" begin="0.3s" repeatCount="indefinite" path="M150 620H600V527"/></circle>
+<circle class="flowdot" r="5.5" fill="#6C5CE7"><animateMotion dur="3.2s" begin="0.9s" repeatCount="indefinite" path="M220 490V456"/></circle>
+<circle class="flowdot" r="5.5" fill="#6C5CE7"><animateMotion dur="3.2s" begin="1.2s" repeatCount="indefinite" path="M235 440H530V508H566"/></circle>
+<circle class="flowdot" r="5.5" fill="#2E9E5B"><animateMotion dur="3.2s" begin="1s" repeatCount="indefinite" path="M360 490V400H584"/></circle>
+<circle class="flowdot" r="5.5" fill="#2E9E5B"><animateMotion dur="3.2s" begin="1.6s" repeatCount="indefinite" path="M360 400V288"/></circle>
+<circle class="flowdot" r="5.5" fill="#C9A24B"><animateMotion dur="3.2s" begin="2s" repeatCount="indefinite" path="M600 490V416"/></circle>
+<circle class="flowdot" r="5.5" fill="#2E9E5B"><animateMotion dur="3.2s" begin="2.4s" repeatCount="indefinite" path="M600 385V288"/></circle>
+<!-- equations -->
+<g class="m">
+  <text x="712" y="225" font-size="10.5" fill="#7E8888" font-weight="600">EQUATIONS · W_r, W_z, W_h have shape (H, H+d)</text>
+  <g class="stage" data-step="0">
+    <rect x="712" y="236" width="458" height="44" rx="9" fill="#ECEAFB"/>
+    <text x="726" y="263" font-size="12.5" fill="#22282A"><tspan fill="#6C5CE7" font-weight="600">r_t</tspan> = σ(W_r·[h_{t−1}, x_t] + b_r)</text>
+    <text x="1158" y="263" font-size="9.5" fill="#3d3380" text-anchor="end">reset</text>
+  </g>
+  <g class="stage" data-step="2">
+    <rect x="712" y="288" width="458" height="44" rx="9" fill="#DFF1E5"/>
+    <text x="726" y="315" font-size="12.5" fill="#22282A"><tspan fill="#2E9E5B" font-weight="600">z_t</tspan> = σ(W_z·[h_{t−1}, x_t] + b_z)</text>
+    <text x="1158" y="315" font-size="9.5" fill="#1f6b3e" text-anchor="end">update</text>
+  </g>
+  <g class="stage" data-step="1">
+    <rect x="712" y="340" width="458" height="44" rx="9" fill="#F3EAD3"/>
+    <text x="726" y="367" font-size="12.5" fill="#22282A"><tspan fill="#9a7a1e" font-weight="600">h̃_t</tspan> = tanh(W_h·[r_t ⊙ h_{t−1}, x_t] + b_h)</text>
+    <text x="1158" y="367" font-size="9.5" fill="#7a5f12" text-anchor="end">candidate</text>
+  </g>
+  <g class="stage" data-step="3">
+    <rect x="712" y="392" width="458" height="44" rx="9" fill="#E3EEEC" stroke="#0E5C58" stroke-width="1.3"/>
+    <text x="726" y="419" font-size="12.5" fill="#22282A"><tspan fill="#0E5C58" font-weight="600">h_t</tspan> = (1 − z_t) ⊙ h_{t−1} + z_t ⊙ h̃_t</text>
+    <text x="1158" y="419" font-size="9.5" fill="#093F3C" text-anchor="end">blend</text>
+  </g>
+  <rect x="712" y="452" width="458" height="214" rx="10" fill="#FBF7EF" stroke="#E4DBCB"/>
+  <text x="728" y="476" font-size="10.5" fill="#D9663B" font-weight="600">READ THE GATES</text>
+  <g font-size="10.5" fill="#22282A">
+    <text x="728" y="500"><tspan fill="#2E9E5B" font-weight="600">z → 0</tspan>  h_t ≈ h_{t−1}: copy memory unchanged</text>
+    <text x="728" y="520"><tspan fill="#2E9E5B" font-weight="600">z → 1</tspan>  h_t ≈ h̃_t: overwrite with new content</text>
+    <text x="728" y="544"><tspan fill="#6C5CE7" font-weight="600">r → 0</tspan>  candidate ignores the past: fresh start</text>
+    <text x="728" y="564"><tspan fill="#6C5CE7" font-weight="600">r → 1</tspan>  candidate is a plain RNN step</text>
+    <text x="728" y="592" fill="#4C5658">gradient path: ∂h_t/∂h_{t−1} = diag(1 − z_t) + …</text>
+    <text x="728" y="610" fill="#4C5658">→ an additive copy path, like LSTM's f_t path</text>
+    <text x="728" y="638" fill="#4C5658">no separate cell state · no output gate</text>
+    <text x="728" y="656" fill="#4C5658">h_t is exposed directly as the output</text>
+  </g>
+</g>
+
+<!-- ═════ Section B: worked step + interpolation ═════ -->
+<text class="m" x="50" y="718" font-size="11" fill="#7E8888" font-weight="600">B · ONE GRU STEP BY HAND · SCALAR · x = 1 · h_{t−1} = 0.5</text>
+<rect x="50" y="731" width="1140" height="250" rx="16" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+<g class="stage" data-step="4">
+  <rect x="72" y="750" width="520" height="212" rx="10" fill="#0E2A28"/>
+  <g class="m" font-size="11" fill="#CFE9E4">
+    <text x="90" y="776" fill="#F2C879" font-weight="600">WORKED STEP · made-up scalar weights</text>
+    <text x="90" y="802">r = σ(0.5x − 0.3h + 0.1) = σ(0.45) = <tspan fill="#B9AEF7">0.611</tspan></text>
+    <text x="90" y="824">z = σ(0.6x + 0.4h − 0.2) = σ(0.60) = <tspan fill="#8FE0AE">0.646</tspan></text>
+    <text x="90" y="846">r ⊙ h = 0.611 · 0.5 = 0.305</text>
+    <text x="90" y="868">h̃ = tanh(0.9x + 0.8·0.305) = tanh(1.144) = <tspan fill="#F2C879">0.816</tspan></text>
+    <text x="90" y="894">keep = (1 − 0.646) · 0.5   = 0.177</text>
+    <text x="90" y="916">new  = 0.646 · 0.816       = 0.527</text>
+    <text x="90" y="942">h_t = 0.177 + 0.527 = <tspan fill="#7FD1E8" font-weight="600">0.704</tspan></text>
+  </g>
+</g>
+<g class="stage" data-step="5">
+  <text class="d" x="620" y="770" font-size="16" fill="#093F3C">z is a slider between old and new</text>
+  <line x1="650" y1="840" x2="1150" y2="840" stroke="#D9D0BF" stroke-width="6" stroke-linecap="round"/>
+  <!-- scale: 0.4 → 650, 0.9 → 1150 : 1000 px per 1.0 -->
+  <line x1="750" y1="840" x2="1066" y2="840" stroke="#2E9E5B" stroke-width="6" stroke-linecap="round" opacity=".35"/>
+  <circle cx="750" cy="840" r="10" fill="#0E5C58"/>
+  <text class="m" x="750" y="816" font-size="11" fill="#0E5C58" text-anchor="middle" font-weight="600">h_{t−1} = 0.500</text>
+  <text class="m" x="750" y="870" font-size="9.5" fill="#4C5658" text-anchor="middle">z = 0</text>
+  <circle cx="1066" cy="840" r="10" fill="#C9A24B"/>
+  <text class="m" x="1066" y="816" font-size="11" fill="#9a7a1e" text-anchor="middle" font-weight="600">h̃ = 0.816</text>
+  <text class="m" x="1066" y="870" font-size="9.5" fill="#4C5658" text-anchor="middle">z = 1</text>
+  <path d="M946 852 L954 830 L962 852Z" fill="#D9663B"/>
+  <line x1="954" y1="830" x2="954" y2="800" stroke="#D9663B" stroke-width="2"/>
+  <text class="m" x="954" y="794" font-size="11.5" fill="#D9663B" text-anchor="middle" font-weight="600">h_t = 0.704 (z = 0.646)</text>
+  <text class="m" x="620" y="906" font-size="10.5" fill="#22282A">h_t moves 64.6% of the way from h_{t−1} toward h̃.</text>
+  <text class="m" x="620" y="926" font-size="10.5" fill="#22282A">Reset changes h̃ itself: r = 0 → h̃ = tanh(0.9) = 0.716,</text>
+  <text class="m" x="620" y="946" font-size="10.5" fill="#22282A">r = 1 → h̃ = tanh(1.3) = 0.862.</text>
+  <text class="m" x="620" y="966" font-size="9.5" fill="#7E8888">Interpolation keeps h_t inside [h_{t−1}, h̃] per unit, so it stays in (−1, 1).</text>
+</g>
+
+<!-- ═════ Section C: LSTM → GRU mapping ═════ -->
+<text class="m" x="50" y="1009" font-size="11" fill="#7E8888" font-weight="600">C · FROM LSTM TO GRU · WHAT WAS MERGED, WHAT WAS REMOVED</text>
+<g class="stage" data-step="6">
+  <rect x="50" y="1022" width="1140" height="248" rx="16" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <text class="m" x="72" y="1050" font-size="10.5" fill="#0E5C58" font-weight="600">LSTM (3 gates + candidate, 2 states)</text>
+  <text class="m" x="560" y="1050" font-size="10.5" fill="#2E9E5B" font-weight="600">GRU (2 gates + candidate, 1 state)</text>
+  <text class="m" x="850" y="1050" font-size="10.5" fill="#7E8888" font-weight="600">WHY</text>
+  <g class="m" font-size="11">
+    <rect x="72" y="1062" width="360" height="36" rx="8" fill="#F7E4D8"/><text x="86" y="1085" fill="#22282A">forget f_t  +  input i_t</text>
+    <line x1="436" y1="1080" x2="550" y2="1080" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+    <rect x="556" y="1062" width="280" height="36" rx="8" fill="#DFF1E5"/><text x="570" y="1085" fill="#22282A">update z_t  (f = 1−z, i = z)</text>
+    <text x="852" y="1085" fill="#4C5658">coupled: what you keep, you don't write</text>
+
+    <rect x="72" y="1106" width="360" height="36" rx="8" fill="#E3EEEC"/><text x="86" y="1129" fill="#22282A">cell c_t  +  hidden h_t</text>
+    <line x1="436" y1="1124" x2="550" y2="1124" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+    <rect x="556" y="1106" width="280" height="36" rx="8" fill="#E3EEEC"/><text x="570" y="1129" fill="#22282A">one state h_t</text>
+    <text x="852" y="1129" fill="#4C5658">h_t itself carries the additive path</text>
+
+    <rect x="72" y="1150" width="360" height="36" rx="8" fill="#ECEAFB"/><text x="86" y="1173" fill="#22282A">output gate o_t  ·  tanh(c_t)</text>
+    <line x1="436" y1="1168" x2="550" y2="1168" stroke="#D9663B" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrowCoral)"/>
+    <rect x="556" y="1150" width="280" height="36" rx="8" fill="#fff" stroke="#D9663B" stroke-dasharray="4 3"/><text x="570" y="1173" fill="#D9663B">removed</text>
+    <text x="852" y="1173" fill="#4C5658">nothing hidden: memory = output</text>
+
+    <rect x="72" y="1194" width="360" height="36" rx="8" fill="#F3EAD3"/><text x="86" y="1217" fill="#22282A">candidate g_t from [h_{t−1}, x_t]</text>
+    <line x1="436" y1="1212" x2="550" y2="1212" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+    <rect x="556" y="1194" width="280" height="36" rx="8" fill="#F3EAD3"/><text x="570" y="1217" fill="#22282A">h̃_t from [r ⊙ h_{t−1}, x_t]</text>
+    <text x="852" y="1217" fill="#4C5658">new reset gate r_t can drop the past</text>
+  </g>
+  <text class="m" x="72" y="1256" font-size="10" fill="#4C5658">Result: 3 weight blocks instead of 4 → ¾ of the LSTM's parameters and compute · Chung et al. 2014: accuracy usually comparable</text>
+</g>
+
+<!-- ═════ Section D: conventions + params ═════ -->
+<text class="m" x="50" y="1298" font-size="11" fill="#7E8888" font-weight="600">D · CONVENTIONS AND PARAMETER COUNTS · CHECK WHICH ONE YOUR FRAMEWORK USES</text>
+<g class="stage" data-step="7">
+  <rect x="50" y="1311" width="560" height="190" rx="12" fill="#0E2A28"/>
+  <g class="m" font-size="10.5" fill="#CFE9E4">
+    <text x="68" y="1336" fill="#F2C879" font-weight="600">THIS SHEET (Chung 2014)</text>
+    <text x="68" y="1356">h_t = (1−z)⊙h_{t−1} + z⊙h̃</text><text x="380" y="1356" fill="#8FE0AE">z = "take new"</text>
+    <text x="68" y="1384" fill="#F2C879" font-weight="600">PyTorch nn.GRU / cuDNN / ONNX GRU</text>
+    <text x="68" y="1404">h_t = (1−z)⊙n + z⊙h_{t−1}</text><text x="380" y="1404" fill="#E58B5F">z = "keep old"</text>
+    <text x="68" y="1424">n = tanh(W_in x + b_in + r⊙(W_hn h + b_hn))</text>
+    <text x="68" y="1452" fill="#9fc9c3">Same model: swap z ↔ 1−z. PyTorch applies r AFTER the</text>
+    <text x="68" y="1470" fill="#9fc9c3">h-matmul → ONNX attribute linear_before_reset = 1.</text>
+    <text x="68" y="1488" fill="#9fc9c3">Gate order in weight_ih_l0 / weight_hh_l0: r, z, n.</text>
+  </g>
+  <rect x="630" y="1311" width="560" height="190" rx="12" fill="#fff" stroke="#D9D0BF" stroke-width="1.4"/>
+  <rect x="630" y="1311" width="560" height="30" rx="12" fill="#0E5C58"/>
+  <rect x="630" y="1327" width="560" height="14" fill="#0E5C58"/>
+  <g class="m" font-size="10.5">
+    <g fill="#fff" font-weight="600"><text x="646" y="1331">CELL</text><text x="730" y="1331">ONE BIAS</text><text x="890" y="1331">PYTORCH (2 BIASES)</text><text x="1080" y="1331">d=128,H=256</text></g>
+    <text x="646" y="1372" fill="#D9663B" font-weight="600">RNN</text><text x="730" y="1372">H(d+H+1)</text><text x="890" y="1372">H(d+H) + 2H</text><text x="1080" y="1372">98,816</text>
+    <rect x="631" y="1388" width="558" height="40" fill="#FBF7EF"/>
+    <text x="646" y="1413" fill="#2E9E5B" font-weight="600">GRU</text><text x="730" y="1413">3H(d+H+1)</text><text x="890" y="1413">3H(d+H) + 6H</text><text x="1080" y="1413" font-weight="600">296,448</text>
+    <text x="646" y="1454" fill="#0E5C58" font-weight="600">LSTM</text><text x="730" y="1454">4H(d+H+1)</text><text x="890" y="1454">4H(d+H) + 8H</text><text x="1080" y="1454">395,264</text>
+    <text x="646" y="1488" fill="#7E8888" font-size="9.5">GRU = 3 blocks (r, z, h̃) · LSTM = 4 blocks (i, f, g, o)</text>
+  </g>
+</g>
+
+<!-- ═════ Section E: practical cards ═════ -->
+<text class="m" x="50" y="1528" font-size="11" fill="#7E8888" font-weight="600">E · IN PRACTICE</text>
+<g class="stage" data-step="8">
+  <rect x="50" y="1540" width="366" height="132" rx="12" fill="#E3EEEC" stroke="#0E5C58" stroke-width="1.3"/>
+  <text class="d" x="66" y="1566" font-size="14" fill="#093F3C">PyTorch shapes</text>
+  <g class="m" font-size="9.5" fill="#22282A"><text x="66" y="1588">gru = nn.GRU(128, 256, num_layers=2,</text><text x="66" y="1602">             batch_first=True)</text><text x="66" y="1622">out, h_n = gru(x)   # x (B,T,128)</text><text x="66" y="1638">out (B,T,256) · h_n (2,B,256)</text><text x="66" y="1654">no c_n: the GRU has one state</text></g>
+  <rect x="437" y="1540" width="366" height="132" rx="12" fill="#E2EEF9" stroke="#2E86DE" stroke-width="1.3"/>
+  <text class="d" x="453" y="1566" font-size="14" fill="#093F3C">Where GRUs show up</text>
+  <g class="m" font-size="9.5" fill="#22282A"><text x="453" y="1588">NMT: Cho 2014 encoder-decoder, Bahdanau</text><text x="453" y="1602">2015 attention (RNNsearch)</text><text x="453" y="1622">speech: DeepSpeech 2 recurrent layers</text><text x="453" y="1638">on-device: keyword spotting, small</text><text x="453" y="1654">streaming models, time series</text></g>
+  <rect x="824" y="1540" width="366" height="132" rx="12" fill="#F7E4D8" stroke="#D9663B" stroke-width="1.3"/>
+  <text class="d" x="840" y="1566" font-size="14" fill="#093F3C">GRU or LSTM?</text>
+  <g class="m" font-size="9.5" fill="#22282A"><text x="840" y="1588">GRU: fewer params, faster, less data</text><text x="840" y="1602">LSTM: very long memory, counting tasks</text><text x="840" y="1622">try both · clip grad norm 1.0 for both</text><text x="840" y="1638">streaming deploy: export h as explicit</text><text x="840" y="1654">input/output of the ONNX graph</text></g>
+</g>
+
+<rect x="50" y="1690" width="1140" height="34" rx="10" fill="#0E2A28"/>
+<text class="m" x="66" y="1712" font-size="9.5" fill="#F2C879" font-weight="600">MEMORY RULE</text>
+<text class="m" x="180" y="1712" font-size="9.5" fill="#fff">GRU = reset decides what the candidate may see · update blends old h with the candidate · one state, three weight blocks</text>
+<text class="m" x="50" y="1742" font-size="9.5" fill="#7E8888">Blue = input · teal = hidden state · violet = reset gate · green = update gate · gold = candidate · coral = removed · moving dots = data flow</text>
+<text class="m" x="1190" y="1742" font-size="9.5" fill="#0E5C58" text-anchor="end" font-weight="600">GRU · original SVG · animated A4</text>
+</svg>
+
+<script>
+(function(){
+  const exportMode=new URLSearchParams(location.search).has('export');
+  if(exportMode)document.body.classList.add('export');
+  const svg=document.querySelector('svg');
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)');
+  const toggle=document.getElementById('motionToggle');
+  const steps=[...new Set([...document.querySelectorAll('[data-step]')].map(el=>Number(el.dataset.step)))].sort((a,b)=>a-b);
+  let current=-1,timer=null,paused=false;
+  function show(step){document.querySelectorAll('.is-active').forEach(el=>el.classList.remove('is-active'));document.querySelectorAll(`[data-step="${step}"]`).forEach(el=>el.classList.add('is-active'))}
+  function advance(){current=(current+1)%steps.length;show(steps[current])}
+  function start(){if(reduce.matches||exportMode){svg.pauseAnimations();return}svg.unpauseAnimations();advance();timer=setInterval(advance,900)}
+  function stop(){clearInterval(timer);timer=null;svg.pauseAnimations()}
+  toggle.addEventListener('click',()=>{paused=!paused;document.body.classList.toggle('paused',paused);toggle.setAttribute('aria-pressed',String(paused));toggle.textContent=paused?'Resume motion':'Pause motion';paused?stop():start()});
+  reduce.addEventListener('change',event=>{if(event.matches){stop();document.querySelectorAll('.is-active').forEach(el=>el.classList.remove('is-active'))}else if(!paused)start()});
+  start();
+})();
+</script>
+</body>
+</html>

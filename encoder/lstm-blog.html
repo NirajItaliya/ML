@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LSTM: A Memory That Chooses</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  window.MathJax = {
+    tex:{inlineMath:[['$','$'],['\\(','\\)']], displayMath:[['$$','$$'],['\\[','\\]']]},
+    svg:{fontCache:'global'}
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<style>
+:root{
+  --paper:#F6F1E7; --paper2:#FBF7EF; --card:#FFFFFF;
+  --ink:#22282A; --ink-soft:#4C5658; --muted:#7E8888; --line:#E4DBCB;
+  --teal:#0E5C58; --teal-deep:#093F3C; --teal-soft:#E3EEEC;
+  --amber:#D9663B; --amber-soft:#F7E4D8; --gold:#C9A24B;
+  --violet:#6C5CE7; --blue:#2E86DE; --green:#2E9E5B; --neg:#D9663B;
+  --shadow:0 1px 2px rgba(20,40,38,.04),0 8px 30px -12px rgba(20,40,38,.18);
+  --shadow-lg:0 30px 60px -24px rgba(14,92,88,.30);
+  --radius:18px; --maxw:1180px;
+  --mono:'JetBrains Mono',monospace; --disp:'Fraunces',serif; --body:'Spectral',Georgia,serif;
+  --code-bg:#0E2A28; --code-border:#15403c; --code-text:#CFE9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 12% -10%, #FCEBDD55, transparent 40%),radial-gradient(circle at 100% 0%, #DCEBE955, transparent 45%);
+  background-attachment:fixed;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;line-height:1.12;color:var(--teal-deep);letter-spacing:-.01em}
+a{color:var(--teal);text-decoration:none}
+code,kbd,.mono{font-family:var(--mono)}
+
+.layout{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;padding:20px clamp(20px,5vw,48px) 80px;display:grid;grid-template-columns:240px 1fr;gap:48px;align-items:start}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.toc{display:none}}
+main{min-width:0}
+section{margin-bottom:60px;scroll-margin-top:90px}
+section h2{font-size:clamp(28px,4vw,40px);margin:6px 0 20px}
+section h3{font-size:23px;margin:34px 0 12px;color:var(--teal)}
+p{margin:0 0 18px;color:var(--ink-soft)}
+.lead-in{font-size:20px;color:var(--ink-soft)}
+strong{color:var(--ink)}
+
+/* progress + topbar */
+#progress{position:fixed;top:0;left:0;height:4px;width:0%;z-index:60;background:linear-gradient(90deg,var(--teal),var(--gold),var(--amber))}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;
+  padding:14px clamp(16px,4vw,40px);backdrop-filter:blur(8px);
+  background:linear-gradient(var(--paper),rgba(246,241,231,0));transition:background .3s,box-shadow .3s}
+.topbar.solid{background:rgba(246,241,231,.9);box-shadow:0 1px 0 var(--line)}
+.brand{font-family:var(--disp);font-weight:600;font-size:18px;color:var(--teal-deep);display:flex;align-items:center;gap:10px}
+.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-soft)}
+.topnav a{margin-left:22px;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.topnav a:hover{color:var(--amber)}
+@media(max-width:820px){.topnav{display:none}}
+
+/* hero */
+.hero{max-width:var(--maxw);margin:0 auto;padding:140px clamp(20px,5vw,48px) 30px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;position:relative;z-index:2}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:120px}}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:18px}
+.hero h1{font-size:clamp(38px,6vw,72px);font-weight:600;margin:0 0 18px}
+.hero h1 .em{font-style:italic;color:var(--amber)}
+.hero p.lead{font-size:20px;color:var(--ink-soft);max-width:40ch;margin:0 0 26px}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:13px 22px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.btn.ghost{background:transparent;color:var(--teal)}
+.btn.ghost:hover{background:var(--teal-soft)}
+.hero-fig{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.hero-fig svg{display:block;width:100%;height:auto}
+
+/* beams */
+.beam{stroke-linecap:round;fill:none;stroke-dasharray:10 200;animation:flow 2.8s linear infinite}
+@keyframes flow{from{stroke-dashoffset:210}to{stroke-dashoffset:0}}
+.pnode{animation:breathe 3.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+
+/* toc */
+.toc{position:sticky;top:96px;font-family:var(--mono);font-size:12.5px}
+.toc h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.toc a{display:block;color:var(--ink-soft);padding:6px 0 6px 14px;border-left:2px solid var(--line);transition:.2s;line-height:1.4}
+.toc a:hover{color:var(--teal)}
+.toc a.active{color:var(--teal-deep);border-left-color:var(--amber);font-weight:600}
+
+/* section shell */
+.sec-no{font-family:var(--mono);font-size:13px;color:var(--amber);letter-spacing:.1em}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* callouts */
+.note{background:var(--teal-soft);border-left:4px solid var(--teal);border-radius:10px;padding:16px 20px;margin:22px 0;font-size:17px;color:var(--teal-deep)}
+.note.amber{background:var(--amber-soft);border-left-color:var(--amber);color:#8a3f1e}
+.note.violet{background:#ECEAFB;border-left-color:var(--violet);color:#3d3380}
+
+/* intuition cards */
+.icards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:22px 0}
+.icard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s,border-color .25s}
+.icard:hover{transform:translateY(-4px);border-color:var(--amber);box-shadow:var(--shadow-lg)}
+.icard .emoji{font-size:26px;margin-bottom:10px}
+.icard h4{font-size:19px;color:var(--teal-deep);margin:0 0 6px}
+.icard p{font-size:15.5px;color:var(--ink-soft);margin:0}
+
+/* figure */
+.fig{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:24px 0;box-shadow:var(--shadow)}
+.fig svg{display:block;width:100%;height:auto;max-width:760px;margin:0 auto}
+.fig figcaption{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;margin-top:14px;letter-spacing:.02em}
+.legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:10px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* tables */
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:15.5px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+thead{background:var(--teal);color:#fff;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--paper2)}
+td.mono,th.mono{font-family:var(--mono)}
+table caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--amber);padding:0 0 10px;font-weight:600}
+
+/* code */
+pre{background:var(--code-bg);color:var(--code-text);border-radius:14px;padding:20px 22px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;box-shadow:var(--shadow);border:1px solid var(--code-border);margin:18px 0;position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:9px;right:15px;font-size:10.5px;color:#5f8a84;letter-spacing:.2em}
+code.inl{background:var(--teal-soft);color:var(--teal-deep);padding:2px 7px;border-radius:6px;font-size:14px}
+.c-kw{color:#F2A0C0}.c-fn{color:#7FD1E8}.c-str{color:#E7E08B}.c-num{color:#F2C879}.c-com{color:#6f9a94}.c-op{color:#E58B5F}
+
+/* keybox / eqcard */
+.keybox{background:linear-gradient(180deg,#fff,#FBF7EF);border:1.5px solid var(--gold);border-radius:14px;padding:8px 18px;margin:18px auto;text-align:center;box-shadow:var(--shadow)}
+.eqcard{background:var(--paper2);border:1px dashed var(--line);border-radius:12px;padding:6px 18px;margin:18px 0;overflow-x:auto}
+
+/* ===== dark stepped demo widget ===== */
+.demo{background:linear-gradient(160deg,#0E5C58,#093F3C);border-radius:var(--radius);padding:26px;margin:24px 0;box-shadow:var(--shadow-lg);color:#DCEFEC}
+.demo h4{color:#fff;margin:0 0 4px;font-size:20px}
+.demo .dsub{font-family:var(--mono);font-size:12px;color:#9fc9c3;margin-bottom:18px}
+.demo-board{display:flex;flex-direction:column;gap:14px}
+.brow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.brow .rlab{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7fb4ad;width:96px;flex:none}
+.chip{font-family:var(--mono);font-size:13px;padding:9px 12px;border-radius:10px;min-width:62px;text-align:center;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#bfe0db;opacity:0;transform:translateY(6px);
+  transition:opacity .4s,transform .4s,background .35s,border-color .35s,box-shadow .35s}
+.chip.show{opacity:1;transform:none}
+.chip small{display:block;font-size:9px;color:#7fb4ad;margin-top:2px}
+.chip.word.show{background:rgba(127,209,232,.12);border-color:#7FD1E8;color:#cdeaf4}
+.chip.pos.show{background:rgba(217,102,59,.16);border-color:var(--amber);color:#f6cdba}
+.chip.sum.show{background:rgba(201,162,75,.16);border-color:var(--gold);color:#f0dca6}
+.chip.hot{box-shadow:0 0 0 2px var(--gold),0 6px 20px -6px rgba(201,162,75,.6);transform:translateY(-3px)}
+.demo-cap{min-height:46px;margin:18px 0 6px;font-size:16px;color:#eafaf7;line-height:1.5}
+.demo-ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.demo-ctrl button{font-family:var(--mono);font-size:12px;padding:9px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:transparent;color:#dcefec;cursor:pointer;transition:.2s}
+.demo-ctrl button:hover:not(:disabled){background:rgba(255,255,255,.12)}
+.demo-ctrl button:disabled{opacity:.35;cursor:not-allowed}
+.demo-ctrl button.primary{background:var(--gold);border-color:var(--gold);color:#3a2c08;font-weight:600}
+.dots{display:flex;gap:7px;margin-left:auto}
+.dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.25);transition:.2s}
+.dots i.on{background:var(--gold);transform:scale(1.3)}
+
+/* ===== light interactive explorer ===== */
+.explorer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin:24px 0;box-shadow:var(--shadow)}
+.explorer h4{margin:0 0 4px;font-size:20px}
+.explorer .esub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:16px}
+.ctrls{display:flex;gap:22px;flex-wrap:wrap;align-items:center;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:18px}
+.ctl{display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--muted)}
+.ctl .v{color:var(--teal-deep);font-weight:600;font-size:13px}
+.ctl input[type=range]{width:150px;accent-color:var(--amber)}
+.minibtn{font-family:var(--mono);font-size:12px;padding:9px 15px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:.2s}
+.minibtn:hover{background:var(--teal-deep)}
+.epanel{margin:14px 0}
+.epanel .et{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.heat-scroll{overflow-x:auto;padding-bottom:6px}
+.heat{display:grid;gap:2px;width:max-content}
+.hcell{width:15px;height:15px;border-radius:3px;cursor:pointer}
+.hrow-lab{font-family:var(--mono);font-size:9px;color:var(--muted);display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
+.row-sel{outline:2px solid var(--gold);outline-offset:1px}
+.eread{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);margin-top:10px;line-height:1.6}
+.eread b{color:var(--teal-deep)}
+.eread .g{color:#9a7a1e}
+.esvg svg{display:block;width:100%;height:auto}
+
+footer{position:relative;z-index:2;background:var(--teal-deep);color:#BFD8D4;padding:48px clamp(20px,5vw,48px);text-align:center;font-family:var(--mono);font-size:13px}
+footer .big{font-family:var(--disp);font-size:24px;color:#fff;margin-bottom:10px}
+footer .links{margin:18px 0 6px;line-height:2}
+footer .links a{color:#9fd9d2}
+footer .sub{opacity:.7;margin-top:10px;font-size:12px}
+
+
+select{accent-color:var(--amber)}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+  .reveal{opacity:1;transform:none}
+  .chip{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="topbar" id="topbar">
+  <style>
+  .nbar-left{display:flex;align-items:center;gap:10px}
+  .nbtn{font-family:var(--mono,'JetBrains Mono',monospace);font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+    display:inline-flex;align-items:center;padding:7px 13px;border-radius:999px;
+    border:1px solid var(--line,#E4DBCB);background:var(--card,#fff);color:var(--teal,#0E5C58);cursor:pointer;
+    text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s,border-color .2s}
+  .nbtn:hover{transform:translateY(-1px);border-color:var(--amber,#D9663B);background:var(--teal-soft,#E3EEEC);
+    box-shadow:var(--shadow,0 8px 30px -12px rgba(20,40,38,.18))}
+  @media(max-width:560px){.nbtn .lbl{display:none}.nbtn{padding:7px 10px}}
+  </style>
+  <div class="nbar-left">
+  <a class="nbtn" href="javascript:history.back()" title="Go back">←<span class="lbl">&nbsp;Back</span></a>
+  <a class="nbtn" href="../index.html" title="Home">⌂<span class="lbl">&nbsp;Home</span></a>
+  <div class="brand"><span class="dot"></span> LSTM · Notebook</div>
+  </div>
+  <nav class="topnav">
+    <a href="#highway">Highway</a><a href="#gates">Gates</a><a href="#lab">Gate lab</a><a href="#memory">Memory</a><a href="#code">Code</a><a href="#speech">Speech</a>
+  </nav>
+</div>
+
+<header class="hero">
+  <div>
+    <div class="eyebrow reveal">Sequence models · Gated recurrence</div>
+    <h1 class="reveal">A memory that <span class="em">chooses.</span></h1>
+    <p class="lead reveal">A vanilla RNN overwrites its memory at every step, so old information fades. A Long Short-Term Memory (LSTM) network keeps a separate cell state and uses three gates to decide what to erase, what to write and what to reveal. This page builds the cell gate by gate, with a live calculator you can drive.</p>
+    <div class="cta reveal">
+      <a class="btn" href="#problem">Start reading</a>
+      <a class="btn ghost" href="#lab">Open the gate lab</a>
+    </div>
+  </div>
+  <div class="hero-fig reveal">
+    <svg viewBox="0 0 460 300" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono">
+      <rect x="60" y="40" width="340" height="220" rx="18" fill="#FBF7EF" stroke="#C9A24B" stroke-dasharray="6 4"/>
+      <path class="beam" d="M14 80 H446" stroke="#0E5C58" stroke-width="5"/>
+      <line x1="14" y1="80" x2="446" y2="80" stroke="#0E5C58" stroke-width="5" opacity=".25"/>
+      <text x="18" y="68" font-size="11" fill="#0E5C58">c_{t−1}</text><text x="414" y="68" font-size="11" fill="#0E5C58">c_t</text>
+      <circle cx="140" cy="80" r="13" fill="#fff" stroke="#D9663B" stroke-width="2"/><text x="140" y="85" text-anchor="middle" fill="#D9663B" font-size="14">×</text>
+      <circle cx="240" cy="80" r="13" fill="#fff" stroke="#0E5C58" stroke-width="2"/><text x="240" y="85" text-anchor="middle" fill="#0E5C58" font-size="15">+</text>
+      <g font-size="12">
+        <rect class="pnode" x="115" y="190" width="50" height="30" rx="8" fill="#F7E4D8" stroke="#D9663B"/><text x="140" y="210" text-anchor="middle" fill="#8a3f1e">f</text>
+        <rect class="pnode" x="190" y="190" width="50" height="30" rx="8" fill="#DFF1E5" stroke="#2E9E5B" style="animation-delay:.5s"/><text x="215" y="210" text-anchor="middle" fill="#1f6b3e">i</text>
+        <rect class="pnode" x="260" y="190" width="50" height="30" rx="8" fill="#F3EAD3" stroke="#C9A24B" style="animation-delay:1s"/><text x="285" y="210" text-anchor="middle" fill="#7a5f12">g</text>
+        <rect class="pnode" x="330" y="190" width="50" height="30" rx="8" fill="#ECEAFB" stroke="#6C5CE7" style="animation-delay:1.5s"/><text x="355" y="210" text-anchor="middle" fill="#3d3380">o</text>
+      </g>
+      <path d="M140 190V93" stroke="#D9663B" stroke-width="2"/>
+      <path d="M215 190V140H240V93M285 190V140H240" stroke="#2E9E5B" stroke-width="2" fill="none"/>
+      <path d="M355 190V150" stroke="#6C5CE7" stroke-width="2"/>
+      <text x="355" y="140" text-anchor="middle" fill="#6C5CE7" font-size="11">→ h_t</text>
+      <text x="230" y="285" text-anchor="middle" fill="#7E8888" font-size="10.5">erase · write · reveal</text>
+    </svg>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <h5>Contents</h5>
+    <a href="#problem">1 · The problem</a>
+    <a href="#highway">2 · The cell-state highway</a>
+    <a href="#gates">3 · Four gates</a>
+    <a href="#walk">4 · One step, by hand</a>
+    <a href="#lab">5 · Gate lab</a>
+    <a href="#memory">6 · Memory over time</a>
+    <a href="#variants">7 · GRU &amp; variants</a>
+    <a href="#code">8 · PyTorch</a>
+    <a href="#speech">9 · LSTMs in speech</a>
+    <a href="#interview">10 · Interview questions</a>
+  </aside>
+
+  <main>
+
+    <!-- 01 -->
+    <section id="problem" class="reveal">
+      <div class="sec-no">01</div>
+      <h2>The problem LSTM solves</h2>
+      <p class="lead-in">In a vanilla RNN, $h_t = \tanh(W_{xh}x_t + W_{hh}h_{t-1})$. Every step pushes the whole memory through the same matrix and a squashing function.</p>
+      <p>That causes two problems, both covered in the <a href="rnn-blog.html">RNN blog</a>. In the forward pass, old information is <strong>overwritten</strong>: a pulse seen at step 1 shrinks by roughly $|W_{hh}|$ every step. In the backward pass, the gradient is a <strong>product</strong> of one Jacobian per step, so it vanishes or explodes exponentially. In practice a vanilla RNN struggles to use anything more than about 10–20 steps back.</p>
+      <p>Hochreiter and Schmidhuber's 1997 answer was to give the network a second state, the <strong>cell state</strong> $c_t$, that is updated by <strong>addition</strong> rather than by repeated matrix multiplication. Learned gates control that addition.</p>
+      <div class="icards">
+        <div class="icard"><div class="emoji">📝</div><h4>RNN = whiteboard</h4><p>Every step you wipe the board and rewrite a blurred copy plus the new note. After a while the old notes are unreadable.</p></div>
+        <div class="icard"><div class="emoji">📒</div><h4>LSTM = notebook</h4><p>You keep a notebook. Each step you cross out some lines (forget), add some lines (input) and read out a summary (output). Untouched lines stay sharp.</p></div>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section id="highway" class="reveal">
+      <div class="sec-no">02</div>
+      <h2>The cell-state highway</h2>
+      <p class="lead-in">The most important line in an LSTM is this one:</p>
+      <div class="keybox">$$c_t = f_t \odot c_{t-1} \;+\; i_t \odot g_t$$</div>
+      <p>The old memory $c_{t-1}$ is multiplied element by element ($\odot$) by the forget gate $f_t \in (0,1)$, and new content $i_t \odot g_t$ is <em>added</em>. There is no weight matrix and no tanh between $c_{t-1}$ and $c_t$. Now look at the gradient along this path:</p>
+      <div class="eqcard">$$\frac{\partial c_t}{\partial c_{t-1}} = \mathrm{diag}(f_t) \qquad\Longrightarrow\qquad \frac{\partial c_T}{\partial c_1} = \prod_{t=2}^{T} \mathrm{diag}(f_t)$$</div>
+      <p>If the network learns $f_t \approx 1$ for a unit, that unit's memory and its gradient pass through many steps almost unchanged. The network <strong>learns</strong> how long to remember, unit by unit, instead of being forced to forget at a fixed rate. This is sometimes called the <em>constant error carousel</em>.</p>
+      <div class="note"><strong>Connection you already know:</strong> this is the same idea as a residual connection in a ResNet or Transformer, $x_{l+1} = x_l + F(x_l)$. An additive path lets gradients flow. The LSTM had it in 1997, along time instead of along depth.</div>
+    </section>
+
+    <!-- 03 -->
+    <section id="gates" class="reveal">
+      <div class="sec-no">03</div>
+      <h2>Four gates, one input</h2>
+      <p class="lead-in">Every gate reads the same thing: the previous hidden state and the current input, concatenated as $[h_{t-1}, x_t]$. Each has its own weights $W_\ast \in \mathbb{R}^{H\times(H+d)}$ and bias.</p>
+      <div class="icards">
+        <div class="icard" style="border-top:4px solid var(--amber)"><div class="emoji">🧽</div><h4>Forget gate $f_t$</h4><p>$\sigma(W_f[h_{t-1},x_t]+b_f)$. Between 0 and 1 per unit: 0 = erase this memory, 1 = keep it.</p></div>
+        <div class="icard" style="border-top:4px solid var(--green)"><div class="emoji">🚪</div><h4>Input gate $i_t$</h4><p>$\sigma(W_i[h_{t-1},x_t]+b_i)$. How much of the new candidate to write into each unit.</p></div>
+        <div class="icard" style="border-top:4px solid var(--gold)"><div class="emoji">✍️</div><h4>Candidate $g_t$</h4><p>$\tanh(W_g[h_{t-1},x_t]+b_g)$. The new content itself, in $(-1,1)$. Also written $\tilde c_t$.</p></div>
+        <div class="icard" style="border-top:4px solid var(--violet)"><div class="emoji">🔦</div><h4>Output gate $o_t$</h4><p>$\sigma(W_o[h_{t-1},x_t]+b_o)$. Which parts of the memory to expose as $h_t$.</p></div>
+      </div>
+      <div class="keybox">$$h_t = o_t \odot \tanh(c_t)$$</div>
+      <p>Why sigmoid for gates and tanh for content? A gate is a <strong>soft switch</strong>, so $(0,1)$ is the natural range. Content should be able to push memory both up and down, so it uses $(-1,1)$. The final $\tanh(c_t)$ keeps $h_t$ bounded even if $c_t$ has grown large.</p>
+      <div class="fig">
+        <img src="lstm-math-A4.png" alt="LSTM math A4 reference sheet showing the LSTM cell diagram" style="display:block;width:100%;aspect-ratio:1240/490;object-fit:cover;object-position:0 12.7%;border-radius:10px" loading="lazy">
+        <figcaption>LSTM cell from section A of the <a href="lstm-math-A4.html">LSTM math A4 sheet</a></figcaption>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="walk" class="reveal">
+      <div class="sec-no">04</div>
+      <h2>One LSTM step, by hand</h2>
+      <p class="lead-in">A 1-unit LSTM with $x_t = 1$, $h_{t-1} = 0.5$, $c_{t-1} = 0.8$ and small made-up weights. Step through the computation in the order the cell does it.</p>
+      <div class="demo">
+        <h4>Gates first, then memory, then output</h4>
+        <div class="dsub">x=1 · h_(t−1)=0.5 · c_(t−1)=0.8</div>
+        <div class="demo-board" id="lstmBoard">
+          <div class="brow"><span class="rlab">gates</span>
+            <span class="chip pos" id="gF">f = 0.690<small>σ(0.5x+0.4h+0.1)</small></span>
+            <span class="chip word" id="gI">i = 0.611<small>σ(0.6x−0.3h)</small></span>
+            <span class="chip sum" id="gG">g = 0.762<small>tanh(0.9x+0.2h)</small></span>
+            <span class="chip word" id="gO">o = 0.679<small>σ(0.7x+0.1h)</small></span></div>
+          <div class="brow"><span class="rlab">cell state</span>
+            <span class="chip pos" id="cKeep">0.552<small>f·c₋ = 0.690·0.8</small></span>
+            <span class="chip sum" id="cWrite">0.465<small>i·g = 0.611·0.762</small></span>
+            <span class="chip sum" id="cNew">c = 1.017<small>keep + write</small></span></div>
+          <div class="brow"><span class="rlab">output</span>
+            <span class="chip word" id="tC">0.769<small>tanh(c)</small></span>
+            <span class="chip pos" id="hNew">h = 0.522<small>o·tanh(c)</small></span></div>
+        </div>
+        <div class="demo-cap" id="lstmCap"></div>
+        <div class="demo-ctrl">
+          <button id="lstmPrev">← Prev</button><button id="lstmNext" class="primary">Next →</button><button id="lstmPlay">▶ Play</button>
+          <div class="dots" id="lstmDots"></div>
+        </div>
+      </div>
+      <p>Notice the cell state went <strong>up</strong> from 0.8 to 1.017. The network kept 69% of the old memory and added new content on top. A vanilla RNN can't do this: its new state is always a squashed mix, never "old plus new".</p>
+    </section>
+
+    <!-- 05 -->
+    <section id="lab" class="reveal">
+      <div class="sec-no">05</div>
+      <h2>Gate lab: drive the cell yourself</h2>
+      <p class="lead-in">Same 1-unit LSTM and weights as above. Move the inputs and the forget bias and watch every gate respond.</p>
+      <div class="explorer">
+        <h4>Live LSTM cell</h4>
+        <div class="esub">bars show each value on its own range · σ gates in (0,1) · tanh values in (−1,1)</div>
+        <div class="ctrls">
+          <label class="ctl">x_t <span class="v" id="lxLab">1.00</span><input type="range" id="lx" min="-2" max="2" step="0.05" value="1"></label>
+          <label class="ctl">h_(t−1) <span class="v" id="lhLab">0.50</span><input type="range" id="lh" min="-1" max="1" step="0.05" value="0.5"></label>
+          <label class="ctl">c_(t−1) <span class="v" id="lcLab">0.80</span><input type="range" id="lc" min="-2" max="2" step="0.05" value="0.8"></label>
+          <label class="ctl">forget bias b_f <span class="v" id="lbLab">0.10</span><input type="range" id="lb" min="-4" max="4" step="0.1" value="0.1"></label>
+        </div>
+        <div class="esvg" id="labSvg"></div>
+        <div class="eread" id="labRead"></div>
+      </div>
+      <div class="note amber">Set <strong>b_f = −4</strong>: $f \approx 0.02$ and the old memory is wiped, so $c_t$ is almost exactly $i \cdot g$. Set <strong>b_f = +4</strong>: $f \approx 0.99$ and $c_{t-1}$ passes through. This is why practitioners initialise the forget bias to <strong>+1</strong> (Jozefowicz et al., 2015): the cell starts out remembering and learns when to forget.</div>
+    </section>
+
+    <!-- 06 -->
+    <section id="memory" class="reveal">
+      <div class="sec-no">06</div>
+      <h2>Memory over time: RNN vs LSTM</h2>
+      <p class="lead-in">Feed a single pulse at step 1, then zeros. The vanilla RNN's memory is multiplied by $w_h$ and squashed every step. The LSTM's cell state is multiplied only by its forget gate.</p>
+      <div class="explorer">
+        <h4>How long does a pulse survive?</h4>
+        <div class="esub">coral = RNN h_t · teal = LSTM c_t · dashed = 10% of the start value</div>
+        <div class="ctrls">
+          <label class="ctl">RNN w_h <span class="v" id="mwLab">0.80</span><input type="range" id="mw" min="0.3" max="0.99" step="0.01" value="0.8"></label>
+          <label class="ctl">LSTM forget f <span class="v" id="mfLab">0.95</span><input type="range" id="mf" min="0.5" max="1" step="0.005" value="0.95"></label>
+          <label class="ctl">steps <span class="v" id="mtLab">50</span><input type="range" id="mt" min="10" max="200" step="5" value="50"></label>
+        </div>
+        <div class="esvg" id="survSvg"></div>
+        <div class="eread" id="survRead"></div>
+      </div>
+      <p>Half-life is $\ln 0.5 / \ln f$ steps. With $f = 0.99$ a memory lasts about <strong>69 steps</strong> before halving; with $f = 0.999$, about <strong>693</strong>. The RNN can't simply raise $w_h$ to 1 because the same matrix also mixes in every new input and goes through tanh, which saturates.</p>
+    </section>
+
+    <!-- 07 -->
+    <section id="variants" class="reveal">
+      <div class="sec-no">07</div>
+      <h2>GRU and other variants</h2>
+      <p class="lead-in">The Gated Recurrent Unit (GRU, Cho et al. 2014) merges the cell and hidden state and uses two gates instead of three.</p>
+      <div class="eqcard">$$z_t = \sigma(W_z[h_{t-1},x_t]) \quad r_t = \sigma(W_r[h_{t-1},x_t]) \quad \tilde h_t = \tanh(W_h[r_t\odot h_{t-1},x_t])$$
+      $$h_t = (1-z_t)\odot h_{t-1} + z_t \odot \tilde h_t$$</div>
+      <p>The update gate $z_t$ plays the role of forget and input together: what it keeps, it doesn't write. The reset gate $r_t$ decides how much of the old state the candidate may look at. Full deep-dive: <a href="gru-blog.html"><strong>GRU blog →</strong></a></p>
+      <table>
+        <caption>ONE LAYER · d = 128 · H = 256 · ONE BIAS PER GATE</caption>
+        <thead><tr><th>Cell</th><th>States</th><th>Gates</th><th>Params</th><th>Count</th><th>When to pick it</th></tr></thead>
+        <tbody>
+          <tr><td>RNN</td><td class="mono">h</td><td>–</td><td class="mono">H(d+H+1)</td><td class="mono">98,560</td><td>very short context, teaching</td></tr>
+          <tr><td><strong>LSTM</strong></td><td class="mono">h, c</td><td>f, i, o (+ g)</td><td class="mono">4H(d+H+1)</td><td class="mono">394,240</td><td>default choice; longest memory</td></tr>
+          <tr><td>GRU</td><td class="mono">h</td><td>z, r</td><td class="mono">3H(d+H+1)</td><td class="mono">295,680</td><td>about ¾ the cost; often equal accuracy</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead><tr><th>Variant</th><th>What changes</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Stacked LSTM</strong></td><td><code class="inl">num_layers=2..5</code>: layer 2 reads layer 1's $h_t$ sequence. Add dropout between layers.</td></tr>
+          <tr><td><strong>Bidirectional</strong></td><td>A forward and a backward LSTM, outputs concatenated to $2H$. Needs the whole sequence, so it is not streaming.</td></tr>
+          <tr><td><strong>Peephole</strong></td><td>Gates also read $c_{t-1}$ (Gers &amp; Schmidhuber 2000). Helps precise timing; rarely used now.</td></tr>
+          <tr><td><strong>Projection (LSTMP)</strong></td><td>Projects $h_t$ to a smaller size $P$ to cut the $H\times H$ recurrent cost. Used in large speech models; <code class="inl">proj_size=</code> in PyTorch.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 08 -->
+    <section id="code" class="reveal">
+      <div class="sec-no">08</div>
+      <h2>PyTorch: an LSTM cell from scratch</h2>
+      <p class="lead-in">All four gates come from one matrix multiply, then get split. This is exactly how the fused kernels do it.</p>
+<pre data-lang="PYTHON"><span class="c-kw">import</span> torch, torch.nn <span class="c-kw">as</span> nn
+
+<span class="c-kw">class</span> <span class="c-fn">TinyLSTMCell</span>(nn.Module):
+    <span class="c-kw">def</span> <span class="c-fn">__init__</span>(self, d, H):
+        super().__init__()
+        self.lin = nn.Linear(d + H, <span class="c-num">4</span> * H)       <span class="c-com"># W_i, W_f, W_g, W_o stacked</span>
+        <span class="c-kw">with</span> torch.no_grad():
+            self.lin.bias[H:<span class="c-num">2</span>*H].fill_(<span class="c-num">1.0</span>)     <span class="c-com"># forget-gate bias = +1</span>
+
+    <span class="c-kw">def</span> <span class="c-fn">forward</span>(self, x, state):              <span class="c-com"># x: (B, d)</span>
+        h, c = state                              <span class="c-com"># each (B, H)</span>
+        i, f, g, o = self.lin(torch.cat([h, x], -<span class="c-num">1</span>)).chunk(<span class="c-num">4</span>, -<span class="c-num">1</span>)
+        i, f, o = torch.sigmoid(i), torch.sigmoid(f), torch.sigmoid(o)
+        g = torch.tanh(g)
+        c = f * c + i * g                         <span class="c-com"># the highway</span>
+        h = o * torch.tanh(c)
+        <span class="c-kw">return</span> h, c
+
+B, T, d, H = <span class="c-num">4</span>, <span class="c-num">50</span>, <span class="c-num">128</span>, <span class="c-num">256</span>
+cell, x = TinyLSTMCell(d, H), torch.randn(B, T, d)
+h = c = torch.zeros(B, H)
+<span class="c-kw">for</span> t <span class="c-kw">in</span> range(T):
+    h, c = cell(x[:, t], (h, c))
+
+<span class="c-com"># built-in: cuDNN-fused, multi-layer</span>
+lstm = nn.LSTM(d, H, num_layers=<span class="c-num">2</span>, batch_first=<span class="c-kw">True</span>, dropout=<span class="c-num">0.1</span>)
+out, (h_n, c_n) = lstm(x)
+print(out.shape, h_n.shape, c_n.shape)     <span class="c-com"># (4,50,256) (2,4,256) (2,4,256)</span>
+print(sum(p.numel() <span class="c-kw">for</span> p <span class="c-kw">in</span> nn.LSTM(d, H).parameters()))   <span class="c-com"># 395,264</span></pre>
+      <div class="note violet"><strong>Why 395,264 and not 394,240?</strong> PyTorch keeps two bias vectors per layer, <code class="inl">bias_ih</code> and <code class="inl">bias_hh</code>, each of size $4H$. So the count is $4H(d+H) + 8H = 4\cdot256\cdot384 + 2048$. PyTorch's gate order inside those stacked weights is <strong>i, f, g, o</strong>, which matters when you set the forget bias or port weights to ONNX/TensorRT.</div>
+      <table>
+        <thead><tr><th>Output</th><th>Shape (batch_first=True)</th><th>Use it for</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">out</td><td class="mono">(B, T, D·H)</td><td>per-step features from the top layer, e.g. a CTC head. D = 2 if bidirectional.</td></tr>
+          <tr><td class="mono">h_n</td><td class="mono">(L·D, B, H)</td><td>last hidden state of every layer; classifier uses <code class="inl">h_n[-1]</code></td></tr>
+          <tr><td class="mono">c_n</td><td class="mono">(L·D, B, H)</td><td>last cell state; pass <code class="inl">(h_n, c_n)</code> back in to continue a stream</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 09 -->
+    <section id="speech" class="reveal">
+      <div class="sec-no">09</div>
+      <h2>LSTMs in speech recognition</h2>
+      <p class="lead-in">Before Conformers, LSTMs were the standard speech encoder. Today they are mostly found in the decoder side of transducer models.</p>
+      <table>
+        <thead><tr><th>Model</th><th>Where the recurrence is</th></tr></thead>
+        <tbody>
+          <tr><td>Graves et al. 2013, DeepSpeech 2 (2015)</td><td>The <strong>encoder</strong>: stacked bidirectional LSTMs (Graves) or GRUs/RNNs (DeepSpeech 2) over audio frames, trained with CTC.</td></tr>
+          <tr><td>Listen, Attend and Spell (2015)</td><td>A pyramidal BiLSTM encoder that halves the frame rate per layer, plus an LSTM decoder with attention.</td></tr>
+          <tr><td>RNN-Transducer (Graves 2012) and TDT</td><td>The <strong>prediction network</strong>: an LSTM (often 1–2 layers, H ≈ 640) reads the previous non-blank tokens and acts like a small language model.</td></tr>
+          <tr><td>Conformer, FastConformer, Parakeet</td><td>Encoder replaced by attention + convolution. The RNN-T/TDT predictor is still an LSTM.</td></tr>
+        </tbody>
+      </table>
+      <div class="note">When you deploy an RNN-T or TDT model, the LSTM predictor runs <strong>once per emitted token</strong> inside the greedy-decoding loop, carrying $(h, c)$ between calls. That is why the predictor and joiner are usually exported as separate ONNX graphs with the states as explicit inputs and outputs. See the <a href="stt-decoder-families-A4.html">decoder-families A4 sheet</a> and the <a href="fastconformer-architecture-A4.html">FastConformer sheet</a>.</div>
+    </section>
+
+    <!-- 10 -->
+    <section id="interview" class="reveal">
+      <div class="sec-no">10</div>
+      <h2>Interview questions</h2>
+      <table>
+        <thead><tr><th>Question</th><th>Strong short answer</th></tr></thead>
+        <tbody>
+          <tr><td>How does LSTM solve vanishing gradients?</td><td>The cell state is updated additively, $c_t = f\odot c_{t-1} + i\odot g$, so $\partial c_t/\partial c_{t-1} = \mathrm{diag}(f_t)$, with no weight matrix or tanh′. With $f\approx1$ the gradient passes through many steps.</td></tr>
+          <tr><td>Name the gates and their activations.</td><td>Forget, input and output gates use sigmoid (0–1 switches). The candidate $g$ uses tanh (signed content). Output: $h = o\odot\tanh(c)$.</td></tr>
+          <tr><td>Difference between $h_t$ and $c_t$?</td><td>$c_t$ is long-term memory, internal and additive. $h_t$ is the gated, squashed view of it that is exposed as output and fed to the gates.</td></tr>
+          <tr><td>Parameter count of one LSTM layer?</td><td>$4H(d+H+1)$, or $4H(d+H)+8H$ in PyTorch (two biases). With d=128, H=256: 395,264.</td></tr>
+          <tr><td>Why initialise the forget bias to 1?</td><td>So $f\approx0.73$ at start: the cell remembers by default and gradients flow early in training.</td></tr>
+          <tr><td>LSTM vs GRU?</td><td>GRU: 2 gates, no separate cell, ¾ of the params, often similar accuracy. LSTM: separate memory, slightly stronger on long dependencies.</td></tr>
+          <tr><td>Can LSTMs still explode?</td><td>Yes. The gradient through $h_t$ and the gates still involves weight matrices, so gradient clipping is still standard.</td></tr>
+          <tr><td>Why did Transformers replace LSTMs?</td><td>LSTMs need T sequential steps (no parallel training over time) and squeeze all history through a fixed $h_t$. Attention connects any two positions directly and trains in parallel.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="big">Forget a little, write a little, reveal a little.</div>
+  <div>c_t = f ⊙ c_{t−1} + i ⊙ g · h_t = o ⊙ tanh(c_t) · The additive cell state is what lets memory and gradients survive.</div>
+  <div class="links">
+    <a href="rnn-blog.html">← RNN blog</a> ·
+    <a href="lstm-math-A4.html">LSTM math A4 sheet</a> ·
+    <a href="gru-blog.html">GRU blog →</a> ·
+    <a href="https://colah.github.io/posts/2015-08-Understanding-LSTMs/" target="_blank" rel="noopener">Colah: Understanding LSTM Networks</a> ·
+    <a href="https://www.bioinf.jku.at/publications/older/2604.pdf" target="_blank" rel="noopener">Hochreiter &amp; Schmidhuber 1997</a> ·
+    <a href="https://arxiv.org/abs/1412.3555" target="_blank" rel="noopener">Chung et al.: GRU vs LSTM</a>
+  </div>
+  <div class="sub">ML Universe · Sequence models · Part 2 of 3</div>
+</footer>
+
+<script>
+
+const $ = id => document.getElementById(id);
+
+/* ===== 7.1 progress + sticky ===== */
+const prog=$('progress'), tb=$('topbar');
+function onScroll(){const h=document.documentElement,m=h.scrollHeight-h.clientHeight;
+  prog.style.width=(m>0?h.scrollTop/m*100:0)+'%'; tb.classList.toggle('solid',h.scrollTop>40);}
+document.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+/* ===== 7.2 reveal ===== */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in');}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* ===== 7.3 scrollspy ===== */
+const tl=[...document.querySelectorAll('.toc a')];
+const spy=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;
+  tl.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));}}),
+  {rootMargin:'-28% 0px -60% 0px'});
+document.querySelectorAll('main section[id]').forEach(s=>spy.observe(s));
+
+/* ===== 7.5 stepped walkthrough engine ===== */
+function makeWalkthrough({steps, clearAll, render, els}){
+  let i=0, timer=null; const dots=els.dots, n=steps.length;
+  for(let k=0;k<n;k++) dots.appendChild(document.createElement('i'));
+  function apply(){ clearAll(); render(steps[i], i);
+    [...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));
+    els.prev.disabled=i===0; els.next.disabled=i===n-1; }
+  function stop(){ if(timer){clearInterval(timer);timer=null;els.play.textContent='▶ Play';} }
+  function go(k){ i=Math.max(0,Math.min(n-1,k)); apply(); }
+  els.next.onclick=()=>{stop();go(i+1);};
+  els.prev.onclick=()=>{stop();go(i-1);};
+  els.play.onclick=()=>{ if(timer){stop();return;} if(i===n-1)go(0);
+    els.play.textContent='⏸ Pause'; timer=setInterval(()=>{ i>=n-1?stop():go(i+1); },1900); };
+  apply();
+}
+
+
+/* one-step walkthrough */
+const L_ALL=['gF','gI','gG','gO','cKeep','cWrite','cNew','tC','hNew'];
+const LSTM_STEPS=[
+  {reveal:['gF'],hot:['gF'],cap:'<b>Forget gate</b>: σ(0.5·1 + 0.4·0.5 + 0.1) = σ(0.80) = <b>0.690</b>. Keep about 69% of the old memory.'},
+  {reveal:['gF','gI','gG'],hot:['gI','gG'],cap:'<b>Input gate</b> i = σ(0.45) = 0.611 decides how much to write. <b>Candidate</b> g = tanh(1.0) = 0.762 is what to write.'},
+  {reveal:['gF','gI','gG','gO'],hot:['gO'],cap:'<b>Output gate</b> o = σ(0.75) = 0.679. All four gates read the same [h₍ₜ₋₁₎, x_t].'},
+  {reveal:['gF','gI','gG','gO','cKeep','cWrite'],hot:['cKeep','cWrite'],cap:'Two contributions: <b>keep</b> f·c₋ = 0.690·0.8 = 0.552 and <b>write</b> i·g = 0.611·0.762 = 0.465.'},
+  {reveal:['gF','gI','gG','gO','cKeep','cWrite','cNew'],hot:['cNew'],cap:'<b>Add</b> them: c_t = 0.552 + 0.465 = <b>1.017</b>. Addition, not overwrite: that is the highway.'},
+  {reveal:L_ALL,hot:['tC','hNew'],cap:'<b>Reveal</b>: h_t = o·tanh(c_t) = 0.679·0.769 = <b>0.522</b>. h_t goes to the output and to the next step\'s gates; c_t goes to the next step\'s highway.'}
+];
+makeWalkthrough({steps:LSTM_STEPS,
+  clearAll(){document.querySelectorAll('#lstmBoard .chip').forEach(c=>c.classList.remove('show','hot'));},
+  render(s){s.reveal.forEach(id=>$(id).classList.add('show'));s.hot.forEach(id=>$(id).classList.add('hot'));$('lstmCap').innerHTML=s.cap;},
+  els:{dots:$('lstmDots'),prev:$('lstmPrev'),next:$('lstmNext'),play:$('lstmPlay')}});
+
+/* gate lab */
+const sig=z=>1/(1+Math.exp(-z));
+function drawLab(){const x=+$('lx').value,h=+$('lh').value,c0=+$('lc').value,bf=+$('lb').value;
+  $('lxLab').textContent=x.toFixed(2);$('lhLab').textContent=h.toFixed(2);$('lcLab').textContent=c0.toFixed(2);$('lbLab').textContent=bf.toFixed(2);
+  const f=sig(0.5*x+0.4*h+bf),i=sig(0.6*x-0.3*h),g=Math.tanh(0.9*x+0.2*h),o=sig(0.7*x+0.1*h),c=f*c0+i*g,hn=o*Math.tanh(c);
+  const rows=[['f  forget',f,'#D9663B',0],['i  input',i,'#2E9E5B',0],['g  candidate',g,'#C9A24B',1],['o  output',o,'#6C5CE7',0],['c_t  cell',c,'#0E5C58',2],['h_t  hidden',hn,'#D9663B',1]];
+  const W=640,rh=30,top=8,lab=120,bw=W-lab-70;let s='';
+  rows.forEach(([n,v,col,kind],k)=>{const y=top+k*rh;const rng=kind===0?[0,1]:kind===1?[-1,1]:[-3,3];
+    const X=u=>lab+(u-rng[0])/(rng[1]-rng[0])*bw, x0=X(Math.max(rng[0],0)), xv=X(Math.max(rng[0],Math.min(rng[1],v)));
+    s+=`<text x="0" y="${y+18}" font-size="12" font-family="JetBrains Mono" fill="#22282A">${n}</text>`;
+    s+=`<rect x="${lab}" y="${y+5}" width="${bw}" height="18" rx="5" fill="#F4EEE2"/>`;
+    if(rng[0]<0)s+=`<line x1="${x0}" y1="${y+2}" x2="${x0}" y2="${y+26}" stroke="#C9BFAE"/>`;
+    s+=`<rect x="${Math.min(x0,xv)}" y="${y+5}" width="${Math.abs(xv-x0)}" height="18" rx="5" fill="${col}" opacity=".85"/>`;
+    s+=`<text x="${lab+bw+10}" y="${y+18}" font-size="12" font-family="JetBrains Mono" fill="${col}" font-weight="600">${v.toFixed(3)}</text>`;});
+  $('labSvg').innerHTML=`<svg viewBox="0 0 ${W} ${top+rows.length*rh+4}">${s}</svg>`;
+  $('labRead').innerHTML=`c_t = <b>${f.toFixed(3)}</b>·${c0.toFixed(2)} + <b>${i.toFixed(3)}</b>·${g.toFixed(3)} = <span class="g">${(f*c0).toFixed(3)} kept</span> + <span class="g">${(i*g).toFixed(3)} written</span> = <b>${c.toFixed(3)}</b><br>h_t = ${o.toFixed(3)} · tanh(${c.toFixed(3)}) = <b>${hn.toFixed(3)}</b> · c_t bar range is −3…3`;}
+['lx','lh','lc','lb'].forEach(id=>$(id).addEventListener('input',drawLab));
+
+/* survival plot */
+function drawSurv(){const w=+$('mw').value,f=+$('mf').value,T=+$('mt').value;
+  $('mwLab').textContent=w.toFixed(2);$('mfLab').textContent=f.toFixed(3);$('mtLab').textContent=T;
+  const rnn=[],ls=[];let h=0,c=0;for(let t=1;t<=T;t++){const x=t===1?1:0;h=Math.tanh(0.5*x+w*h);c=f*c+(t===1?1:0);rnn.push(h/0.4621);ls.push(c);}
+  const W=640,H=210,pl=40,pr=12,pt=12,pb=26,X=t=>pl+t/(T-1)*(W-pl-pr),Y=v=>pt+(1-v)*(H-pt-pb);
+  let s=`<line x1="${pl}" y1="${Y(0)}" x2="${W-pr}" y2="${Y(0)}" stroke="#E4DBCB"/><line x1="${pl}" y1="${Y(.1)}" x2="${W-pr}" y2="${Y(.1)}" stroke="#C9A24B" stroke-dasharray="5 4"/>`;
+  [0,.5,1].forEach(v=>s+=`<text x="${pl-6}" y="${Y(v)+4}" font-size="10" text-anchor="end" fill="#7E8888" font-family="JetBrains Mono">${v}</text>`);
+  s+=`<polyline points="${rnn.map((v,t)=>X(t).toFixed(1)+','+Y(v).toFixed(1)).join(' ')}" fill="none" stroke="#D9663B" stroke-width="2.5"/>`;
+  s+=`<polyline points="${ls.map((v,t)=>X(t).toFixed(1)+','+Y(v).toFixed(1)).join(' ')}" fill="none" stroke="#0E5C58" stroke-width="2.5"/>`;
+  s+=`<text x="${pl}" y="${H-6}" font-size="10" fill="#7E8888" font-family="JetBrains Mono">t=1</text><text x="${W-pr}" y="${H-6}" font-size="10" text-anchor="end" fill="#7E8888" font-family="JetBrains Mono">t=${T}</text>`;
+  $('survSvg').innerHTML=`<svg viewBox="0 0 ${W} ${H}">${s}</svg>`;
+  const first=a=>{const k=a.findIndex(v=>v<0.1);return k<0?`more than ${T}`:String(k+1);};
+  const half=f>=1?'∞':(Math.log(.5)/Math.log(f)).toFixed(1);
+  $('survRead').innerHTML=`Steps until the memory drops below 10%: <b style="color:#D9663B">RNN ${first(rnn)}</b> · <b style="color:#0E5C58">LSTM ${first(ls)}</b> · LSTM half-life = ln 0.5 / ln f = <span class="g">${half} steps</span>`;}
+['mw','mf','mt'].forEach(id=>$(id).addEventListener('input',drawSurv));
+drawLab();drawSurv();
+</script>
+</body>
+</html>

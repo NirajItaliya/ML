@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FastConformer Architecture A4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Spectral:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#22282A;--soft:#4C5658;--muted:#7E8888;--line:#D9D0BF;--teal:#0E5C58;--deep:#093F3C;--teal-soft:#E3EEEC;--amber:#D9663B;--amber-soft:#F7E4D8;--gold:#C9A24B;--gold-soft:#F3EAD3;--violet:#6C5CE7;--violet-soft:#ECEAFB;--blue:#2E86DE;--blue-soft:#E2EEF9;--green:#2E9E5B;--green-soft:#DFF1E5;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{display:flex;justify-content:center;min-height:100vh;background:#EDE7DA}.sheet-nav{position:fixed;z-index:5;top:14px;right:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 28px)}.sheet-nav a,.sheet-nav button{font-family:var(--mono);font-size:10px;letter-spacing:.035em;text-transform:uppercase;min-height:38px;padding:8px 11px;border-radius:999px;border:1px solid #E4DBCB;background:#fff;color:var(--teal);cursor:pointer;text-decoration:none;transition:border-color .2s,transform .2s,background .2s}.sheet-nav a:hover,.sheet-nav button:hover{border-color:var(--amber);transform:translateY(-1px);background:#FBF7EF}.sheet-nav a:focus-visible,.sheet-nav button:focus-visible{outline:3px solid rgba(217,102,59,.35);outline-offset:2px}svg{display:block;width:min(1240px,calc(100vw - 24px));height:auto;margin:24px 0;background:#fff;box-shadow:0 10px 40px -12px rgba(20,40,38,.3)}
+svg .stage{transform-box:fill-box;transform-origin:center}svg .stage.is-active{animation:focus .8s ease-out both}svg .flow-line.is-active{stroke:#D9663B!important;stroke-width:4!important;stroke-dasharray:9 13;animation:dash .8s linear both;filter:drop-shadow(0 0 4px rgba(217,102,59,.55))}svg .pulse{animation:breathe 3.8s ease-in-out infinite;animation-delay:var(--delay,0s)}body.paused svg *{animation-play-state:paused!important}@keyframes focus{0%{filter:none;opacity:.8}45%{filter:drop-shadow(0 0 10px rgba(217,102,59,.65));opacity:1}100%{filter:none;opacity:1}}@keyframes dash{from{stroke-dashoffset:32}to{stroke-dashoffset:-32}}@keyframes breathe{0%,100%{opacity:.58}50%{opacity:1;filter:drop-shadow(0 0 5px rgba(108,92,231,.4))}}
+@media(max-width:700px){body{padding-top:104px}.sheet-nav{top:8px;left:8px;right:8px;justify-content:center}.sheet-nav a,.sheet-nav button{font-size:9px;padding:7px 9px}svg{width:calc(100vw - 12px);margin:8px 0}}@media print{.sheet-nav{display:none}body{background:#fff;padding:0}svg{box-shadow:none;margin:0;width:210mm;height:297mm}@page{size:A4 portrait;margin:0}}body.export{background:#fff;padding:0}body.export .sheet-nav{display:none}body.export svg{width:1240px;height:1754px;margin:0;box-shadow:none}@media(prefers-reduced-motion:reduce){svg *{animation:none!important;transition:none!important}.motion-toggle{display:none}}
+</style>
+</head>
+<body>
+<nav class="sheet-nav" aria-label="Reference sheet actions">
+  <a href="../index.html">Home</a>
+  <a href="stt-conformer-architecture-A4.html">Conformer sheet</a>
+  <a href="stt-decoder-families-A4.html">Decoder sheet</a>
+  <a href="../../learing/stt_conformer_learning_path.md">Conformer guide</a>
+  <a href="fastconformer-architecture-A4.png" download>Download PNG</a>
+  <button class="motion-toggle" id="motionToggle" type="button" aria-pressed="false">Pause motion</button>
+  <button type="button" onclick="print()">Print / PDF</button>
+</nav>
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754" role="img" aria-labelledby="sheetTitle sheetDesc">
+<title id="sheetTitle">FastConformer encoder architecture</title>
+<desc id="sheetDesc">A one-page A4 architecture reference for the FastConformer speech encoder: 8x depthwise-separable subsampling, the Macaron block with a kernel-9 convolution module, frame-rate and attention-cost comparisons with Conformer, limited-context attention with a global token, and deployment notes for Parakeet CTC, RNN-T and TDT models.</desc>
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#4C5658"/></marker>
+  <marker id="arrowCoral" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#D9663B"/></marker>
+  <pattern id="gridMel" x="190" y="546" width="12.5" height="30" patternUnits="userSpaceOnUse"><rect x=".6" y="0" width="11.3" height="30" rx="2" fill="#B7D5EB"/></pattern>
+  <pattern id="gridConf" x="190" y="602" width="50" height="30" patternUnits="userSpaceOnUse"><rect x="1" y="0" width="48" height="30" rx="4" fill="#C8E0DD" stroke="#0E5C58" stroke-width=".8"/></pattern>
+  <pattern id="gridFast" x="190" y="658" width="100" height="30" patternUnits="userSpaceOnUse"><rect x="1.5" y="0" width="97" height="30" rx="5" fill="#F7E4D8" stroke="#D9663B" stroke-width="1.2"/></pattern>
+  <pattern id="gridAttn" x="660" y="540" width="9" height="9" patternUnits="userSpaceOnUse"><path d="M9 0V9H0" fill="none" stroke="#fff" stroke-width=".8"/></pattern>
+</defs>
+<rect width="1240" height="1754" fill="#fff"/>
+
+<!-- Header -->
+<text x="50" y="58" font-family="'JetBrains Mono',monospace" font-size="13" fill="#D9663B" font-weight="600">SPEECH AI · FASTCONFORMER ENCODER · REKESH ET AL. 2023 · arXiv 2305.05084</text>
+<text x="50" y="99" font-family="Fraunces,Georgia,serif" font-size="32" fill="#093F3C" font-weight="600">FastConformer: 8× subsampling, kernel 9, scalable attention</text>
+<text x="50" y="130" font-family="'JetBrains Mono',monospace" font-size="12" fill="#4C5658">Worked example · 10 s of 16 kHz audio · 10 ms hop · F=80 log-Mel bins · the encoder behind NVIDIA Parakeet CTC / RNN-T / TDT</text>
+<line x1="50" y1="147" x2="1190" y2="147" stroke="#D9D0BF" stroke-width="1.2"/>
+
+<!-- Section A: end-to-end path -->
+<text x="50" y="177" font-family="'JetBrains Mono',monospace" font-size="11" fill="#7E8888" font-weight="600">END-TO-END PATH · CORAL MARKS WHAT FASTCONFORMER CHANGES</text>
+<rect x="50" y="190" width="1140" height="228" rx="16" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+<g class="stage" data-step="0">
+  <rect x="72" y="210" width="160" height="80" rx="11" fill="#E2EEF9" stroke="#2E86DE" stroke-width="1.7"/>
+  <path transform="translate(0 49.6) scale(1 0.8)" d="M88 256C96 238 104 270 112 246S128 240 136 262S152 268 160 244S176 240 184 262S200 266 208 248S214 246 218 254" fill="none" stroke="#2E86DE" stroke-width="2.2"/>
+  <text x="152" y="232" font-family="Fraunces,Georgia,serif" font-size="15" fill="#093F3C" text-anchor="middle" font-weight="600">Waveform</text>
+  <text x="152" y="283" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#4C5658" text-anchor="middle">(B,160000) · 16 kHz</text>
+</g>
+<line class="flow-line" data-step="1" x1="232" y1="250" x2="256" y2="250" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="1">
+  <rect x="262" y="210" width="160" height="80" rx="11" fill="#E2EEF9" stroke="#2E86DE" stroke-width="1.7"/>
+  <text x="342" y="238" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Log-Mel</text>
+  <text x="342" y="262" font-family="'JetBrains Mono',monospace" font-size="10" fill="#4C5658" text-anchor="middle">X: (B,1000,80)</text>
+  <text x="342" y="280" font-family="'JetBrains Mono',monospace" font-size="9" fill="#2E86DE" text-anchor="middle">T=1000 · 10 ms/frame</text>
+</g>
+<line class="flow-line" data-step="2" x1="422" y1="250" x2="446" y2="250" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="2">
+  <rect x="452" y="206" width="190" height="88" rx="12" fill="#F3EAD3" stroke="#D9663B" stroke-width="2.4"/>
+  <text x="547" y="234" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">8× DW-striding</text>
+  <text x="547" y="257" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#4C5658" text-anchor="middle">3 stride-2 conv stages</text>
+  <text x="547" y="277" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#D9663B" text-anchor="middle" font-weight="600">Conformer: 4× · 2 stages</text>
+</g>
+<line class="flow-line" data-step="3" x1="642" y1="250" x2="666" y2="250" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="3">
+  <rect x="672" y="210" width="140" height="80" rx="11" fill="#E3EEEC" stroke="#0E5C58" stroke-width="1.7"/>
+  <text x="742" y="238" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">Projection</text>
+  <text x="742" y="262" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#4C5658" text-anchor="middle">Linear(2560, D)</text>
+  <text x="742" y="280" font-family="'JetBrains Mono',monospace" font-size="9" fill="#0E5C58" text-anchor="middle">(B,125,D)</text>
+</g>
+<line class="flow-line" data-step="4" x1="812" y1="250" x2="836" y2="250" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="4">
+  <rect x="842" y="206" width="180" height="88" rx="12" fill="#ECEAFB" stroke="#6C5CE7" stroke-width="1.8"/>
+  <text x="932" y="234" font-family="Fraunces,Georgia,serif" font-size="16" fill="#093F3C" text-anchor="middle" font-weight="600">FastConformer × N</text>
+  <text x="932" y="257" font-family="'JetBrains Mono',monospace" font-size="9" fill="#4C5658" text-anchor="middle">½FFN · MHSA · Conv · ½FFN</text>
+  <text x="932" y="277" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#D9663B" text-anchor="middle" font-weight="600">depthwise kernel 9 (was 31)</text>
+</g>
+<line class="flow-line" data-step="4" x1="1022" y1="250" x2="1046" y2="250" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="4">
+  <rect x="1052" y="206" width="116" height="88" rx="12" fill="#0E2A28" stroke="#0E5C58" stroke-width="1.8"/>
+  <text x="1110" y="236" font-family="Fraunces,Georgia,serif" font-size="18" fill="#fff" text-anchor="middle" font-weight="600">H</text>
+  <text x="1110" y="259" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="#F2C879" text-anchor="middle">(B,125,D)</text>
+  <text x="1110" y="279" font-family="'JetBrains Mono',monospace" font-size="9" fill="#CFE9E4" text-anchor="middle">80 ms / frame</text>
+</g>
+
+<!-- Subsampling detail -->
+<text x="72" y="318" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#7E8888" font-weight="600">SUBSAMPLING DETAIL · NeMo "dw_striding" · shape = (B, channels, time, freq) · k=3, pad=1, stride=2 → ⌈n/2⌉ per stage</text>
+<g class="stage" data-step="2">
+  <rect x="72" y="328" width="250" height="70" rx="10" fill="#F3EAD3" stroke="#C9A24B"/>
+  <text x="197" y="349" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" text-anchor="middle" font-weight="600">Conv2d 3×3 · stride 2</text>
+  <text x="197" y="367" font-family="'JetBrains Mono',monospace" font-size="9" fill="#4C5658" text-anchor="middle">1 → 256 channels · ReLU</text>
+  <text x="197" y="387" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#D9663B" text-anchor="middle" font-weight="600">(B,256,500,40)</text>
+  <line x1="322" y1="363" x2="340" y2="363" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="346" y="328" width="250" height="70" rx="10" fill="#F3EAD3" stroke="#C9A24B"/>
+  <text x="471" y="349" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" text-anchor="middle" font-weight="600">DW 3×3 s2 + PW 1×1</text>
+  <text x="471" y="367" font-family="'JetBrains Mono',monospace" font-size="9" fill="#4C5658" text-anchor="middle">256 channels · ReLU</text>
+  <text x="471" y="387" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#D9663B" text-anchor="middle" font-weight="600">(B,256,250,20)</text>
+  <line x1="596" y1="363" x2="614" y2="363" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="620" y="328" width="250" height="70" rx="10" fill="#F3EAD3" stroke="#D9663B" stroke-width="1.6"/>
+  <text x="745" y="349" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" text-anchor="middle" font-weight="600">DW 3×3 s2 + PW 1×1</text>
+  <text x="745" y="367" font-family="'JetBrains Mono',monospace" font-size="9" fill="#D9663B" text-anchor="middle" font-weight="600">extra stage → 8× total</text>
+  <text x="745" y="387" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#D9663B" text-anchor="middle" font-weight="600">(B,256,125,10)</text>
+  <line x1="870" y1="363" x2="888" y2="363" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="894" y="328" width="274" height="70" rx="10" fill="#E3EEEC" stroke="#0E5C58"/>
+  <text x="1031" y="349" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" text-anchor="middle" font-weight="600">flatten channels × freq</text>
+  <text x="1031" y="367" font-family="'JetBrains Mono',monospace" font-size="9" fill="#4C5658" text-anchor="middle">256 · 10 = 2560 → Linear → D</text>
+  <text x="1031" y="387" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#0E5C58" text-anchor="middle" font-weight="600">T′ = ⌈T/8⌉ = 125</text>
+</g>
+
+<!-- Section B: frame rate and attention cost -->
+<text x="50" y="450" font-family="'JetBrains Mono',monospace" font-size="11" fill="#D9663B" font-weight="600">WHY 8× MATTERS · FRAME RATE AND ATTENTION COST</text>
+<g class="stage" data-step="5">
+  <rect x="50" y="464" width="560" height="306" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <text x="70" y="494" font-family="Fraunces,Georgia,serif" font-size="19" fill="#093F3C" font-weight="600">Same 320 ms of speech, three time grids</text>
+  <text x="70" y="517" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#4C5658">each cell is one vector the next layer must process</text>
+  <text x="72" y="560" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" font-weight="600">log-Mel T</text>
+  <text x="72" y="576" font-family="'JetBrains Mono',monospace" font-size="9" fill="#7E8888">10 ms · 32 cells</text>
+  <rect x="190" y="546" width="400" height="30" fill="url(#gridMel)"/>
+  <text x="72" y="616" font-family="'JetBrains Mono',monospace" font-size="10" fill="#0E5C58" font-weight="600">Conformer 4×</text>
+  <text x="72" y="632" font-family="'JetBrains Mono',monospace" font-size="9" fill="#7E8888">40 ms · 8 cells</text>
+  <rect x="190" y="602" width="400" height="30" fill="url(#gridConf)"/>
+  <text x="72" y="672" font-family="'JetBrains Mono',monospace" font-size="10" fill="#D9663B" font-weight="600">FastConf 8×</text>
+  <text x="72" y="688" font-family="'JetBrains Mono',monospace" font-size="9" fill="#7E8888">80 ms · 4 cells</text>
+  <rect class="pulse" x="190" y="658" width="400" height="30" fill="url(#gridFast)"/>
+  <g font-family="'JetBrains Mono',monospace" font-size="9" fill="#D9663B" text-anchor="middle"><text x="240" y="677">80 ms</text><text x="340" y="677">80 ms</text><text x="440" y="677">80 ms</text><text x="540" y="677">80 ms</text></g>
+  <rect x="72" y="710" width="518" height="44" rx="9" fill="#0E2A28"/>
+  <text x="88" y="728" font-family="'JetBrains Mono',monospace" font-size="9.2" fill="#F2C879" font-weight="600">10 s → 1000 mel → 250 (4×) vs 125 (8×) encoder frames</text>
+  <text x="88" y="745" font-family="'JetBrains Mono',monospace" font-size="9" fill="#CFE9E4">FFN and conv cost scale with T′ → about 2× less work per layer</text>
+</g>
+<g class="stage" data-step="6">
+  <rect x="630" y="464" width="560" height="306" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <text x="650" y="494" font-family="Fraunces,Georgia,serif" font-size="19" fill="#093F3C" font-weight="600">Self-attention cost grows as T′²</text>
+  <text x="650" y="517" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#4C5658">10 s example · every frame scores every other frame</text>
+  <rect x="660" y="540" width="180" height="180" rx="4" fill="#C8E0DD"/>
+  <rect x="660" y="540" width="180" height="180" fill="url(#gridAttn)"/>
+  <rect class="pulse" x="660" y="540" width="90" height="90" rx="3" fill="#D9663B" opacity=".85"/>
+  <text x="705" y="590" font-family="'JetBrains Mono',monospace" font-size="10" fill="#fff" text-anchor="middle" font-weight="600">125²</text>
+  <text x="795" y="690" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" text-anchor="middle" font-weight="600">250²</text>
+  <text x="750" y="738" font-family="'JetBrains Mono',monospace" font-size="8.8" fill="#7E8888" text-anchor="middle">queries × keys · per layer, per head</text>
+  <text x="868" y="560" font-family="'JetBrains Mono',monospace" font-size="10" fill="#0E5C58" font-weight="600">CONFORMER 4×</text>
+  <text x="868" y="578" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#22282A">250 × 250 = 62,500 scores</text>
+  <text x="868" y="612" font-family="'JetBrains Mono',monospace" font-size="10" fill="#D9663B" font-weight="600">FASTCONFORMER 8×</text>
+  <text x="868" y="630" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#22282A">125 × 125 = 15,625 scores</text>
+  <rect x="866" y="650" width="304" height="40" rx="9" fill="#DFF1E5" stroke="#2E9E5B"/>
+  <text x="1018" y="675" font-family="'JetBrains Mono',monospace" font-size="11" fill="#2E9E5B" text-anchor="middle" font-weight="600">½ the frames → ¼ the scores</text>
+  <text x="868" y="712" font-family="'JetBrains Mono',monospace" font-size="9" fill="#4C5658">also ¼ attention-matrix memory</text>
+  <text x="868" y="730" font-family="'JetBrains Mono',monospace" font-size="9" fill="#4C5658">paper: ≈2.8× faster than Conformer,</text>
+  <text x="868" y="746" font-family="'JetBrains Mono',monospace" font-size="9" fill="#4C5658">with similar WER</text>
+</g>
+
+<!-- Section C: block + attention modes -->
+<text x="50" y="802" font-family="'JetBrains Mono',monospace" font-size="11" fill="#D9663B" font-weight="600">FASTCONFORMER BLOCK · SAME MACARON DESIGN, SMALLER KERNEL · TWO ATTENTION MODES</text>
+<g class="stage" data-step="7">
+  <rect x="50" y="816" width="560" height="446" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <text x="70" y="846" font-family="Fraunces,Georgia,serif" font-size="19" fill="#093F3C" font-weight="600">One block: (B,T′,D) → (B,T′,D)</text>
+  <line x1="100" y1="864" x2="100" y2="1210" stroke="#A9B2B2" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <text x="100" y="1228" font-family="'JetBrains Mono',monospace" font-size="9" fill="#7E8888" text-anchor="middle">residual stream</text>
+  <!-- FFN 1 -->
+  <rect x="130" y="872" width="260" height="48" rx="9" fill="#F3EAD3" stroke="#C9A24B"/>
+  <text x="146" y="892" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" font-weight="600">½ FFN</text>
+  <text x="146" y="910" font-family="'JetBrains Mono',monospace" font-size="8.6" fill="#4C5658">LN → Linear D→4D → Swish → 4D→D</text>
+  <line x1="130" y1="896" x2="106" y2="896" stroke="#C9A24B" stroke-width="1.6"/><circle cx="100" cy="896" r="7" fill="#fff" stroke="#C9A24B" stroke-width="1.6"/><text x="100" y="900" font-family="'JetBrains Mono',monospace" font-size="10" fill="#C9A24B" text-anchor="middle">+</text>
+  <!-- MHSA -->
+  <rect x="130" y="934" width="260" height="48" rx="9" fill="#E2EEF9" stroke="#2E86DE"/>
+  <text x="146" y="954" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" font-weight="600">MHSA · relative positions</text>
+  <text x="146" y="972" font-family="'JetBrains Mono',monospace" font-size="8.6" fill="#4C5658">LN → global or local attention</text>
+  <line x1="130" y1="958" x2="106" y2="958" stroke="#2E86DE" stroke-width="1.6"/><circle cx="100" cy="958" r="7" fill="#fff" stroke="#2E86DE" stroke-width="1.6"/><text x="100" y="962" font-family="'JetBrains Mono',monospace" font-size="10" fill="#2E86DE" text-anchor="middle">+</text>
+  <!-- Conv module -->
+  <rect x="130" y="996" width="260" height="104" rx="9" fill="#E3EEEC" stroke="#0E5C58"/>
+  <text x="146" y="1016" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" font-weight="600">Convolution module</text>
+  <text x="146" y="1033" font-family="'JetBrains Mono',monospace" font-size="8.6" fill="#4C5658">LN first · local acoustic patterns</text>
+  <g font-family="'JetBrains Mono',monospace" font-size="8.4" text-anchor="middle" font-weight="600">
+    <rect x="142" y="1046" width="34" height="38" rx="6" fill="#fff" stroke="#0E5C58"/><text x="159" y="1068" fill="#0E5C58">PW</text>
+    <rect x="180" y="1046" width="34" height="38" rx="6" fill="#fff" stroke="#0E5C58"/><text x="197" y="1068" fill="#0E5C58">GLU</text>
+    <rect class="pulse" x="218" y="1046" width="52" height="38" rx="6" fill="#D9663B"/><text x="244" y="1063" fill="#fff">DW</text><text x="244" y="1077" fill="#fff">k=9</text>
+    <rect x="274" y="1046" width="34" height="38" rx="6" fill="#fff" stroke="#0E5C58"/><text x="291" y="1068" fill="#0E5C58">BN</text>
+    <rect x="312" y="1046" width="38" height="38" rx="6" fill="#fff" stroke="#0E5C58"/><text x="331" y="1068" fill="#0E5C58">Swish</text>
+    <rect x="354" y="1046" width="28" height="38" rx="6" fill="#fff" stroke="#0E5C58"/><text x="368" y="1068" fill="#0E5C58">PW</text>
+  </g>
+  <line x1="130" y1="1048" x2="106" y2="1048" stroke="#0E5C58" stroke-width="1.6"/><circle cx="100" cy="1048" r="7" fill="#fff" stroke="#0E5C58" stroke-width="1.6"/><text x="100" y="1052" font-family="'JetBrains Mono',monospace" font-size="10" fill="#0E5C58" text-anchor="middle">+</text>
+  <!-- FFN 2 -->
+  <rect x="130" y="1114" width="260" height="48" rx="9" fill="#F3EAD3" stroke="#C9A24B"/>
+  <text x="146" y="1134" font-family="'JetBrains Mono',monospace" font-size="10" fill="#093F3C" font-weight="600">½ FFN</text>
+  <text x="146" y="1152" font-family="'JetBrains Mono',monospace" font-size="8.6" fill="#4C5658">second half of the Macaron pair</text>
+  <line x1="130" y1="1138" x2="106" y2="1138" stroke="#C9A24B" stroke-width="1.6"/><circle cx="100" cy="1138" r="7" fill="#fff" stroke="#C9A24B" stroke-width="1.6"/><text x="100" y="1142" font-family="'JetBrains Mono',monospace" font-size="10" fill="#C9A24B" text-anchor="middle">+</text>
+  <!-- Final LN -->
+  <rect x="130" y="1176" width="260" height="36" rx="9" fill="#0E2A28"/>
+  <text x="260" y="1199" font-family="'JetBrains Mono',monospace" font-size="10" fill="#F2C879" text-anchor="middle" font-weight="600">LayerNorm → next block</text>
+  <!-- formulas -->
+  <g font-family="'JetBrains Mono',monospace" font-size="9.6" fill="#22282A">
+    <text x="410" y="900">x₁ = x + ½·FFN(x)</text>
+    <text x="410" y="962">x₂ = x₁ + MHSA(x₁)</text>
+    <text x="410" y="1052">x₃ = x₂ + Conv(x₂)</text>
+    <text x="410" y="1142">x₄ = x₃ + ½·FFN(x₃)</text>
+    <text x="410" y="1199">y  = LN(x₄)</text>
+  </g>
+  <text x="410" y="1070" font-family="'JetBrains Mono',monospace" font-size="8.6" fill="#D9663B">9 frames × 80 ms</text>
+  <text x="410" y="1085" font-family="'JetBrains Mono',monospace" font-size="8.6" fill="#D9663B">= 720 ms window</text>
+  <text x="70" y="1252" font-family="'JetBrains Mono',monospace" font-size="8.8" fill="#4C5658">Conformer: k=31 × 40 ms ≈ 1.24 s · FastConformer: k=9 × 80 ms = 0.72 s, far fewer weights</text>
+</g>
+<g class="stage" data-step="8">
+  <rect x="630" y="816" width="560" height="446" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <text x="650" y="846" font-family="Fraunces,Georgia,serif" font-size="19" fill="#093F3C" font-weight="600">Full vs limited-context attention</text>
+  <text x="650" y="868" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#4C5658">rows = query frames · columns = key frames · filled = scored</text>
+  <g><rect x="680" y="892" width="15" height="15" rx="2" fill="#2E86DE"/><rect x="696" y="892" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="712" y="892" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="728" y="892" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="744" y="892" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="760" y="892" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="776" y="892" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="792" y="892" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="808" y="892" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="824" y="892" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="680" y="908" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="696" y="908" width="15" height="15" rx="2" fill="#2E86DE"/><rect x="712" y="908" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="728" y="908" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="744" y="908" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="760" y="908" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="776" y="908" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="792" y="908" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="808" y="908" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="824" y="908" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="680" y="924" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="696" y="924" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="712" y="924" width="15" height="15" rx="2" fill="#2E86DE"/><rect x="728" y="924" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="744" y="924" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="760" y="924" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="776" y="924" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="792" y="924" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="808" y="924" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="824" y="924" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="680" y="940" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="696" y="940" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="712" y="940" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="728" y="940" width="15" height="15" rx="2" fill="#2E86DE"/><rect x="744" y="940" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="760" y="940" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="776" y="940" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="792" y="940" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="808" y="940" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="824" y="940" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="680" y="956" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="696" y="956" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="712" y="956" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="728" y="956" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="744" y="956" width="15" height="15" rx="2" fill="#2E86DE"/><rect x="760" y="956" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="776" y="956" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="792" y="956" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="808" y="956" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="824" y="956" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="680" y="972" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="696" y="972" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="712" y="972" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="728" y="972" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="744" y="972" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="760" y="972" width="15" height="15" rx="2" fill="#2E86DE"/><rect x="776" y="972" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="792" y="972" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="808" y="972" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="824" y="972" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="680" y="988" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="696" y="988" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="712" y="988" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="728" y="988" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="744" y="988" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="760" y="988" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="776" y="988" width="15" height="15" rx="2" fill="#2E86DE"/><rect x="792" y="988" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="808" y="988" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="824" y="988" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="680" y="1004" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="696" y="1004" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="712" y="1004" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="728" y="1004" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="744" y="1004" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="760" y="1004" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="776" y="1004" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="792" y="1004" width="15" height="15" rx="2" fill="#2E86DE"/><rect x="808" y="1004" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="824" y="1004" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="680" y="1020" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="696" y="1020" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="712" y="1020" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="728" y="1020" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="744" y="1020" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="760" y="1020" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="776" y="1020" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="792" y="1020" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="808" y="1020" width="15" height="15" rx="2" fill="#2E86DE"/><rect x="824" y="1020" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="680" y="1036" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="696" y="1036" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="712" y="1036" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="728" y="1036" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="744" y="1036" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="760" y="1036" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="776" y="1036" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="792" y="1036" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="808" y="1036" width="15" height="15" rx="2" fill="#82B8DE"/><rect x="824" y="1036" width="15" height="15" rx="2" fill="#2E86DE"/></g>
+  <g><rect x="960" y="892" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="976" y="892" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="992" y="892" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="1008" y="892" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="1024" y="892" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="1040" y="892" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="1056" y="892" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="1072" y="892" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="1088" y="892" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="1104" y="892" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="960" y="908" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="976" y="908" width="15" height="15" rx="2" fill="#6C5CE7"/><rect x="992" y="908" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1008" y="908" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1024" y="908" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1040" y="908" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1056" y="908" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1072" y="908" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1088" y="908" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1104" y="908" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="960" y="924" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="976" y="924" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="992" y="924" width="15" height="15" rx="2" fill="#6C5CE7"/><rect x="1008" y="924" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1024" y="924" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1040" y="924" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1056" y="924" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1072" y="924" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1088" y="924" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1104" y="924" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="960" y="940" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="976" y="940" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="992" y="940" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1008" y="940" width="15" height="15" rx="2" fill="#6C5CE7"/><rect x="1024" y="940" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1040" y="940" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1056" y="940" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1072" y="940" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1088" y="940" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1104" y="940" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="960" y="956" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="976" y="956" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="992" y="956" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1008" y="956" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1024" y="956" width="15" height="15" rx="2" fill="#6C5CE7"/><rect x="1040" y="956" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1056" y="956" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1072" y="956" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1088" y="956" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1104" y="956" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="960" y="972" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="976" y="972" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="992" y="972" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1008" y="972" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1024" y="972" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1040" y="972" width="15" height="15" rx="2" fill="#6C5CE7"/><rect x="1056" y="972" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1072" y="972" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1088" y="972" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1104" y="972" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="960" y="988" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="976" y="988" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="992" y="988" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1008" y="988" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1024" y="988" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1040" y="988" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1056" y="988" width="15" height="15" rx="2" fill="#6C5CE7"/><rect x="1072" y="988" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1088" y="988" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1104" y="988" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="960" y="1004" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="976" y="1004" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="992" y="1004" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1008" y="1004" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1024" y="1004" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1040" y="1004" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1056" y="1004" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1072" y="1004" width="15" height="15" rx="2" fill="#6C5CE7"/><rect x="1088" y="1004" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1104" y="1004" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="960" y="1020" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="976" y="1020" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="992" y="1020" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1008" y="1020" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1024" y="1020" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1040" y="1020" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1056" y="1020" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1072" y="1020" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1088" y="1020" width="15" height="15" rx="2" fill="#6C5CE7"/><rect x="1104" y="1020" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="960" y="1036" width="15" height="15" rx="2" fill="#C9A24B"/><rect x="976" y="1036" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="992" y="1036" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1008" y="1036" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1024" y="1036" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1040" y="1036" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1056" y="1036" width="15" height="15" rx="2" fill="#F1ECE2"/><rect x="1072" y="1036" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1088" y="1036" width="15" height="15" rx="2" fill="#B9B0F3"/><rect x="1104" y="1036" width="15" height="15" rx="2" fill="#6C5CE7"/></g><text x="1128" y="904" font-family="'JetBrains Mono',monospace" font-size="8.4" fill="#8A6B1D" font-weight="600">← global</text>
+  <text x="760" y="1074" font-family="'JetBrains Mono',monospace" font-size="10" fill="#2E86DE" text-anchor="middle" font-weight="600">Full global (default)</text>
+  <text x="760" y="1091" font-family="'JetBrains Mono',monospace" font-size="9" fill="#4C5658" text-anchor="middle">O(T′²) time and memory</text>
+  <text x="1040" y="1074" font-family="'JetBrains Mono',monospace" font-size="10" fill="#6C5CE7" text-anchor="middle" font-weight="600">Window [L,R] + global token</text>
+  <text x="1040" y="1091" font-family="'JetBrains Mono',monospace" font-size="9" fill="#4C5658" text-anchor="middle">O(T′·(L+R+1)) → linear in length</text>
+  <rect x="652" y="1106" width="516" height="132" rx="10" fill="#0E2A28"/>
+  <g font-family="'JetBrains Mono',monospace" font-size="9.5">
+    <text x="668" y="1128" fill="#7FA9A4"># NeMo: switch to long-form mode (hours of audio in one pass)</text>
+    <text x="668" y="1150" fill="#fff">model.change_attention_model(</text>
+    <text x="692" y="1168" fill="#F2C879">"rel_pos_local_attn", [128, 128])</text>
+    <text x="668" y="1186" fill="#fff">model.change_subsampling_conv_chunking_factor(1)</text>
+    <text x="668" y="1208" fill="#7FA9A4"># 128 frames × 80 ms ≈ 10 s left + 10 s right context</text>
+    <text x="668" y="1226" fill="#7FA9A4"># global token keeps one path to the whole utterance</text>
+  </g>
+  <text x="650" y="1252" font-family="'JetBrains Mono',monospace" font-size="8.8" fill="#4C5658">Short clips: keep full attention. Long clips: local window bounds memory.</text>
+</g>
+
+<!-- Section D: cost table -->
+<line x1="50" y1="1280" x2="1190" y2="1280" stroke="#D9D0BF" stroke-width="1.2"/>
+<text x="50" y="1302" font-family="'JetBrains Mono',monospace" font-size="11" fill="#D9663B" font-weight="600">COST VS AUDIO LENGTH · ATTENTION SCORES PER LAYER PER HEAD</text>
+<g class="stage" data-step="9">
+  <rect x="50" y="1314" width="1140" height="160" rx="12" fill="#FFFDF8" stroke="#D9D0BF"/>
+  <rect x="50" y="1314" width="1140" height="34" rx="12" fill="#E3EEEC"/>
+  <g font-family="'JetBrains Mono',monospace" font-size="9.5" font-weight="600" text-anchor="middle">
+    <text x="110" y="1336" fill="#093F3C">AUDIO</text>
+    <text x="240" y="1336" fill="#2E86DE">MEL T</text>
+    <text x="380" y="1336" fill="#0E5C58">T′ CONF 4×</text>
+    <text x="520" y="1336" fill="#D9663B">T′ FAST 8×</text>
+    <text x="680" y="1336" fill="#0E5C58">FULL ATTN 4×</text>
+    <text x="850" y="1336" fill="#D9663B">FULL ATTN 8×</text>
+    <text x="1060" y="1336" fill="#6C5CE7">LOCAL [128,128] 8×</text>
+  </g>
+  <g font-family="'JetBrains Mono',monospace" font-size="9.6" fill="#22282A" text-anchor="middle">
+    <text x="110" y="1372" font-weight="600">10 s</text><text x="240" y="1372">1,000</text><text x="380" y="1372">250</text><text x="520" y="1372">125</text><text x="680" y="1372">62.5 K</text><text x="850" y="1372">15.6 K</text><text x="1060" y="1372">15.6 K · window ≥ T′</text>
+    <text x="110" y="1401" font-weight="600">60 s</text><text x="240" y="1401">6,000</text><text x="380" y="1401">1,500</text><text x="520" y="1401">750</text><text x="680" y="1401">2.25 M</text><text x="850" y="1401">563 K</text><text x="1060" y="1401">≈ 0.18 M</text>
+    <text x="110" y="1430" font-weight="600">10 min</text><text x="240" y="1430">60,000</text><text x="380" y="1430">15,000</text><text x="520" y="1430">7,500</text><text x="680" y="1430">225 M</text><text x="850" y="1430">56 M</text><text x="1060" y="1430">≈ 1.9 M</text>
+    <text x="110" y="1459" font-weight="600">1 hour</text><text x="240" y="1459">360,000</text><text x="380" y="1459">90,000</text><text x="520" y="1459">45,000</text><text x="680" y="1459" fill="#D9663B" font-weight="600">8.1 B</text><text x="850" y="1459" fill="#D9663B" font-weight="600">2.0 B</text><text x="1060" y="1459" fill="#2E9E5B" font-weight="600">≈ 11.6 M</text>
+  </g>
+  <g stroke="#EFE8DA" stroke-width="1"><line x1="66" y1="1382" x2="1174" y2="1382"/><line x1="66" y1="1411" x2="1174" y2="1411"/><line x1="66" y1="1440" x2="1174" y2="1440"/></g>
+</g>
+
+<!-- Section E: practical cards -->
+<text x="50" y="1504" font-family="'JetBrains Mono',monospace" font-size="11" fill="#D9663B" font-weight="600">WHAT THIS MEANS FOR YOUR PARAKEET BENCHMARK AND DEPLOYMENT</text>
+<g class="stage" data-step="10">
+  <rect x="50" y="1516" width="365" height="158" rx="12" fill="#ECEAFB" stroke="#6C5CE7"/>
+  <text x="66" y="1540" font-family="'JetBrains Mono',monospace" font-size="10" fill="#6C5CE7" font-weight="600">ONE ENCODER FAMILY, THREE HEADS</text>
+  <g font-family="'JetBrains Mono',monospace" font-size="9.2" fill="#22282A">
+    <text x="66" y="1566">parakeet-ctc-0.6b    → FastConformer + CTC</text>
+    <text x="66" y="1588">parakeet-rnnt-0.6b   → FastConformer + RNN-T</text>
+    <text x="66" y="1610">parakeet-tdt-0.6b-v2 → FastConformer + TDT</text>
+    <text x="66" y="1636" fill="#4C5658">the 8× front end is a big part of why</text>
+    <text x="66" y="1654" fill="#4C5658">all three reach high RTFx on a T4</text>
+  </g>
+  <rect x="437" y="1516" width="365" height="158" rx="12" fill="#F7E4D8" stroke="#D9663B"/>
+  <text x="453" y="1540" font-family="'JetBrains Mono',monospace" font-size="10" fill="#D9663B" font-weight="600">80 MS FRAMES AND THE DECODERS</text>
+  <g font-family="'JetBrains Mono',monospace" font-size="9.2" fill="#22282A">
+    <text x="453" y="1566">CTC: at most one token per frame,</text>
+    <text x="453" y="1584">plus a blank between repeated tokens</text>
+    <text x="453" y="1606">RNN-T / TDT: several tokens per frame OK</text>
+    <text x="453" y="1628">TDT: skips 80 ms frames on top of this</text>
+    <text x="453" y="1654" fill="#4C5658">fast speech + small subwords → watch CTC</text>
+  </g>
+  <rect x="825" y="1516" width="365" height="158" rx="12" fill="#E3EEEC" stroke="#0E5C58"/>
+  <text x="841" y="1540" font-family="'JetBrains Mono',monospace" font-size="10" fill="#0E5C58" font-weight="600">ONNX / TENSORRT NOTES</text>
+  <g font-family="'JetBrains Mono',monospace" font-size="9.2" fill="#22282A">
+    <text x="841" y="1566">profile time axis is in mel frames T</text>
+    <text x="841" y="1588">encoder length ≈ ⌈T/8⌉ · use returned len</text>
+    <text x="841" y="1610">local attention changes graph → re-export</text>
+    <text x="841" y="1632">build one engine per GPU · T4 ≠ L4</text>
+    <text x="841" y="1654" fill="#4C5658">validate FP32 parity before FP16</text>
+  </g>
+</g>
+
+<rect x="50" y="1690" width="1140" height="34" rx="10" fill="#0E2A28"/>
+<text x="66" y="1712" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#F2C879" font-weight="600">MEMORY RULE</text>
+<text x="180" y="1712" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#fff">FastConformer = Conformer blocks + 8× depthwise-separable front end + kernel 9 · local attention + global token for long audio</text>
+<text x="50" y="1742" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#7E8888">Blue = acoustics · gold = subsampling / FFN · violet = encoder · teal = conv / deploy · coral = change · green = savings</text>
+<text x="1190" y="1742" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="#0E5C58" text-anchor="end" font-weight="600">FastConformer · original SVG · animated A4</text>
+</svg>
+
+<script>
+(function(){
+  if(new URLSearchParams(location.search).has('export'))document.body.classList.add('export');
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)');
+  const toggle=document.getElementById('motionToggle');
+  const steps=[...new Set([...document.querySelectorAll('[data-step]')].map(el=>Number(el.dataset.step)))].sort((a,b)=>a-b);
+  let current=-1,timer=null,paused=false;
+  function show(step){document.querySelectorAll('.is-active').forEach(el=>el.classList.remove('is-active'));document.querySelectorAll(`[data-step="${step}"]`).forEach(el=>el.classList.add('is-active'))}
+  function advance(){current=(current+1)%steps.length;show(steps[current])}
+  function start(){if(reduce.matches||document.body.classList.contains('export'))return;advance();timer=setInterval(advance,900)}
+  function stop(){clearInterval(timer);timer=null}
+  toggle.addEventListener('click',()=>{paused=!paused;document.body.classList.toggle('paused',paused);toggle.setAttribute('aria-pressed',String(paused));toggle.textContent=paused?'Resume motion':'Pause motion';paused?stop():start()});
+  reduce.addEventListener('change',event=>{if(event.matches){stop();document.querySelectorAll('.is-active').forEach(el=>el.classList.remove('is-active'))}else if(!paused)start()});
+  start();
+})();
+</script>
+</body>
+</html>

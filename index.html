@@ -325,6 +325,65 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
 .aloud-ctrl{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
 @media(max-width:640px){.aq-a{padding:0 16px 16px 16px}}
 
+
+/* ── Start here: learning path ── */
+.study-loop{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+@media(max-width:900px){.study-loop{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.study-loop{grid-template-columns:1fr}}
+.loop-step{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;box-shadow:var(--shadow)}
+.loop-step:not(:last-child)::after{content:"→";position:absolute;right:-13px;top:50%;transform:translateY(-50%);font-family:var(--mono);color:var(--amber);font-size:16px;z-index:1}
+@media(max-width:900px){.loop-step::after{display:none}}
+.loop-no{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.12em}
+.loop-em{float:right;font-size:22px}
+.loop-step h4{font-size:19px;margin:6px 0 4px}
+.loop-step p{font-size:15px;color:var(--ink-soft);line-height:1.55}
+.lp-progress{display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 18px;box-shadow:var(--shadow);margin-bottom:22px}
+.lp-bar{flex:1 1 260px;height:10px;border-radius:999px;background:var(--paper2);border:1px solid var(--line);overflow:hidden}
+.lp-bar span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--gold),var(--amber));transition:width .5s}
+.lp-meta{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft)}
+.lp-meta b{color:var(--teal-deep)}
+.lp-reset{padding:9px 16px;font-size:12px}
+.stages{display:grid;gap:18px}
+.stage{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--sc);border-radius:18px;box-shadow:var(--shadow);padding:20px 22px}
+.stage-head{display:grid;grid-template-columns:auto auto 1fr auto;gap:4px 12px;align-items:baseline;margin-bottom:10px}
+.stage-no{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;color:var(--sc);font-weight:600}
+.stage-week{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px}
+.stage-head h3{grid-column:1/-1;font-size:clamp(22px,3vw,28px)}
+.stage-head p{grid-column:1/4;font-size:16px;color:var(--ink-soft)}
+.stage-count{grid-column:4;grid-row:1;font-family:var(--mono);font-size:12px;color:var(--teal-deep);font-weight:600}
+.stage-count.full{color:var(--green)}
+.tasks{list-style:none;display:grid;gap:10px;margin-top:6px}
+.task{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper2);transition:background .25s,border-color .25s}
+.task.done{background:#EAF5EE;border-color:#BFDCC9}
+.task.next{border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-soft)}
+.task-check{position:relative;display:block;width:26px;height:26px;margin-top:2px;cursor:pointer}
+.task-check input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0}
+.task-check span{position:absolute;inset:0;border:2px solid var(--line);border-radius:8px;background:#fff;transition:.2s}
+.task-check input:checked+span{background:var(--green);border-color:var(--green)}
+.task-check input:checked+span::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:15px;font-weight:700}
+.task-check input:focus-visible+span{outline:3px solid rgba(217,102,59,.4);outline-offset:2px}
+.task-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.task-no{font-family:var(--mono);font-size:11px;color:var(--amber)}
+.task-name{font-family:var(--disp);font-size:18.5px;font-weight:600;color:var(--teal-deep)}
+.task-name:hover{color:var(--amber)}
+.task-time{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.task-done{font-size:15px;color:var(--ink-soft);line-height:1.55;margin:4px 0 6px}
+.task-done b{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);margin-right:4px}
+.task.done .task-name{text-decoration:line-through;text-decoration-color:rgba(46,158,91,.5)}
+.task-links{display:flex;gap:10px;flex-wrap:wrap}
+.task-link{font-family:var(--mono);font-size:12px;padding:5px 11px;border-radius:999px;background:var(--teal);color:#fff}
+.task-link.ghost{background:transparent;color:var(--teal);border:1px solid var(--teal)}
+.task-link:hover{background:var(--amber);border-color:var(--amber);color:#fff}
+.lp-bonus{margin-top:18px;font-size:16px;color:var(--ink-soft)}
+.lp-bonus code{font-family:var(--mono);font-size:.82em;background:var(--teal-soft);color:var(--teal-deep);padding:1px 6px;border-radius:5px}
+/* ── Interview prep by stage ── */
+.iv-how{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:22px}
+@media(max-width:700px){.iv-how{grid-template-columns:1fr}}
+.iv-tip{background:var(--teal-soft);border-left:4px solid var(--teal);border-radius:10px;padding:12px 16px;color:var(--teal-deep);font-size:15.5px}
+.iv-stages{display:grid;gap:26px}
+.iv-stage{display:flex;flex-direction:column;gap:10px}
+.iv-title{font-size:22px;padding-left:12px;border-left:5px solid var(--sc)}
+
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
   html{scroll-behavior:auto}
@@ -345,17 +404,14 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
     ML Universe
   </div>
   <nav class="topnav">
-    <a href="encoder/neural_networks_zero_to_expert.html">Neural Nets</a>
-    <a href="encoder/backpropagation.html">Backprop</a>
-    <a href="encoder/activation-functions-blog.html">Activations</a>
-    <a href="encoder/normalization-guide.html">Normalization</a>
-    <a href="encoder/positional-encoding-blog.html">Pos. Encoding</a>
-    <a href="encoder/self_attention.html">Attention</a>
+    <a href="#start">Start Here</a>
+    <a href="#collection">Blogs</a>
+    <a href="#a4-sheets">A4 Sheets</a>
+    <a href="encoder/rnn-blog.html">RNN · LSTM · GRU</a>
     <a href="encoder/transformer-encoder-animated.html">Transformer</a>
     <a href="stt.html">STT</a>
-    <a href="encoder/interview-prep.html">Interview</a>
-    <a href="#aloud">Top 10 Q&amp;A</a>
-    <a href="#a4-sheets">A4 Sheets</a>
+    <a href="#interview-stages">Interview Prep</a>
+    <a href="encoder/interview-prep.html">Quiz</a>
   </nav>
 </header>
 
@@ -364,17 +420,17 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
   <div>
     <div class="eyebrow">Machine Learning · Deep Learning · Transformers</div>
     <h1>The full <em class="em">ML stack,</em><br>one blog at a time.</h1>
-    <p class="lead">Eight <b>visual, interactive</b> deep-dives plus an interview-prep deck — from perceptrons to speech encoders — built to be felt, not just read.</p>
+    <p class="lead">Eleven <b>visual, interactive</b> deep-dives plus an interview-prep deck — from perceptrons to speech encoders — built to be felt, not just read.</p>
     <div class="typing-wrap">
       <span class="typing-label">formula →</span>
       <span id="ttext"></span><span class="tcursor"></span>
     </div>
     <div class="cta">
-      <a href="#collection" class="btn">Start reading ↓</a>
+      <a href="#start" class="btn">Start here ↓</a>
       <a href="encoder/neural_networks_zero_to_expert.html" class="btn ghost">Begin at 01 →</a>
     </div>
     <div class="scroll-hint">
-      <span class="arrow">↓</span> scroll to explore all 13 pages
+      <span class="arrow">↓</span> scroll to explore all 20 pages
     </div>
   </div>
 
@@ -485,6 +541,233 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       <span class="stat-l">Journey</span>
     </div>
   </div>
+
+
+  <!-- ── Start here: learning setup ── -->
+  <div class="sec-head reveal" id="start">
+    <div class="sec-no">§ 00</div>
+    <h2>Start Here: Your Learning Path</h2>
+    <p>New here? Follow the five stages in order, one task at a time. Each task links to what to open and tells you exactly when you're done. Your ticks are saved in this browser.</p>
+  </div>
+
+  <div class="study-loop reveal" aria-label="How to study each page">
+    <div class="loop-step"><span class="loop-no">1</span><span class="loop-em">📖</span><h4>Read</h4><p>Open the blog and read it top to bottom once. Don&#x27;t take notes yet.</p></div>
+    <div class="loop-step"><span class="loop-no">2</span><span class="loop-em">🕹️</span><h4>Play</h4><p>Drive every slider and step-through. Predict the result before you click.</p></div>
+    <div class="loop-step"><span class="loop-no">3</span><span class="loop-em">🗺️</span><h4>Revise</h4><p>Open the A4 sheet. Redraw its main diagram on paper from memory.</p></div>
+    <div class="loop-step"><span class="loop-no">4</span><span class="loop-em">🎤</span><h4>Check</h4><p>Read the task&#x27;s &quot;done when&quot; line. Can you do it aloud? Then tick it.</p></div>
+  </div>
+
+  <div class="lp-progress reveal">
+    <div class="lp-bar"><span id="lpFill"></span></div>
+    <div class="lp-meta"><b id="lpDone">0</b> of <b id="lpTotal">0</b> tasks done · <span id="lpNext">Next: task 1</span></div>
+    <button class="btn ghost lp-reset" type="button" id="lpReset">Reset progress</button>
+  </div>
+
+  <div class="stages">
+    <section class="stage reveal" style="--sc:var(--teal)" aria-labelledby="stage1">
+      <header class="stage-head">
+        <span class="stage-no">STAGE 1</span><span class="stage-week">Week 1</span>
+        <h3 id="stage1">Foundations</h3>
+        <p>How a network computes, learns and stays trainable.</p>
+        <span class="stage-count" data-stage="1">0 / 4</span>
+      </header>
+      <ol class="tasks">
+        <li class="task" data-task="t01" data-stage="1">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 1 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">01</span><a class="task-name" href="encoder/neural_networks_zero_to_expert.html">Feed-forward neural networks</a><span class="task-time">15 min</span></div>
+            <p class="task-done"><b>Done when</b> you can explain a neuron (w·x + b → activation), a layer, and why stacking linear layers without an activation is useless.</p>
+            <div class="task-links"><a class="task-link" href="encoder/neural_networks_zero_to_expert.html">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t02" data-stage="1">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 2 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">02</span><a class="task-name" href="encoder/backpropagation.html">Backpropagation</a><span class="task-time">20 min</span></div>
+            <p class="task-done"><b>Done when</b> you can do the chain rule for one neuron on paper and say what the forward pass must cache.</p>
+            <div class="task-links"><a class="task-link" href="encoder/backpropagation.html">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t03" data-stage="1">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 3 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">03</span><a class="task-name" href="encoder/activation-functions-blog.html">Activation functions</a><span class="task-time">12 min</span></div>
+            <p class="task-done"><b>Done when</b> you can say why ReLU replaced sigmoid in deep nets, and what GELU and Swish change.</p>
+            <div class="task-links"><a class="task-link" href="encoder/activation-functions-blog.html">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t04" data-stage="1">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 4 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">04</span><a class="task-name" href="encoder/normalization-guide.html">Normalization and residuals</a><span class="task-time">18 min</span></div>
+            <p class="task-done"><b>Done when</b> you can contrast BatchNorm and LayerNorm in one sentence each and explain why residual connections help gradients.</p>
+            <div class="task-links"><a class="task-link" href="encoder/normalization-guide.html">Open →</a></div>
+          </div>
+        </li>
+      </ol>
+    </section>
+    <section class="stage reveal" style="--sc:var(--amber)" aria-labelledby="stage2">
+      <header class="stage-head">
+        <span class="stage-no">STAGE 2</span><span class="stage-week">Week 2</span>
+        <h3 id="stage2">Sequence models</h3>
+        <p>Networks with memory: the bridge from feed-forward nets to Transformers.</p>
+        <span class="stage-count" data-stage="2">0 / 4</span>
+      </header>
+      <ol class="tasks">
+        <li class="task" data-task="t05" data-stage="2">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 5 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">05</span><a class="task-name" href="encoder/rnn-blog.html">Recurrent neural networks</a><span class="task-time">18 min</span></div>
+            <p class="task-done"><b>Done when</b> you can write h_t = tanh(W_xh·x_t + W_hh·h_(t−1) + b), unroll it for 3 steps, and explain why gradients vanish.</p>
+            <div class="task-links"><a class="task-link" href="encoder/rnn-blog.html">Open →</a> <a class="task-link ghost" href="encoder/rnn-birnn-architecture-A4.html">RNN + BiRNN sheet, section A →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t06" data-stage="2">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 6 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">06</span><a class="task-name" href="encoder/rnn-birnn-architecture-A4.html">Bidirectional RNNs</a><span class="task-time">10 min</span></div>
+            <p class="task-done"><b>Done when</b> you can draw forward + backward layers with the [h→ ; h←] concat, and say why a BiRNN can&#x27;t stream.</p>
+            <div class="task-links"><a class="task-link" href="encoder/rnn-birnn-architecture-A4.html">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t07" data-stage="2">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 7 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">07</span><a class="task-name" href="encoder/lstm-blog.html">LSTM</a><span class="task-time">25 min</span></div>
+            <p class="task-done"><b>Done when</b> you can write all 6 LSTM equations from memory and redo the 2-step example on the sheet without looking.</p>
+            <div class="task-links"><a class="task-link" href="encoder/lstm-blog.html">Open →</a> <a class="task-link ghost" href="encoder/lstm-math-A4.html">LSTM math sheet →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t08" data-stage="2">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 8 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">08</span><a class="task-name" href="encoder/gru-blog.html">GRU</a><span class="task-time">20 min</span></div>
+            <p class="task-done"><b>Done when</b> you can map LSTM gates to GRU gates and give both parameter counts: 4H(d+H+1) and 3H(d+H+1).</p>
+            <div class="task-links"><a class="task-link" href="encoder/gru-blog.html">Open →</a> <a class="task-link ghost" href="encoder/gru-architecture-A4.html">GRU sheet →</a></div>
+          </div>
+        </li>
+      </ol>
+    </section>
+    <section class="stage reveal" style="--sc:var(--violet)" aria-labelledby="stage3">
+      <header class="stage-head">
+        <span class="stage-no">STAGE 3</span><span class="stage-week">Week 3</span>
+        <h3 id="stage3">Transformers</h3>
+        <p>Attention replaces recurrence: parallel training, direct paths between tokens.</p>
+        <span class="stage-count" data-stage="3">0 / 4</span>
+      </header>
+      <ol class="tasks">
+        <li class="task" data-task="t09" data-stage="3">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 9 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">09</span><a class="task-name" href="encoder/positional-encoding-blog.html">Positional encoding</a><span class="task-time">14 min</span></div>
+            <p class="task-done"><b>Done when</b> you can explain why attention needs position information, and how sinusoidal and RoPE encodings differ.</p>
+            <div class="task-links"><a class="task-link" href="encoder/positional-encoding-blog.html">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t10" data-stage="3">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 10 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">10</span><a class="task-name" href="encoder/self_attention.html">Self-attention</a><span class="task-time">22 min</span></div>
+            <p class="task-done"><b>Done when</b> you can compute softmax(QKᵀ/√d_k)·V for a 3-token toy example and explain the √d_k.</p>
+            <div class="task-links"><a class="task-link" href="encoder/self_attention.html">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t11" data-stage="3">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 11 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">11</span><a class="task-name" href="encoder/transformer-encoder-animated.html">Transformer encoder</a><span class="task-time">25 min</span></div>
+            <p class="task-done"><b>Done when</b> you can trace the tensor shapes through one encoder layer and count its parameters roughly.</p>
+            <div class="task-links"><a class="task-link" href="encoder/transformer-encoder-animated.html">Open →</a> <a class="task-link ghost" href="encoder/encoder-architecture-A4.html">Encoder A4 sheet →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t12" data-stage="3">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 12 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">12</span><a class="task-name" href="encoder/transformer-decoder-architecture-A4.html">Transformer decoder</a><span class="task-time">15 min</span></div>
+            <p class="task-done"><b>Done when</b> you can explain the causal mask, cross-attention and the KV cache.</p>
+            <div class="task-links"><a class="task-link" href="encoder/transformer-decoder-architecture-A4.html">Open →</a></div>
+          </div>
+        </li>
+      </ol>
+    </section>
+    <section class="stage reveal" style="--sc:var(--blue)" aria-labelledby="stage4">
+      <header class="stage-head">
+        <span class="stage-no">STAGE 4</span><span class="stage-week">Week 4</span>
+        <h3 id="stage4">Speech AI</h3>
+        <p>Put it together: audio in, text out.</p>
+        <span class="stage-count" data-stage="4">0 / 4</span>
+      </header>
+      <ol class="tasks">
+        <li class="task" data-task="t13" data-stage="4">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 13 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">13</span><a class="task-name" href="stt.html">STT learning path (Tasks 0–14)</a><span class="task-time">several sessions</span></div>
+            <p class="task-done"><b>Done when</b> you have worked through the waveform → log-Mel → encoder → CTC tasks and their notebooks.</p>
+            <div class="task-links"><a class="task-link" href="stt.html">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t14" data-stage="4">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 14 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">14</span><a class="task-name" href="encoder/stt-conformer-architecture-A4.html">STT + Conformer architecture</a><span class="task-time">15 min</span></div>
+            <p class="task-done"><b>Done when</b> you can give the shape trace from (B, 160000) samples to (B, T′, V) logits.</p>
+            <div class="task-links"><a class="task-link" href="encoder/stt-conformer-architecture-A4.html">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t15" data-stage="4">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 15 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">15</span><a class="task-name" href="encoder/stt-decoder-families-A4.html">CTC, RNN-T and TDT decoders</a><span class="task-time">15 min</span></div>
+            <p class="task-done"><b>Done when</b> you can explain the blank token, the LSTM prediction network and the joiner, and how TDT skips frames.</p>
+            <div class="task-links"><a class="task-link" href="encoder/stt-decoder-families-A4.html">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t16" data-stage="4">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 16 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">16</span><a class="task-name" href="encoder/fastconformer-architecture-A4.html">FastConformer</a><span class="task-time">15 min</span></div>
+            <p class="task-done"><b>Done when</b> you can list what FastConformer changes: 8× subsampling, kernel 9, local attention for long audio.</p>
+            <div class="task-links"><a class="task-link" href="encoder/fastconformer-architecture-A4.html">Open →</a></div>
+          </div>
+        </li>
+      </ol>
+    </section>
+    <section class="stage reveal" style="--sc:var(--gold)" aria-labelledby="stage5">
+      <header class="stage-head">
+        <span class="stage-no">STAGE 5</span><span class="stage-week">Week 5</span>
+        <h3 id="stage5">Interview ready</h3>
+        <p>Turn understanding into clear, timed answers.</p>
+        <span class="stage-count" data-stage="5">0 / 3</span>
+      </header>
+      <ol class="tasks">
+        <li class="task" data-task="t17" data-stage="5">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 17 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">17</span><a class="task-name" href="encoder/interview-prep.html">Flashcards and quiz</a><span class="task-time">30 min</span></div>
+            <p class="task-done"><b>Done when</b> you score at least 12 / 15 on the quiz, twice in a row.</p>
+            <div class="task-links"><a class="task-link" href="encoder/interview-prep.html">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t18" data-stage="5">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 18 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">18</span><a class="task-name" href="#aloud">Top 10 Transformer questions, out loud</a><span class="task-time">20 min</span></div>
+            <p class="task-done"><b>Done when</b> you can answer each in about a minute before opening the model answer.</p>
+            <div class="task-links"><a class="task-link" href="#aloud">Open →</a></div>
+          </div>
+        </li>
+        <li class="task" data-task="t19" data-stage="5">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 19 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">19</span><a class="task-name" href="#interview-stages">Stage-by-stage mock interview</a><span class="task-time">45 min</span></div>
+            <p class="task-done"><b>Done when</b> you can answer every question in § 06 aloud, then draw one diagram (an LSTM cell or an encoder layer) from memory.</p>
+            <div class="task-links"><a class="task-link" href="#interview-stages">Open →</a></div>
+          </div>
+        </li>
+      </ol>
+    </section>
+  </div>
+  <p class="lp-bonus reveal"><b>Bonus, after Stage 4:</b> deploying models with ONNX, TensorRT and Triton is covered in the learning folder (<code>learing/model_inference_deployment_universal_learning_path.md</code>). Open it in VS Code's Markdown preview. Its interview questions are in § 06 under "Deployment".</p>
 
   <!-- ── Blog collection ── -->
   <div class="sec-head reveal" id="collection">
@@ -615,6 +898,42 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       </div>
     </a>
 
+    <!-- 11 RNN -->
+    <a href="encoder/rnn-blog.html" class="blog-card" style="--cc:var(--amber)">
+      <div class="card-eyebrow"><span class="card-no">11</span><span class="card-sep">·</span>SEQUENCE MODELS</div>
+      <span class="card-emoji">🔁</span>
+      <h3 class="card-title">Recurrent Neural Networks</h3>
+      <p class="card-desc">Networks that remember. The recurrent cell, unrolling step by step, a live memory explorer, backprop through time and why gradients vanish, plus PyTorch shapes.</p>
+      <div class="card-foot">
+        <div class="card-meta"><span>📖 ~18 min</span><span>⚡ Interactive</span></div>
+        <span class="card-read">Read <span>→</span></span>
+      </div>
+    </a>
+
+    <!-- 12 LSTM -->
+    <a href="encoder/lstm-blog.html" class="blog-card" style="--cc:var(--teal)">
+      <div class="card-eyebrow"><span class="card-no">12</span><span class="card-sep">·</span>SEQUENCE MODELS</div>
+      <span class="card-emoji">🧮</span>
+      <h3 class="card-title">LSTM: A Memory That Chooses</h3>
+      <p class="card-desc">The cell-state highway and the forget, input and output gates, worked by hand. Includes a live gate lab, an RNN-vs-LSTM memory race, GRU, and LSTMs in RNN-T speech models.</p>
+      <div class="card-foot">
+        <div class="card-meta"><span>📖 ~22 min</span><span>⚡ Interactive</span></div>
+        <span class="card-read">Read <span>→</span></span>
+      </div>
+    </a>
+
+    <!-- 13 GRU -->
+    <a href="encoder/gru-blog.html" class="blog-card" style="--cc:var(--green)">
+      <div class="card-eyebrow"><span class="card-no">13</span><span class="card-sep">·</span>SEQUENCE MODELS</div>
+      <span class="card-emoji">🎚️</span>
+      <h3 class="card-title">GRU: Two Gates Are Enough</h3>
+      <p class="card-desc">Reset and update gates, one hidden state, LSTM-level memory at ¾ the cost. A worked step, a live gate lab, GRU vs LSTM part by part, and the paper-vs-PyTorch conventions.</p>
+      <div class="card-foot">
+        <div class="card-meta"><span>📖 ~20 min</span><span>⚡ Interactive</span></div>
+        <span class="card-read">Read <span>→</span></span>
+      </div>
+    </a>
+
   </div><!-- /cards -->
 
   <!-- ── Printable A4 reference sheets ── -->
@@ -674,6 +993,58 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
         <p>One shared Conformer pipeline branching into three decoder families, with predictor/joiner math, token-duration transitions and Linear-to-vocabulary mapping.</p>
         <div class="a4-badges"><span class="a4-badge">CTC / RNN-T / TDT</span><span class="a4-badge">Joiner math</span><span class="a4-badge">A4 / PDF</span></div>
         <div class="a4-actions"><a href="encoder/stt-decoder-families-A4.html">Open sheet</a><a class="ghost" href="encoder/stt-decoder-families-A4.png" download>PNG</a></div>
+      </div>
+    </article>
+
+    <article class="a4-card reveal">
+      <a class="a4-preview" href="encoder/fastconformer-architecture-A4.html" aria-label="Open the FastConformer A4 reference sheet">
+        <img src="encoder/fastconformer-architecture-A4.png" width="1240" height="1754" loading="lazy" alt="Preview of the FastConformer encoder A4 architecture sheet">
+      </a>
+      <div class="a4-copy">
+        <div class="a4-kicker">Speech AI · Reference 05</div>
+        <h3>FastConformer Encoder</h3>
+        <p>8× depthwise-separable subsampling, the kernel-9 Macaron block, frame-rate and attention-cost comparisons, local attention with a global token, and Parakeet deployment notes.</p>
+        <div class="a4-badges"><span class="a4-badge">8× subsampling</span><span class="a4-badge">Attention cost</span><span class="a4-badge">A4 / PDF</span></div>
+        <div class="a4-actions"><a href="encoder/fastconformer-architecture-A4.html">Open sheet</a><a class="ghost" href="encoder/fastconformer-architecture-A4.png" download>PNG</a></div>
+      </div>
+    </article>
+
+    <article class="a4-card reveal">
+      <a class="a4-preview" href="encoder/gru-architecture-A4.html" aria-label="Open the GRU A4 reference sheet">
+        <img src="encoder/gru-architecture-A4.png" width="1240" height="1754" loading="lazy" alt="Preview of the GRU architecture A4 sheet">
+      </a>
+      <div class="a4-copy">
+        <div class="a4-kicker">Sequence Models · Reference 06</div>
+        <h3>GRU Architecture</h3>
+        <p>The GRU cell with reset and update gates, a worked step, the update gate as a slider between old and new, the LSTM-to-GRU mapping, PyTorch conventions and parameter counts.</p>
+        <div class="a4-badges"><span class="a4-badge">2 gates</span><span class="a4-badge">LSTM mapping</span><span class="a4-badge">A4 / PDF</span></div>
+        <div class="a4-actions"><a href="encoder/gru-architecture-A4.html">Open sheet</a><a class="ghost" href="encoder/gru-architecture-A4.png" download>PNG</a></div>
+      </div>
+    </article>
+
+    <article class="a4-card reveal">
+      <a class="a4-preview" href="encoder/rnn-birnn-architecture-A4.html" aria-label="Open the RNN and bidirectional RNN A4 reference sheet">
+        <img src="encoder/rnn-birnn-architecture-A4.png" width="1240" height="1754" loading="lazy" alt="Preview of the RNN and bidirectional RNN A4 sheet">
+      </a>
+      <div class="a4-copy">
+        <div class="a4-kicker">Sequence Models · Reference 07</div>
+        <h3>RNN + Bidirectional RNN</h3>
+        <p>"the cat sat down" unrolled through an RNN and a bidirectional RNN, with animated data flow, worked forward and backward states, concatenated outputs, PyTorch shapes and a unidirectional-vs-bidirectional table.</p>
+        <div class="a4-badges"><span class="a4-badge">Forward + backward</span><span class="a4-badge">Data-flow animation</span><span class="a4-badge">A4 / PDF</span></div>
+        <div class="a4-actions"><a href="encoder/rnn-birnn-architecture-A4.html">Open sheet</a><a class="ghost" href="encoder/rnn-birnn-architecture-A4.png" download>PNG</a></div>
+      </div>
+    </article>
+
+    <article class="a4-card reveal">
+      <a class="a4-preview" href="encoder/lstm-math-A4.html" aria-label="Open the LSTM math and worked example A4 reference sheet">
+        <img src="encoder/lstm-math-A4.png" width="1240" height="1754" loading="lazy" alt="Preview of the LSTM math and worked example A4 sheet">
+      </a>
+      <div class="a4-copy">
+        <div class="a4-kicker">Sequence Models · Reference 08</div>
+        <h3>LSTM: Math + Worked Example</h3>
+        <p>The animated LSTM cell, the stacked-matrix forward pass, the BPTT backward equations, and a two-step example worked line by line with a backward step through the cell state.</p>
+        <div class="a4-badges"><span class="a4-badge">Forward + BPTT</span><span class="a4-badge">Worked example</span><span class="a4-badge">A4 / PDF</span></div>
+        <div class="a4-actions"><a href="encoder/lstm-math-A4.html">Open sheet</a><a class="ghost" href="encoder/lstm-math-A4.png" download>PNG</a></div>
       </div>
     </article>
   </div>
@@ -920,7 +1291,7 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
   <div class="sec-head reveal path-section">
     <div class="sec-no">§ 04</div>
     <h2>Recommended Path</h2>
-    <p>The blogs are designed to build on each other. Start here, follow the arrows.</p>
+    <p>The same order as the <a href="#start">Start Here</a> path, at a glance. Click a step to open it.</p>
   </div>
   <div class="path-row" id="path-row">
     <div class="path-node"><div class="path-step">🧠</div><div class="path-no">01</div><div class="path-label">Neural<br>Networks</div></div>
@@ -931,15 +1302,17 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
     <div class="path-arrow">→</div>
     <div class="path-node"><div class="path-step">📊</div><div class="path-no">04</div><div class="path-label">Normal-<br>ization</div></div>
     <div class="path-arrow">→</div>
-    <div class="path-node"><div class="path-step">📍</div><div class="path-no">05</div><div class="path-label">Pos.<br>Encoding</div></div>
+    <div class="path-node"><div class="path-step">🔁</div><div class="path-no">05</div><div class="path-label">RNN · LSTM<br>· GRU</div></div>
     <div class="path-arrow">→</div>
-    <div class="path-node"><div class="path-step">👁️</div><div class="path-no">06</div><div class="path-label">Self-<br>Attention</div></div>
+    <div class="path-node"><div class="path-step">📍</div><div class="path-no">06</div><div class="path-label">Pos.<br>Encoding</div></div>
     <div class="path-arrow">→</div>
-    <div class="path-node"><div class="path-step">🔄</div><div class="path-no">07</div><div class="path-label">Trans-<br>former</div></div>
+    <div class="path-node"><div class="path-step">👁️</div><div class="path-no">07</div><div class="path-label">Self-<br>Attention</div></div>
     <div class="path-arrow">→</div>
-    <div class="path-node"><div class="path-step">🎙️</div><div class="path-no">08</div><div class="path-label">Speech<br>to Text</div></div>
+    <div class="path-node"><div class="path-step">🔄</div><div class="path-no">08</div><div class="path-label">Trans-<br>former</div></div>
     <div class="path-arrow">→</div>
-    <div class="path-node"><div class="path-step">🎯</div><div class="path-no">09</div><div class="path-label">Interview<br>Prep</div></div>
+    <div class="path-node"><div class="path-step">🎙️</div><div class="path-no">09</div><div class="path-label">Speech<br>to Text</div></div>
+    <div class="path-arrow">→</div>
+    <div class="path-node"><div class="path-step">🎯</div><div class="path-no">10</div><div class="path-label">Interview<br>Prep</div></div>
   </div>
 
   <!-- Path click links -->
@@ -948,6 +1321,7 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
     const urls = [
       'encoder/neural_networks_zero_to_expert.html','encoder/backpropagation.html',
       'encoder/activation-functions-blog.html','encoder/normalization-guide.html',
+      'encoder/rnn-blog.html',
       'encoder/positional-encoding-blog.html','encoder/self_attention.html',
       'encoder/transformer-encoder-animated.html','stt.html',
       'encoder/interview-prep.html'
@@ -1052,6 +1426,219 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
   })();
   </script>
 
+
+  <!-- ── Interview prep by stage ── -->
+  <div class="sec-head reveal" id="interview-stages">
+    <div class="sec-no">§ 06</div>
+    <h2>Interview Prep, Stage by Stage</h2>
+    <p>The questions interviewers ask about each stage of the path. Finish a stage, then answer its questions <b>out loud</b> before you open the model answer.</p>
+  </div>
+
+  <div class="iv-how reveal">
+    <div class="iv-tip"><b>1 · Use a structure.</b> What it is → why it exists → one concrete detail (a formula, a shape, a number).</div>
+    <div class="iv-tip"><b>2 · Time yourself.</b> 60–90 seconds per answer. Stop, then compare with the model answer.</div>
+    <div class="iv-tip"><b>3 · Draw.</b> Practise one diagram per stage from memory: a neuron, an LSTM cell, an encoder layer, the STT pipeline.</div>
+    <div class="iv-tip"><b>4 · Expect follow-ups.</b> Each answer ends with the most likely follow-up. Prepare that too.</div>
+  </div>
+
+  <div class="iv-stages">
+    <div class="iv-stage reveal" style="--sc:var(--teal)">
+      <h3 class="iv-title">Foundations</h3>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q01</span><span class="aq-q">What does a neuron compute, and why do we need non-linear activations?</span></summary>
+        <div class="aq-a">
+          <p class="say">A neuron computes <code>z = w·x + b</code> and then <code>a = φ(z)</code>. Without φ, two layers are <code>W₂(W₁x) = (W₂W₁)x</code>, which is still one linear map. Depth would add nothing, and the network couldn't learn XOR or any curved boundary. The non-linearity is what lets stacked layers build richer functions.</p>
+          <p class="aq-more">Name one: ReLU <code>max(0, z)</code>.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q02</span><span class="aq-q">Explain backpropagation in one minute.</span></summary>
+        <div class="aq-a">
+          <p class="say">The forward pass computes each layer's output and caches the activations. The loss compares the prediction to the target. The backward pass applies the chain rule from the output back to the input: each layer's error is <code>δ = (Wᵀ·δ_next) ⊙ φ′(z)</code>, and its weight gradient is <code>δ·aᵀ</code> using the cached input. Then the optimiser updates the weights. One backward pass costs about two forward passes.</p>
+          <p class="aq-more">Follow-up: why cache activations? The backward pass needs them to compute the weight gradients.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q03</span><span class="aq-q">Why did ReLU replace sigmoid in deep networks?</span></summary>
+        <div class="aq-a">
+          <p class="say">Sigmoid saturates, and its derivative is at most 0.25. Multiplied over many layers, gradients vanish. ReLU's derivative is exactly 1 for positive inputs, it's cheap, and it gives sparse activations. Its weakness is "dead" units stuck at 0, which Leaky ReLU, GELU and Swish soften.</p>
+          <p class="aq-more">Transformers mostly use GELU; Llama-style models use SwiGLU.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q04</span><span class="aq-q">BatchNorm vs LayerNorm?</span></summary>
+        <div class="aq-a">
+          <p class="say">BatchNorm normalises each feature <em>across the batch</em>. It depends on batch statistics, needs running averages at inference, and suits CNNs. LayerNorm normalises <em>across the features of one sample</em>. It's batch-independent, works the same in training and inference, and suits variable-length sequences, which is why Transformers use it.</p>
+          <p class="aq-more">Bonus: RMSNorm drops the mean and β, so it's cheaper.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q05</span><span class="aq-q">How do you detect and fix overfitting?</span></summary>
+        <div class="aq-a">
+          <p class="say">Training loss keeps falling while validation loss rises, so the gap grows. Fixes: more data or augmentation, dropout, weight decay, early stopping on validation loss, or a smaller model.</p>
+          <p class="aq-more">Always say which metric you'd watch: validation loss or WER/accuracy.</p>
+        </div>
+      </details>
+    </div>
+    <div class="iv-stage reveal" style="--sc:var(--amber)">
+      <h3 class="iv-title">Sequence models (RNN, BiRNN, LSTM, GRU)</h3>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q06</span><span class="aq-q">Write the RNN equation and explain each term.</span></summary>
+        <div class="aq-a">
+          <p class="say"><code>h_t = tanh(W_xh·x_t + W_hh·h_(t−1) + b)</code>. <code>W_xh·x_t</code> brings in the new input. <code>W_hh·h_(t−1)</code> brings in the memory. tanh keeps the state in (−1, 1). The same weights are reused at every step, so the parameter count, <code>H(d+H+1)</code>, doesn't depend on sequence length.</p>
+          <p class="aq-more">Draw it unrolled for three steps while you talk.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q07</span><span class="aq-q">Why do vanilla RNNs have vanishing or exploding gradients?</span></summary>
+        <div class="aq-a">
+          <p class="say">Backprop through time multiplies one Jacobian per step: <code>∂h_T/∂h_1 = ∏ diag(1 − h_t²)·W_hh</code>. If the largest singular value of that product is below 1, the gradient shrinks exponentially with distance (vanishing). Above 1, it blows up (exploding). Exploding gradients are fixed with gradient clipping. Vanishing gradients need an architecture change: LSTM or GRU.</p>
+          <p class="aq-more">Concrete: 0.9²⁰ ≈ 0.12, 0.9⁵⁰ ≈ 0.005.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q08</span><span class="aq-q">How does an LSTM fix the vanishing gradient?</span></summary>
+        <div class="aq-a">
+          <p class="say">It adds a cell state updated by addition: <code>c_t = f ⊙ c_(t−1) + i ⊙ g</code>. Along that path <code>∂c_t/∂c_(t−1) = diag(f_t)</code>, with no weight matrix and no tanh′. When the forget gate learns f ≈ 1, memory and gradient pass through many steps almost unchanged. Initialising the forget bias to +1 helps early training.</p>
+          <p class="aq-more">Then list the gates: forget, input, candidate, output, with h = o ⊙ tanh(c).</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q09</span><span class="aq-q">LSTM vs GRU?</span></summary>
+        <div class="aq-a">
+          <p class="say">A GRU merges the forget and input gates into one update gate z, merges the cell and hidden state, and drops the output gate. That's 3 weight blocks instead of 4, so ¾ of the parameters (<code>3H(d+H+1)</code> vs <code>4H(d+H+1)</code>). Accuracy is usually similar. Pick a GRU for speed or small data, and try both if accuracy matters.</p>
+          <p class="aq-more">Trap: PyTorch writes <code>h = (1−z)⊙n + z⊙h</code>, so its z means "keep old".</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q10</span><span class="aq-q">When can&#x27;t you use a bidirectional RNN?</span></summary>
+        <div class="aq-a">
+          <p class="say">Whenever you must produce output before the sequence ends: streaming speech recognition, live captioning, or autoregressive generation. The backward pass needs the future. It's great offline (tagging, NER, offline CTC ASR), at 2× the cost and 2H output width.</p>
+          <p class="aq-more">PyTorch gotcha: the final backward state is <code>out[:, 0, H:]</code>, not <code>out[:, -1]</code>.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q11</span><span class="aq-q">Where is an LSTM still used in modern speech models?</span></summary>
+        <div class="aq-a">
+          <p class="say">In RNN-T and TDT models the <em>prediction network</em> is usually a small LSTM over the previously emitted tokens. It runs once per emitted token, not per frame, and a blank output doesn't update its state. The joiner combines its output with the encoder frame to predict the next token or blank.</p>
+          <p class="aq-more">This is why the predictor is exported separately, with h and c as explicit inputs and outputs.</p>
+        </div>
+      </details>
+    </div>
+    <div class="iv-stage reveal" style="--sc:var(--violet)">
+      <h3 class="iv-title">Transformers (beyond the Top 10)</h3>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q12</span><span class="aq-q">Why did Transformers replace RNNs?</span></summary>
+        <div class="aq-a">
+          <p class="say">RNNs must process T steps one after another, so training can't be parallelised over time, and all history is squeezed through one fixed-size state. Self-attention connects any two positions in one step and trains all positions in parallel on GPUs. The price is O(T²) attention cost.</p>
+          <p class="aq-more">Mention: RNNs still win on constant memory per step for streaming.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q13</span><span class="aq-q">Encoder vs decoder in a Transformer?</span></summary>
+        <div class="aq-a">
+          <p class="say">The encoder uses bidirectional self-attention, so every token sees every token (BERT, speech encoders). The decoder uses a causal mask so token t sees only tokens ≤ t, plus cross-attention to the encoder in seq2seq models. GPT-style models are decoder-only, without cross-attention.</p>
+          <p class="aq-more">Draw the mask as a lower-triangular matrix.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q14</span><span class="aq-q">What is the KV cache and why does it matter?</span></summary>
+        <div class="aq-a">
+          <p class="say">During generation, the keys and values of past tokens don't change. The KV cache stores them, so each new token computes only its own q, k and v and attends to the cache, instead of recomputing the whole prefix. It makes decoding fast, but its memory grows with sequence length × layers × heads, which is what limits long-context serving.</p>
+          <p class="aq-more">MQA/GQA shrink it by sharing K/V across heads.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q15</span><span class="aq-q">What is the cost of self-attention, and how do long-sequence models cope?</span></summary>
+        <div class="aq-a">
+          <p class="say">Time O(T²·d) and memory O(T²) per head, because every query scores every key. For long inputs: local or sliding-window attention, sparse patterns, or a few global tokens. FastConformer uses local attention plus a global token for long audio. FlashAttention cuts the memory traffic, not the O(T²) work.</p>
+          <p class="aq-more">Example: 10 s of audio at 40 ms frames → 250 frames → 62,500 scores per head.</p>
+        </div>
+      </details>
+    </div>
+    <div class="iv-stage reveal" style="--sc:var(--blue)">
+      <h3 class="iv-title">Speech AI</h3>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q16</span><span class="aq-q">Walk me through a speech-to-text pipeline.</span></summary>
+        <div class="aq-a">
+          <p class="say">16 kHz waveform → STFT with a 25 ms window and 10 ms hop → 80 log-Mel bins (100 frames/s) → convolutional subsampling (4× in Conformer, 8× in FastConformer) → encoder (Conformer layers) → a decoder head: CTC, RNN-T or TDT → tokens → text.</p>
+          <p class="aq-more">Give one shape: 10 s → (B, 1000, 80) features → (B, 125, D) after 8×.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q17</span><span class="aq-q">Explain CTC in one minute.</span></summary>
+        <div class="aq-a">
+          <p class="say">The encoder outputs a distribution over vocabulary + blank for every frame. CTC training sums the probability of every frame-level alignment that collapses to the target. Decoding takes the best path, merges repeated tokens, then removes blanks. It assumes frames are conditionally independent, so it often benefits from an external language model.</p>
+          <p class="aq-more">Collapse example: "hh-e-ll-l-oo" → "hello".</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q18</span><span class="aq-q">RNN-T vs CTC?</span></summary>
+        <div class="aq-a">
+          <p class="say">RNN-T adds a prediction network (usually an LSTM over previous tokens) and a joiner. Each output is conditioned on what was already emitted, which removes CTC's independence assumption while staying streaming-friendly. TDT extends RNN-T by also predicting a duration, so it can skip several frames per step and decode faster.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q19</span><span class="aq-q">Why a Conformer instead of a plain Transformer for speech?</span></summary>
+        <div class="aq-a">
+          <p class="say">Speech needs both global context (attention) and local patterns like formant transitions (convolution). A Conformer block is ½FFN → self-attention → convolution module → ½FFN → LayerNorm, the "macaron" layout. The convolution captures local structure that attention alone handles poorly.</p>
+        </div>
+      </details>
+    </div>
+    <div class="iv-stage reveal" style="--sc:var(--gold)">
+      <h3 class="iv-title">Deployment (bonus)</h3>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q20</span><span class="aq-q">ONNX vs ONNX Runtime vs TensorRT?</span></summary>
+        <div class="aq-a">
+          <p class="say">ONNX is a file format: a portable graph of operators. ONNX Runtime is an engine that runs ONNX graphs on CPU or GPU through execution providers. TensorRT is NVIDIA's compiler: it fuses layers, picks kernels, uses lower precision, and produces a GPU-specific engine plan.</p>
+          <p class="aq-more">Serving layer on top: Triton Inference Server.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q21</span><span class="aq-q">How do you know an exported model is correct?</span></summary>
+        <div class="aq-a">
+          <p class="say">Run the same inputs through PyTorch and the exported model and compare outputs within a tolerance (for example atol 1e-3 for FP32). Test several input shapes if the axes are dynamic. Polygraphy can compare ONNX Runtime and TensorRT directly. Only then benchmark latency and throughput, and finally check task accuracy (WER) on a real test set.</p>
+        </div>
+      </details>
+      <details class="aq iv">
+        <summary><span class="aq-no">Q22</span><span class="aq-q">Latency vs throughput: what does batching do?</span></summary>
+        <div class="aq-a">
+          <p class="say">Batching groups requests so the GPU does more useful work per launch, which raises throughput. Each request may wait for the batch to fill, which raises latency. Dynamic batching in Triton caps that wait with a small queue delay. Always report percentiles (p50, p95, p99), not just the mean.</p>
+        </div>
+      </details>
+    </div>
+  </div>
+  <div class="aloud-ctrl reveal">
+    <button class="btn ghost" type="button" id="ivToggle">Open all answers</button>
+    <a class="btn" href="encoder/interview-prep.html">Flashcards &amp; quiz →</a>
+  </div>
+
+  <!-- Learning-path progress (per-browser) and interview toggle -->
+  <script>
+  (function(){
+    const KEY='mlu-learning-path-v1';
+    let done={};
+    try{done=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){done={};}
+    const tasks=[...document.querySelectorAll('.task')];
+    function save(){try{localStorage.setItem(KEY,JSON.stringify(done));}catch(e){}}
+    function render(){
+      let n=0,next=null;
+      tasks.forEach(t=>{const on=!!done[t.dataset.task];t.classList.toggle('done',on);t.querySelector('input').checked=on;t.classList.remove('next');if(on)n++;else if(!next)next=t;});
+      if(next)next.classList.add('next');
+      document.getElementById('lpDone').textContent=n;
+      document.getElementById('lpTotal').textContent=tasks.length;
+      document.getElementById('lpFill').style.width=(tasks.length?n/tasks.length*100:0)+'%';
+      document.getElementById('lpNext').textContent=next?'Next: '+next.querySelector('.task-no').textContent+' · '+next.querySelector('.task-name').textContent:'All done: you are interview ready 🎉';
+      document.querySelectorAll('.stage-count').forEach(c=>{const st=tasks.filter(t=>t.dataset.stage===c.dataset.stage),k=st.filter(t=>done[t.dataset.task]).length;c.textContent=k+' / '+st.length;c.classList.toggle('full',k===st.length);});
+    }
+    tasks.forEach(t=>t.querySelector('input').addEventListener('change',e=>{if(e.target.checked)done[t.dataset.task]=1;else delete done[t.dataset.task];save();render();}));
+    document.getElementById('lpReset').addEventListener('click',()=>{if(confirm('Clear all ticks on this browser?')){done={};save();render();}});
+    render();
+    const b=document.getElementById('ivToggle'),qs=[...document.querySelectorAll('details.aq.iv')];
+    b.addEventListener('click',()=>{const open=!qs.every(d=>d.open);qs.forEach(d=>d.open=open);b.textContent=open?'Close all answers':'Open all answers';});
+  })();
+  </script>
+
 </div><!-- /wrap -->
 
 <!-- ── Footer ── -->
@@ -1080,9 +1667,16 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       <a href="encoder/stt-conformer-architecture-A4.html"><span class="fno">11</span>STT Conformer A4 Sheet</a>
       <a href="encoder/transformer-decoder-architecture-A4.html"><span class="fno">12</span>Decoder A4 Sheet</a>
       <a href="encoder/stt-decoder-families-A4.html"><span class="fno">13</span>STT Decoder Families A4 Sheet</a>
+      <a href="encoder/fastconformer-architecture-A4.html"><span class="fno">14</span>FastConformer A4 Sheet</a>
+      <a href="encoder/rnn-blog.html"><span class="fno">15</span>Recurrent Neural Networks</a>
+      <a href="encoder/lstm-blog.html"><span class="fno">16</span>LSTM</a>
+      <a href="encoder/gru-blog.html"><span class="fno">17</span>GRU</a>
+      <a href="encoder/gru-architecture-A4.html"><span class="fno">18</span>GRU A4 Sheet</a>
+      <a href="encoder/rnn-birnn-architecture-A4.html"><span class="fno">19</span>RNN + BiRNN A4 Sheet</a>
+      <a href="encoder/lstm-math-A4.html"><span class="fno">20</span>LSTM Math A4 Sheet</a>
     </div>
   </div>
-  <p class="footer-copy">ML Universe · Eight blogs + interview prep + four A4 references · Deep learning, visualized · 2025</p>
+  <p class="footer-copy">ML Universe · Eleven blogs + interview prep + eight A4 references · Deep learning, visualized · 2025</p>
 </footer>
 
 <script>
@@ -1152,7 +1746,7 @@ const s1 = document.getElementById('cnt1');
 const s2 = document.getElementById('cnt2');
 let counted = false;
 new IntersectionObserver(([e])=>{
-  if(e.isIntersecting && !counted){ counted=true; countUp(s1,8,1100); countUp(s2,13,1100); }
+  if(e.isIntersecting && !counted){ counted=true; countUp(s1,11,1100); countUp(s2,20,1100); }
 },{threshold:.4}).observe(s1);
 
 /* ─── Floating ML keywords (very subtle warm) ─── */
