@@ -430,7 +430,7 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       <a href="encoder/neural_networks_zero_to_expert.html" class="btn ghost">Begin at 01 →</a>
     </div>
     <div class="scroll-hint">
-      <span class="arrow">↓</span> scroll to explore all 20 pages
+      <span class="arrow">↓</span> scroll to explore all 24 pages
     </div>
   </div>
 
@@ -568,7 +568,7 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       <header class="stage-head">
         <span class="stage-no">STAGE 1</span><span class="stage-week">Week 1</span>
         <h3 id="stage1">Foundations</h3>
-        <p>How a network computes, learns and stays trainable.</p>
+        <p>How a network computes, learns and stays trainable, and how you measure whether it is any good.</p>
         <span class="stage-count" data-stage="1">0 / 4</span>
       </header>
       <ol class="tasks">
@@ -604,6 +604,14 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
             <div class="task-links"><a class="task-link" href="encoder/normalization-guide.html">Open →</a></div>
           </div>
         </li>
+        <li class="task" data-task="t20" data-stage="1">
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 5 done"><span></span></label>
+          <div class="task-body">
+            <div class="task-top"><span class="task-no">05</span><a class="task-name" href="encoder/model-evaluation-blog.html">Model evaluation</a><span class="task-time">25 min</span></div>
+            <p class="task-done"><b>Done when</b> you can fill a confusion matrix (TP, FP, FN, TN) by hand, compute precision, recall and F1 from it, and say when you would pick recall over precision, ROC-AUC over accuracy, or RMSE over MAE.</p>
+            <div class="task-links"><a class="task-link" href="encoder/model-evaluation-blog.html">Open →</a> <a class="task-link ghost" href="encoder/model-evaluation-metrics-blog.html">Precision &amp; recall deep dive →</a></div>
+          </div>
+        </li>
       </ol>
     </section>
     <section class="stage reveal" style="--sc:var(--amber)" aria-labelledby="stage2">
@@ -615,33 +623,33 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       </header>
       <ol class="tasks">
         <li class="task" data-task="t05" data-stage="2">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 5 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 6 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">05</span><a class="task-name" href="encoder/rnn-blog.html">Recurrent neural networks</a><span class="task-time">18 min</span></div>
+            <div class="task-top"><span class="task-no">06</span><a class="task-name" href="encoder/rnn-blog.html">Recurrent neural networks</a><span class="task-time">18 min</span></div>
             <p class="task-done"><b>Done when</b> you can write h_t = tanh(W_xh·x_t + W_hh·h_(t−1) + b), unroll it for 3 steps, and explain why gradients vanish.</p>
             <div class="task-links"><a class="task-link" href="encoder/rnn-blog.html">Open →</a> <a class="task-link ghost" href="encoder/rnn-birnn-architecture-A4.html">RNN + BiRNN sheet, section A →</a></div>
           </div>
         </li>
         <li class="task" data-task="t06" data-stage="2">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 6 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 7 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">06</span><a class="task-name" href="encoder/rnn-birnn-architecture-A4.html">Bidirectional RNNs</a><span class="task-time">10 min</span></div>
+            <div class="task-top"><span class="task-no">07</span><a class="task-name" href="encoder/rnn-birnn-architecture-A4.html">Bidirectional RNNs</a><span class="task-time">10 min</span></div>
             <p class="task-done"><b>Done when</b> you can draw forward + backward layers with the [h→ ; h←] concat, and say why a BiRNN can&#x27;t stream.</p>
             <div class="task-links"><a class="task-link" href="encoder/rnn-birnn-architecture-A4.html">Open →</a></div>
           </div>
         </li>
         <li class="task" data-task="t07" data-stage="2">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 7 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 8 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">07</span><a class="task-name" href="encoder/lstm-blog.html">LSTM</a><span class="task-time">25 min</span></div>
+            <div class="task-top"><span class="task-no">08</span><a class="task-name" href="encoder/lstm-blog.html">LSTM</a><span class="task-time">25 min</span></div>
             <p class="task-done"><b>Done when</b> you can write all 6 LSTM equations from memory and redo the 2-step example on the sheet without looking.</p>
             <div class="task-links"><a class="task-link" href="encoder/lstm-blog.html">Open →</a> <a class="task-link ghost" href="encoder/lstm-math-A4.html">LSTM math sheet →</a></div>
           </div>
         </li>
         <li class="task" data-task="t08" data-stage="2">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 8 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 9 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">08</span><a class="task-name" href="encoder/gru-blog.html">GRU</a><span class="task-time">20 min</span></div>
+            <div class="task-top"><span class="task-no">09</span><a class="task-name" href="encoder/gru-blog.html">GRU</a><span class="task-time">20 min</span></div>
             <p class="task-done"><b>Done when</b> you can map LSTM gates to GRU gates and give both parameter counts: 4H(d+H+1) and 3H(d+H+1).</p>
             <div class="task-links"><a class="task-link" href="encoder/gru-blog.html">Open →</a> <a class="task-link ghost" href="encoder/gru-architecture-A4.html">GRU sheet →</a></div>
           </div>
@@ -657,33 +665,33 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       </header>
       <ol class="tasks">
         <li class="task" data-task="t09" data-stage="3">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 9 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 10 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">09</span><a class="task-name" href="encoder/positional-encoding-blog.html">Positional encoding</a><span class="task-time">14 min</span></div>
+            <div class="task-top"><span class="task-no">10</span><a class="task-name" href="encoder/positional-encoding-blog.html">Positional encoding</a><span class="task-time">14 min</span></div>
             <p class="task-done"><b>Done when</b> you can explain why attention needs position information, and how sinusoidal and RoPE encodings differ.</p>
             <div class="task-links"><a class="task-link" href="encoder/positional-encoding-blog.html">Open →</a></div>
           </div>
         </li>
         <li class="task" data-task="t10" data-stage="3">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 10 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 11 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">10</span><a class="task-name" href="encoder/self_attention.html">Self-attention</a><span class="task-time">22 min</span></div>
+            <div class="task-top"><span class="task-no">11</span><a class="task-name" href="encoder/self_attention.html">Self-attention</a><span class="task-time">22 min</span></div>
             <p class="task-done"><b>Done when</b> you can compute softmax(QKᵀ/√d_k)·V for a 3-token toy example and explain the √d_k.</p>
             <div class="task-links"><a class="task-link" href="encoder/self_attention.html">Open →</a></div>
           </div>
         </li>
         <li class="task" data-task="t11" data-stage="3">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 11 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 12 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">11</span><a class="task-name" href="encoder/transformer-encoder-animated.html">Transformer encoder</a><span class="task-time">25 min</span></div>
+            <div class="task-top"><span class="task-no">12</span><a class="task-name" href="encoder/transformer-encoder-animated.html">Transformer encoder</a><span class="task-time">25 min</span></div>
             <p class="task-done"><b>Done when</b> you can trace the tensor shapes through one encoder layer and count its parameters roughly.</p>
             <div class="task-links"><a class="task-link" href="encoder/transformer-encoder-animated.html">Open →</a> <a class="task-link ghost" href="encoder/encoder-architecture-A4.html">Encoder A4 sheet →</a></div>
           </div>
         </li>
         <li class="task" data-task="t12" data-stage="3">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 12 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 13 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">12</span><a class="task-name" href="encoder/transformer-decoder-architecture-A4.html">Transformer decoder</a><span class="task-time">15 min</span></div>
+            <div class="task-top"><span class="task-no">13</span><a class="task-name" href="encoder/transformer-decoder-architecture-A4.html">Transformer decoder</a><span class="task-time">15 min</span></div>
             <p class="task-done"><b>Done when</b> you can explain the causal mask, cross-attention and the KV cache.</p>
             <div class="task-links"><a class="task-link" href="encoder/transformer-decoder-architecture-A4.html">Open →</a></div>
           </div>
@@ -699,33 +707,33 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       </header>
       <ol class="tasks">
         <li class="task" data-task="t13" data-stage="4">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 13 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 14 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">13</span><a class="task-name" href="stt.html">STT learning path (Tasks 0–14)</a><span class="task-time">several sessions</span></div>
+            <div class="task-top"><span class="task-no">14</span><a class="task-name" href="stt.html">STT learning path (Tasks 0–14)</a><span class="task-time">several sessions</span></div>
             <p class="task-done"><b>Done when</b> you have worked through the waveform → log-Mel → encoder → CTC tasks and their notebooks.</p>
             <div class="task-links"><a class="task-link" href="stt.html">Open →</a></div>
           </div>
         </li>
         <li class="task" data-task="t14" data-stage="4">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 14 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 15 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">14</span><a class="task-name" href="encoder/stt-conformer-architecture-A4.html">STT + Conformer architecture</a><span class="task-time">15 min</span></div>
+            <div class="task-top"><span class="task-no">15</span><a class="task-name" href="encoder/stt-conformer-architecture-A4.html">STT + Conformer architecture</a><span class="task-time">15 min</span></div>
             <p class="task-done"><b>Done when</b> you can give the shape trace from (B, 160000) samples to (B, T′, V) logits.</p>
-            <div class="task-links"><a class="task-link" href="encoder/stt-conformer-architecture-A4.html">Open →</a></div>
+            <div class="task-links"><a class="task-link" href="encoder/stt-conformer-architecture-A4.html">Open →</a> <a class="task-link ghost" href="encoder/stt-3d-explorer.html">3D walkthrough →</a></div>
           </div>
         </li>
         <li class="task" data-task="t15" data-stage="4">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 15 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 16 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">15</span><a class="task-name" href="encoder/stt-decoder-families-A4.html">CTC, RNN-T and TDT decoders</a><span class="task-time">15 min</span></div>
+            <div class="task-top"><span class="task-no">16</span><a class="task-name" href="encoder/stt-decoder-families-A4.html">CTC, RNN-T and TDT decoders</a><span class="task-time">15 min</span></div>
             <p class="task-done"><b>Done when</b> you can explain the blank token, the LSTM prediction network and the joiner, and how TDT skips frames.</p>
-            <div class="task-links"><a class="task-link" href="encoder/stt-decoder-families-A4.html">Open →</a></div>
+            <div class="task-links"><a class="task-link" href="encoder/stt-decoder-families-A4.html">Open →</a> <a class="task-link ghost" href="encoder/whisper-architecture-A4.html">Whisper sheet (attention decoder) →</a></div>
           </div>
         </li>
         <li class="task" data-task="t16" data-stage="4">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 16 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 17 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">16</span><a class="task-name" href="encoder/fastconformer-architecture-A4.html">FastConformer</a><span class="task-time">15 min</span></div>
+            <div class="task-top"><span class="task-no">17</span><a class="task-name" href="encoder/fastconformer-architecture-A4.html">FastConformer</a><span class="task-time">15 min</span></div>
             <p class="task-done"><b>Done when</b> you can list what FastConformer changes: 8× subsampling, kernel 9, local attention for long audio.</p>
             <div class="task-links"><a class="task-link" href="encoder/fastconformer-architecture-A4.html">Open →</a></div>
           </div>
@@ -741,25 +749,25 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       </header>
       <ol class="tasks">
         <li class="task" data-task="t17" data-stage="5">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 17 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 18 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">17</span><a class="task-name" href="encoder/interview-prep.html">Flashcards and quiz</a><span class="task-time">30 min</span></div>
+            <div class="task-top"><span class="task-no">18</span><a class="task-name" href="encoder/interview-prep.html">Flashcards and quiz</a><span class="task-time">30 min</span></div>
             <p class="task-done"><b>Done when</b> you score at least 12 / 15 on the quiz, twice in a row.</p>
             <div class="task-links"><a class="task-link" href="encoder/interview-prep.html">Open →</a></div>
           </div>
         </li>
         <li class="task" data-task="t18" data-stage="5">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 18 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 19 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">18</span><a class="task-name" href="#aloud">Top 10 Transformer questions, out loud</a><span class="task-time">20 min</span></div>
+            <div class="task-top"><span class="task-no">19</span><a class="task-name" href="#aloud">Top 10 Transformer questions, out loud</a><span class="task-time">20 min</span></div>
             <p class="task-done"><b>Done when</b> you can answer each in about a minute before opening the model answer.</p>
             <div class="task-links"><a class="task-link" href="#aloud">Open →</a></div>
           </div>
         </li>
         <li class="task" data-task="t19" data-stage="5">
-          <label class="task-check"><input type="checkbox" aria-label="Mark task 19 done"><span></span></label>
+          <label class="task-check"><input type="checkbox" aria-label="Mark task 20 done"><span></span></label>
           <div class="task-body">
-            <div class="task-top"><span class="task-no">19</span><a class="task-name" href="#interview-stages">Stage-by-stage mock interview</a><span class="task-time">45 min</span></div>
+            <div class="task-top"><span class="task-no">20</span><a class="task-name" href="#interview-stages">Stage-by-stage mock interview</a><span class="task-time">45 min</span></div>
             <p class="task-done"><b>Done when</b> you can answer every question in § 06 aloud, then draw one diagram (an LSTM cell or an encoder layer) from memory.</p>
             <div class="task-links"><a class="task-link" href="#interview-stages">Open →</a></div>
           </div>
@@ -934,6 +942,39 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       </div>
     </a>
 
+    <a href="encoder/model-evaluation-blog.html" class="blog-card" style="--cc:var(--violet)">
+      <div class="card-eyebrow"><span class="card-no">14</span><span class="card-sep">·</span>MODEL EVALUATION</div>
+      <span class="card-emoji">🎯</span>
+      <h3 class="card-title">Model Evaluation: Is Your Model Actually Good?</h3>
+      <p class="card-desc">Train/val/test and k-fold CV, overfitting, the confusion matrix (TP, FP, FN, TN), precision, recall, F1, ROC-AUC, regression errors, and a map of ~30 methods. Live k-fold, threshold/ROC and regression labs.</p>
+      <div class="card-foot">
+        <div class="card-meta"><span>📖 ~25 min</span><span>⚡ Interactive</span></div>
+        <span class="card-read">Read <span>→</span></span>
+      </div>
+    </a>
+
+    <a href="encoder/model-evaluation-metrics-blog.html" class="blog-card" style="--cc:var(--amber)">
+      <div class="card-eyebrow"><span class="card-no">15</span><span class="card-sep">·</span>MODEL EVALUATION</div>
+      <span class="card-emoji">⚖️</span>
+      <h3 class="card-title">Right, But How Right? Precision, Recall &amp; F1</h3>
+      <p class="card-desc">A deep dive on the big four classification metrics: why accuracy fools you, a metric lab with dials, the threshold trade-off and PR curve, and which metric to use when.</p>
+      <div class="card-foot">
+        <div class="card-meta"><span>📖 ~20 min</span><span>⚡ Interactive</span></div>
+        <span class="card-read">Read <span>→</span></span>
+      </div>
+    </a>
+
+    <a href="encoder/stt-3d-explorer.html" class="blog-card" style="--cc:var(--teal)">
+      <div class="card-eyebrow"><span class="card-no">16</span><span class="card-sep">·</span>SPEECH AI · 3D</div>
+      <span class="card-emoji">🧊</span>
+      <h3 class="card-title">Speech-to-Text in 3D: FastConformer + RNN-T</h3>
+      <p class="card-desc">Fly through a tiny but real streaming ASR model: waveform → STFT → log-Mel → 8× subsampling → Conformer block with a chunked attention mask → prediction + joint networks → greedy decoding through the RNN-T lattice. Every step has the maths (MathJax) plus a worked example with the model's live numbers. Light and dark mode.</p>
+      <div class="card-foot">
+        <div class="card-meta"><span>📖 23 steps · ∑ maths</span><span>⚡ 3D interactive</span></div>
+        <span class="card-read">Explore <span>→</span></span>
+      </div>
+    </a>
+
   </div><!-- /cards -->
 
   <!-- ── Printable A4 reference sheets ── -->
@@ -1045,6 +1086,19 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
         <p>The animated LSTM cell, the stacked-matrix forward pass, the BPTT backward equations, and a two-step example worked line by line with a backward step through the cell state.</p>
         <div class="a4-badges"><span class="a4-badge">Forward + BPTT</span><span class="a4-badge">Worked example</span><span class="a4-badge">A4 / PDF</span></div>
         <div class="a4-actions"><a href="encoder/lstm-math-A4.html">Open sheet</a><a class="ghost" href="encoder/lstm-math-A4.png" download>PNG</a></div>
+      </div>
+    </article>
+
+    <article class="a4-card reveal">
+      <a class="a4-preview" href="encoder/whisper-architecture-A4.html" aria-label="Open the Whisper architecture A4 reference sheet">
+        <img src="encoder/whisper-architecture-A4.png" width="1240" height="1754" loading="lazy" alt="Preview of the Whisper encoder-decoder architecture A4 sheet">
+      </a>
+      <div class="a4-copy">
+        <div class="a4-kicker">Speech AI · Reference 09</div>
+        <h3>Whisper: Encoder–Decoder ASR</h3>
+        <p>The 30 s log-Mel front end, the conv stem, encoder and decoder stacks with cross-attention, a large-v3 shape trace, the multitask token format, beam search with temperature fallback, and why Whisper is offline while RNN-T streams.</p>
+        <div class="a4-badges"><span class="a4-badge">Cross-attention</span><span class="a4-badge">Multitask tokens</span><span class="a4-badge">A4 / PDF</span></div>
+        <div class="a4-actions"><a href="encoder/whisper-architecture-A4.html">Open sheet</a><a class="ghost" href="encoder/whisper-architecture-A4.png" download>PNG</a></div>
       </div>
     </article>
   </div>
@@ -1674,9 +1728,13 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       <a href="encoder/gru-architecture-A4.html"><span class="fno">18</span>GRU A4 Sheet</a>
       <a href="encoder/rnn-birnn-architecture-A4.html"><span class="fno">19</span>RNN + BiRNN A4 Sheet</a>
       <a href="encoder/lstm-math-A4.html"><span class="fno">20</span>LSTM Math A4 Sheet</a>
+      <a href="encoder/model-evaluation-blog.html"><span class="fno">21</span>Model Evaluation</a>
+      <a href="encoder/model-evaluation-metrics-blog.html"><span class="fno">22</span>Precision, Recall &amp; F1 Deep Dive</a>
+      <a href="encoder/whisper-architecture-A4.html"><span class="fno">23</span>Whisper A4 Sheet</a>
+      <a href="encoder/stt-3d-explorer.html"><span class="fno">24</span>Speech-to-Text in 3D</a>
     </div>
   </div>
-  <p class="footer-copy">ML Universe · Eleven blogs + interview prep + eight A4 references · Deep learning, visualized · 2025</p>
+  <p class="footer-copy">ML Universe · Eleven blogs + interview prep + nine A4 references · Deep learning, visualized · 2025</p>
 </footer>
 
 <script>

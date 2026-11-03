@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Speech-to-Text in 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Spectral:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--mono:'JetBrains Mono',monospace;--disp:'Fraunces',Georgia,serif;--body:'Spectral',Georgia,serif;
+  --bg:#F6F1E7;--panel:#FBF7EF;--panel2:#F1EBDD;--line:#E0D7C6;--ink:#22282A;--soft:#4C5658;--muted:#7E8888;--head:#093F3C;
+  --teal:#0E5C58;--amber:#D9663B;--gold:#9A6B00;--codebg:#FFFFFF;--codeink:#093F3C;--on:#E3EEEC;--overlay:rgba(255,253,248,.93);
+  --stage1:#FFFDF8;--stage2:#ECE5D6;--lbl:#22282A;--lblb:#093F3C;--shadow:0 1px 2px rgba(255,255,255,.9);--primary-ink:#FFFFFF;--tip:#FFFFFF;
+  --a0:#2E86DE;--a1:#E8E2D4;--a2:#D9663B;--w0:#6C5CE7;--w1:#E6E1EC;--w2:#2E9E5B;--p0:#EEE8DB;--p1:#D98A00;color-scheme:light}
+:root[data-theme="dark"]{--bg:#0b1014;--panel:#10171c;--panel2:#152027;--line:#24333b;--ink:#e7efec;--soft:#b2c1bd;--muted:#71837f;--head:#FFFFFF;
+  --teal:#3fb8a9;--amber:#f0a35e;--gold:#ecc76c;--codebg:#0a1115;--codeink:#d6f0ea;--on:#183129;--overlay:rgba(10,17,21,.88);
+  --stage1:#13202a;--stage2:#0b1014;--lbl:#cfe3de;--lblb:#FFFFFF;--shadow:0 1px 3px #000;--primary-ink:#06211e;--tip:#0d161b;
+  --a0:#5aa9ff;--a1:#27323a;--a2:#ff9a4d;--w0:#b19dff;--w1:#242a3a;--w2:#4ade80;--p0:#141c22;--p1:#ffd166;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--body)}
+a{color:var(--teal)}
+.app{display:grid;grid-template-columns:420px minmax(0,1fr);height:100vh}
+.side{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);background:var(--panel)}
+.brand{padding:18px 22px 14px;border-bottom:1px solid var(--line)}
+.brand a{font:600 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;text-decoration:none;color:var(--muted)}
+.brand a:hover{color:var(--amber)}
+.brand h1{font:600 25px/1.15 var(--disp);margin:8px 0 6px;color:var(--head)}
+.brand p{margin:0;font-size:14px;line-height:1.5;color:var(--soft)}
+.scroll{flex:1;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.card{padding:20px 22px 18px;border-bottom:1px solid var(--line)}
+.kicker{font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--amber)}
+.card h2{font:600 23px/1.2 var(--disp);margin:6px 0 12px;color:var(--head)}
+.card .body{font-size:15.5px;line-height:1.62;color:var(--soft)}
+.card .body p{margin:0 0 11px}
+.card .body b{color:var(--ink);font-weight:600}
+.card .body em{color:var(--gold);font-style:italic}
+.card .body code{font:12.5px var(--mono);color:var(--ink);background:var(--panel2);padding:1px 5px;border-radius:5px}
+.formula{font:12px/1.65 var(--mono);background:var(--codebg);border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:8px;padding:10px 12px;margin:4px 0 12px;color:var(--codeink);white-space:pre-wrap}
+.mathbox{background:var(--codebg);border:1px solid var(--line);border-left:3px solid var(--teal);border-radius:10px;padding:6px 12px 4px;margin:6px 0 12px;color:var(--ink);overflow-x:auto;font-size:14.5px}
+.mlabel{font:600 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin:6px 0 0}
+.worked{border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:10px;background:var(--panel2);margin:0 0 12px;padding:0 12px}
+.worked summary{font:600 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--amber);cursor:pointer;padding:10px 0;list-style:none}
+.worked summary::before{content:'▸ ';}.worked[open] summary::before{content:'▾ ';}
+.worked .wk{font-size:14.5px;line-height:1.6;color:var(--soft);padding-bottom:8px;overflow-x:auto}
+.worked .wk p{margin:0 0 8px}
+.worked table{border-collapse:collapse;font:11.5px var(--mono);margin:4px 0 8px}
+.worked td,.worked th{padding:3px 8px;border-bottom:1px solid var(--line);text-align:right;color:var(--ink)}
+.worked th{color:var(--muted);font-weight:600}
+mjx-container{color:var(--ink)}
+mjx-container[display="true"]{margin:8px 0!important}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
+.chip{font:11px var(--mono);padding:4px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--soft)}
+table.real{width:100%;border-collapse:collapse;font:11.5px/1.45 var(--mono);margin:6px 0 12px}
+table.real th{color:var(--muted);text-align:left;font-weight:600;padding:5px 4px;border-bottom:1px solid var(--line)}
+table.real td{padding:5px 4px;border-bottom:1px solid var(--line);color:var(--soft);vertical-align:top}
+table.real td:last-child{color:var(--amber)}
+.nav{display:flex;align-items:center;gap:10px;margin-top:6px}
+.nav button,.theme-btn{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;min-height:42px;padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer;transition:border-color .2s,background .2s,transform .2s}
+.nav button:hover,.theme-btn:hover{border-color:var(--amber);transform:translateY(-1px)}
+.nav button.primary{background:var(--teal);border-color:var(--teal);color:var(--primary-ink)}
+.nav button:disabled{opacity:.35;cursor:default;transform:none}
+.nav button:focus-visible,.toc button:focus-visible,.theme-btn:focus-visible,.worked summary:focus-visible{outline:3px solid rgba(217,102,59,.5);outline-offset:2px}
+.nav .count{margin-left:auto;font:11px var(--mono);color:var(--muted)}
+.toc{padding:14px 14px 26px}
+.toc h3{font:600 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:14px 8px 6px}
+.toc button{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:7px 8px;color:var(--soft);font:14px var(--body);cursor:pointer}
+.toc button span{font:10.5px var(--mono);color:var(--muted);min-width:20px}
+.toc button:hover{background:var(--panel2);color:var(--ink)}
+.toc button.on{background:var(--on);color:var(--head)}
+.toc button.on span{color:var(--teal)}
+.stage{position:relative;min-width:0;min-height:0;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,var(--stage1) 0%,var(--stage2) 75%)}
+#gl{display:block;width:100%;height:100%}
+#labels{position:absolute;inset:0;pointer-events:none}
+.lbl{font:11px var(--mono);color:var(--lbl);white-space:nowrap;transition:opacity .4s;text-shadow:var(--shadow)}
+.lbl b{color:var(--lblb);font-weight:600}
+.lbl i{font-style:normal;color:var(--muted)}
+.lbl.big{font:600 15px var(--disp);color:var(--gold)}
+.lbl.tok{font:10px var(--mono);color:var(--soft)}
+.lbl.out{font:600 20px var(--mono);color:var(--head);background:var(--panel);border:1px solid var(--teal);padding:6px 12px;border-radius:10px;text-shadow:none}
+.hud{position:absolute;left:16px;right:16px;bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;pointer-events:none}
+.readout{font:12px/1.5 var(--mono);color:var(--ink);background:var(--overlay);border:1px solid var(--line);border-radius:10px;padding:8px 12px;max-width:min(640px,70%);min-height:20px}
+.readout:empty{display:none}
+.legend{font:10.5px var(--mono);color:var(--soft);background:var(--overlay);border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:grid;gap:5px}
+.legend div{display:flex;align-items:center;gap:7px}
+.legend .bar{width:58px;height:9px;border-radius:3px}
+.bar.a{background:linear-gradient(90deg,var(--a0),var(--a1),var(--a2))}.bar.w{background:linear-gradient(90deg,var(--w0),var(--w1),var(--w2))}.bar.p{background:linear-gradient(90deg,var(--p0),var(--p1))}.bar.m{background:linear-gradient(90deg,#10193a,#6b3fa0,#f0a35e,#ffeab0)}
+.topbar{position:absolute;top:12px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;pointer-events:none}
+.topbar>*{pointer-events:auto}
+.theme-btn{min-height:38px;padding:8px 14px;background:var(--overlay)}
+.hint{font:10.5px var(--mono);color:var(--muted);background:var(--overlay);padding:6px 10px;border-radius:999px;border:1px solid var(--line)}
+#tip{position:absolute;pointer-events:none;font:11.5px/1.5 var(--mono);color:var(--ink);background:var(--tip);border:1px solid var(--teal);border-radius:9px;padding:8px 10px;max-width:290px;display:none;z-index:4;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#tip b{color:var(--amber)}
+#tip .d{color:var(--soft);font-family:var(--body);font-size:13px;margin-top:3px}
+.fallback{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:30px;color:var(--soft);font-size:16px}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr;grid-template-rows:56vh minmax(0,1fr);height:100vh}
+  .stage{grid-row:1}.side{grid-row:2;border-right:0;border-top:1px solid var(--line)}
+  .brand{display:none}.legend{display:none}.hint{display:none}
+  .readout{max-width:100%;font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<script>
+(function(){let t='light';try{t=localStorage.getItem('stt3d-theme')||'light'}catch(e){}document.documentElement.dataset.theme=t})();
+window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']]},chtml:{scale:.95},startup:{ready(){MathJax.startup.defaultReady();MathJax.startup.promise.then(()=>window.__typesetCard&&window.__typesetCard())}}};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <header class="brand">
+      <a href="../index.html">← ML Universe</a>
+      <h1>Speech-to-text in 3D</h1>
+      <p>A tiny FastConformer + RNN-T, the same design as your Nemotron streaming model. Every number is computed in your browser.</p>
+    </header>
+    <div class="scroll">
+      <article class="card" id="card" aria-live="polite">
+        <div class="kicker" id="kicker"></div>
+        <h2 id="title"></h2>
+        <div class="body" id="body"></div>
+        <div class="nav">
+          <button id="prev" type="button">← Back</button>
+          <button id="next" type="button" class="primary">Continue →</button>
+          <span class="count" id="count"></span>
+        </div>
+      </article>
+      <nav class="toc" id="toc" aria-label="Chapters"></nav>
+    </div>
+  </aside>
+  <main class="stage" id="stage">
+    <canvas id="gl"></canvas>
+    <div id="labels"></div>
+    <div class="topbar"><button class="theme-btn" id="themeBtn" type="button" aria-label="Switch colour theme">☾ Dark</button><div class="hint">drag: rotate · right-drag: pan · scroll: zoom · hover a cell · ← → keys</div></div>
+    <div class="hud">
+      <div class="readout" id="readout"></div>
+      <div class="legend" aria-label="Colour legend">
+        <div><span class="bar a"></span>activation − 0 +</div>
+        <div><span class="bar w"></span>weight − 0 +</div>
+        <div><span class="bar p"></span>probability 0 → 1</div>
+        <div><span class="bar m"></span>log-Mel energy</div>
+      </div>
+    </div>
+    <div id="tip"></div>
+    <div class="fallback" id="fallback">This page needs WebGL. Try a recent Chrome, Edge or Firefox with hardware acceleration on.</div>
+  </main>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {CSS2DRenderer, CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* ================================================================
+   1. A real (tiny) forward pass: audio → log-Mel → 8× subsampling →
+      one Conformer block → RNN-T joint → greedy decoding.
+      Weights are random but seeded, so every run gives the same numbers.
+   ================================================================ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rand=mulberry32(20251104);
+let spare=null;
+function randn(){if(spare!==null){const s=spare;spare=null;return s}let u=0;while(u===0)u=rand();const v=rand(),r=Math.sqrt(-2*Math.log(u));spare=r*Math.sin(2*Math.PI*v);return r*Math.cos(2*Math.PI*v)}
+class M{constructor(r,c){this.r=r;this.c=c;this.d=new Float32Array(r*c)}get(i,j){return this.d[i*this.c+j]}set(i,j,v){this.d[i*this.c+j]=v}}
+const weight=(r,c,gain=1)=>{const m=new M(r,c),s=gain/Math.sqrt(c);for(let i=0;i<m.d.length;i++)m.d[i]=randn()*s;return m};
+function matmul(A,B){const o=new M(A.r,B.c);for(let i=0;i<A.r;i++)for(let j=0;j<B.c;j++){let s=0;for(let k=0;k<A.c;k++)s+=A.d[i*A.c+k]*B.d[k*B.c+j];o.d[i*o.c+j]=s}return o}
+const map=(A,f)=>{const o=new M(A.r,A.c);for(let i=0;i<A.d.length;i++)o.d[i]=f(A.d[i]);return o};
+const add=(A,B,s=1)=>{const o=new M(A.r,A.c);for(let i=0;i<A.d.length;i++)o.d[i]=A.d[i]+s*B.d[i];return o};
+const swish=x=>x/(1+Math.exp(-x)),sigm=x=>1/(1+Math.exp(-x)),relu=x=>x>0?x:0;
+function layerNorm(X){const o=new M(X.r,X.c);for(let j=0;j<X.c;j++){let mu=0;for(let i=0;i<X.r;i++)mu+=X.get(i,j);mu/=X.r;let v=0;for(let i=0;i<X.r;i++)v+=(X.get(i,j)-mu)**2;v/=X.r;const s=1/Math.sqrt(v+1e-5);for(let i=0;i<X.r;i++)o.set(i,j,(X.get(i,j)-mu)*s)}return o}
+function conv1d(X,W,k,stride,padL){const To=Math.floor((X.c+2*padL-k)/stride)+1,o=new M(W.r,To);for(let oc=0;oc<W.r;oc++)for(let t=0;t<To;t++){let s=0;for(let c=0;c<X.r;c++)for(let q=0;q<k;q++){const ti=t*stride+q-padL;if(ti>=0&&ti<X.c)s+=W.get(oc,c*k+q)*X.get(c,ti)}o.set(oc,t,s)}return o}
+function colOf(X,j){const v=new Float32Array(X.r);for(let i=0;i<X.r;i++)v[i]=X.get(i,j);return v}
+function vecM(v){const m=new M(v.length,1);m.d.set(v);return m}
+function softmaxVec(z){const mx=Math.max(...z);const e=z.map(x=>Math.exp(x-mx));const s=e.reduce((a,b)=>a+b,0);return e.map(x=>x/s)}
+
+// ---- 1a. synthetic "speech": silence, vowel, fricative, vowel, vowel
+const SR=16000,HOP=160,WIN=400,NFFT=512,T=64,NS=HOP*(T-1)+WIN; // 10,480 samples = 0.655 s
+const wave=new Float32Array(NS);
+function vowel(t0,t1,f0a,f0b,forms,amp){let ph=0;for(let n=Math.floor(t0*SR);n<Math.min(NS,Math.floor(t1*SR));n++){const u=(n/SR-t0)/(t1-t0),env=Math.pow(Math.sin(Math.PI*u),.6),f0=f0a+(f0b-f0a)*u;ph+=2*Math.PI*f0/SR;let s=0;for(let h=1;h*f0<5000;h++){let a=0;for(const [F,B,g] of forms)a+=g/(1+((h*f0-F)/B)**2);s+=a*Math.sin(h*ph)/Math.sqrt(h)}wave[n]+=amp*env*s}}
+vowel(.06,.24,140,124,[[530,80,1],[1840,120,.6],[2480,160,.3]],.5);
+vowel(.33,.52,126,110,[[500,80,1],[900,100,.7],[2400,160,.15]],.55);
+vowel(.52,.655,118,98,[[280,60,1],[2250,150,.5],[3000,200,.3]],.4);
+{let prev=0;for(let n=0;n<NS;n++){const t=n/SR;const w=randn();let s=.004*w;if(t>.24&&t<.33){const u=(t-.24)/.09;s+=.22*Math.sin(Math.PI*u)*(w-prev)}prev=w;wave[n]+=s}}
+{let pk=0;for(const v of wave)pk=Math.max(pk,Math.abs(v));for(let i=0;i<NS;i++)wave[i]*=.9/pk}
+
+// ---- 1b. STFT (Hann 400, hop 160, FFT 512) → power → 20 mel filters → log
+function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let bit=n>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]]}}for(let len=2;len<=n;len<<=1){const a=-2*Math.PI/len,wr=Math.cos(a),wi=Math.sin(a);for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let j=0;j<len/2;j++){const p=i+j,q=p+len/2,br=re[q]*cr-im[q]*ci,bi=re[q]*ci+im[q]*cr;re[q]=re[p]-br;im[q]=im[p]-bi;re[p]+=br;im[p]+=bi;const nc=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=nc}}}}
+const NB=NFFT/2+1,spec=[];
+for(let t=0;t<T;t++){const re=new Float64Array(NFFT),im=new Float64Array(NFFT);for(let n=0;n<WIN;n++)re[n]=wave[t*HOP+n]*(.5-.5*Math.cos(2*Math.PI*n/WIN));fft(re,im);const p=new Float32Array(NB);for(let k=0;k<NB;k++)p[k]=re[k]*re[k]+im[k]*im[k];spec.push(p)}
+const NM=20,hz2mel=f=>2595*Math.log10(1+f/700),mel2hz=m=>700*(10**(m/2595)-1);
+const melHz=[];for(let i=0;i<NM+2;i++)melHz.push(mel2hz(hz2mel(8000)*i/(NM+1)));
+const mel=new M(NM,T);
+for(let m=0;m<NM;m++)for(let t=0;t<T;t++){let s=0;for(let k=0;k<NB;k++){const f=k*SR/NFFT,l=melHz[m],c=melHz[m+1],r=melHz[m+2];let w=0;if(f>=l&&f<=c)w=(f-l)/(c-l);else if(f>c&&f<=r)w=(r-f)/(r-c);s+=w*spec[t][k]}mel.set(m,t,Math.log(s+1e-5))}
+
+// ---- 1c. 8× subsampling: three stride-2 convs (k=3) + linear to d_model
+const D=16,H=4,DH=4,FF=64;
+const Wc1=weight(16,NM*3,1.2),s1=map(conv1d(mel,Wc1,3,2,1),relu);
+const Wc2=weight(16,48,1.4),s2=map(conv1d(s1,Wc2,3,2,1),relu);
+const Wc3=weight(16,48,1.4),s3=map(conv1d(s2,Wc3,3,2,1),relu);
+const Wlin=weight(D,16),X0=matmul(Wlin,s3);
+const TP=X0.c; // 8 encoder frames, 80 ms each
+
+// ---- 1d. one FastConformer block (Macaron: ½FFN · MHSA · Conv · ½FFN · LN)
+const ln1=layerNorm(X0),W1a=weight(FF,D),h1=map(matmul(W1a,ln1),swish),W1b=weight(D,FF),f1=matmul(W1b,h1),X1=add(X0,f1,.5);
+const ln2=layerNorm(X1),Wq=weight(D,D),Wk=weight(D,D),Wv=weight(D,D),Q=matmul(Wq,ln2),K=matmul(Wk,ln2),V=matmul(Wv,ln2);
+const CHUNK=2; // chunked_limited attention: right context 1 → chunks of 2 frames (your model: [56,13] → chunks of 14)
+const visible=(i,j)=>Math.floor(j/CHUNK)<=Math.floor(i/CHUNK);
+const S=[],A=[],Ocat=new M(D,TP);
+for(let h=0;h<H;h++){const s=new M(TP,TP),a=new M(TP,TP);for(let i=0;i<TP;i++){const row=[];for(let j=0;j<TP;j++){let v=0;for(let d=0;d<DH;d++)v+=Q.get(h*DH+d,i)*K.get(h*DH+d,j);v/=Math.sqrt(DH);s.set(i,j,visible(i,j)?v:NaN);row.push(visible(i,j)?v:-Infinity)}const p=softmaxVec(row);for(let j=0;j<TP;j++)a.set(i,j,p[j])}
+  for(let d=0;d<DH;d++)for(let i=0;i<TP;i++){let v=0;for(let j=0;j<TP;j++)v+=a.get(i,j)*V.get(h*DH+d,j);Ocat.set(h*DH+d,i,v)}S.push(s);A.push(a)}
+const Wo=weight(D,D),att=matmul(Wo,Ocat),X2=add(X1,att);
+const ln3=layerNorm(X2),Wp1=weight(2*D,D),p1=matmul(Wp1,ln3),glu=new M(D,TP);
+for(let c=0;c<D;c++)for(let t=0;t<TP;t++)glu.set(c,t,p1.get(c,t)*sigm(p1.get(c+D,t)));
+const KS=5,dwW=weight(D,KS,1.3),dw=new M(D,TP); // causal depthwise conv: sees current + 4 past frames
+for(let c=0;c<D;c++)for(let t=0;t<TP;t++){let s=0;for(let q=0;q<KS;q++){const ti=t-(KS-1)+q;if(ti>=0)s+=dwW.get(c,q)*glu.get(c,ti)}dw.set(c,t,s)}
+const cn=layerNorm(dw),sw=map(cn,swish),Wp2=weight(D,D),p2=matmul(Wp2,sw),X3=add(X2,p2);
+const ln4=layerNorm(X3),W2a=weight(FF,D),h2=map(matmul(W2a,ln4),swish),W2b=weight(D,FF),f2=matmul(W2b,h2),X4=add(X3,f2,.5),Y=layerNorm(X4);
+
+// ---- 1e. RNN-T: prediction network (LSTM) + joint network + greedy decoding
+const VOCAB=['▁h','e','l','o','▁w','r','d','▁s','a','i','n','∅'],BLANK=11,VS=VOCAB.length,PH=16,JH=16;
+const Jenc=weight(JH,D),encJ=matmul(Jenc,Y);
+const Emb=new M(VS,PH);for(let v=0;v<VS;v++)for(let d=0;d<PH;d++)Emb.set(v,d,v===BLANK?0:randn()*.9);
+const Wl=weight(4*PH,2*PH,1.2),Jpred=weight(JH,PH),Wj=weight(VS,JH,1.6),bj=new Float32Array(VS);
+function lstm(tok,h,c){const x=new Float32Array(PH);if(tok!==null)for(let d=0;d<PH;d++)x[d]=Emb.get(tok,d);const z=new Float32Array(4*PH);for(let r=0;r<4*PH;r++){let s=r>=PH&&r<2*PH?1:0;for(let k=0;k<PH;k++)s+=Wl.get(r,k)*x[k]+Wl.get(r,PH+k)*h[k];z[r]=s}const h2=new Float32Array(PH),c2=new Float32Array(PH);for(let d=0;d<PH;d++){const ig=sigm(z[d]),fg=sigm(z[PH+d]),g=Math.tanh(z[2*PH+d]),og=sigm(z[3*PH+d]);c2[d]=fg*c[d]+ig*g;h2[d]=og*Math.tanh(c2[d])}return[h2,c2]}
+function joint(t,g){const pj=new Float32Array(JH);for(let i=0;i<JH;i++){let s=0;for(let k=0;k<PH;k++)s+=Jpred.get(i,k)*g[k];pj[i]=s}const hj=new Float32Array(JH);for(let i=0;i<JH;i++)hj[i]=relu(encJ.get(i,t)+pj[i]);const z=[];for(let v=0;v<VS;v++){let s=bj[v];for(let i=0;i<JH;i++)s+=Wj.get(v,i)*hj[i];z.push(s)}return{hj,p:softmaxVec(z)}}
+function greedy(){let [g,c]=lstm(null,new Float32Array(PH),new Float32Array(PH));const G=[g],toks=[],path=[];for(let t=0;t<TP;t++){let sym=0;while(true){const u=toks.length,{hj,p}=joint(t,g);let k=0;for(let v=1;v<VS;v++)if(p[v]>p[k])k=v;path.push({t,u,k,p,hj});if(k===BLANK)break;toks.push(k);[g,c]=lstm(k,g,c);G.push(g);if(++sym>=2)break}}return{toks,path,G}}
+// random weights → pick a blank bias that makes the toy emit a handful of tokens (a trained model learns this itself)
+let dec,bestB=0,bestScore=-1;for(let b=-1;b<=6;b+=.25){bj[BLANK]=b;const d=greedy(),n=d.toks.length,uniq=new Set(d.toks).size,score=n>=4&&n<=8?uniq*10+n:-1;if(score>bestScore){bestScore=score;bestB=b}}
+bj[BLANK]=bestB;dec=greedy();
+const U=dec.toks.length,Gm=new M(PH,U+1);dec.G.forEach((g,u)=>{for(let d=0;d<PH;d++)Gm.set(d,u,g[d])});
+const predJ=matmul(Jpred,Gm),lattice=new M(U+1,TP);
+for(let u=0;u<=U;u++)for(let t=0;t<TP;t++)lattice.set(u,t,joint(t,dec.G[u]).p[BLANK]);
+const EmbT=new M(PH,VS);for(let v=0;v<VS;v++)for(let d=0;d<PH;d++)EmbT.set(d,v,Emb.get(v,d));
+const hjM=vecM(dec.path[0].hj),pzM=vecM(dec.path[0].p);
+const transcript=dec.toks.map(k=>VOCAB[k]).join('').replace(/▁/g,' ').trim();
+
+/* ================================================================
+   2. Three.js scene: each tensor is a grid of small boxes
+   ================================================================ */
+const stage=document.getElementById('stage'),canvas=document.getElementById('gl');
+let renderer;
+try{renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,preserveDrawingBuffer:true});renderer.setClearColor(0x000000,0)}catch(e){document.getElementById('fallback').style.display='grid';throw e}
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(38,1,0.5,4000);
+const labelR=new CSS2DRenderer({element:document.getElementById('labels')});
+const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.08;controls.screenSpacePanning=true;
+scene.add(new THREE.AmbientLight(0xffffff,.55));
+const sun=new THREE.DirectionalLight(0xffffff,.75);sun.position.set(.35,.5,1);scene.add(sun);
+
+const P=1.2,geo=new THREE.BoxGeometry(1,1,.42);
+const C=h=>new THREE.Color(h);
+const MELPAL=[C('#10193a'),C('#6b3fa0'),C('#f0a35e'),C('#ffeab0')];
+const THEMES={
+ dark:{pal:{act:[C('#5aa9ff'),C('#27323a'),C('#ff9a4d')],w:[C('#b19dff'),C('#242a3a'),C('#4ade80')],prob:[C('#141c22'),C('#ffd166')],in:MELPAL,nan:C('#0d1216')},
+   wave:0x3fb8a9,spec:0xecc76c,win:0xf0a35e,outl:[0xf0a35e,0x5aa9ff,0x4ade80,0xffffff],stack:0x3fb8a9,path:0xec7a52},
+ light:{pal:{act:[C('#2E86DE'),C('#E6E0D2'),C('#D9663B')],w:[C('#6C5CE7'),C('#E4DFEA'),C('#2E9E5B')],prob:[C('#EDE7DA'),C('#D98A00')],in:MELPAL,nan:C('#CFC8BA')},
+   wave:0x0E5C58,spec:0x9A6B00,win:0xD9663B,outl:[0xD9663B,0x1F6FC0,0x1E8A4A,0x22282A],stack:0x0E5C58,path:0xC2410C}};
+let theme=document.documentElement.dataset.theme==='dark'?'dark':'light',PAL=THEMES[theme].pal;
+const tensors={},meshes=[];
+function cval(t,v){const tmp=new THREE.Color();if(Number.isNaN(v))return tmp.copy(PAL.nan);
+  if(t.kind==='prob'){const u=Math.min(1,Math.max(0,v/t.scale));return tmp.copy(PAL.prob[0]).lerp(PAL.prob[1],Math.pow(u,.7))}
+  if(t.kind==='in'){const u=Math.min(.999,Math.max(0,(v-t.lo)/(t.hi-t.lo)))*3,k=Math.floor(u);return tmp.copy(PAL.in[k]).lerp(PAL.in[k+1],u-k)}
+  const p=PAL[t.kind],u=Math.min(1,Math.abs(v)/t.scale);return tmp.copy(p[1]).lerp(v<0?p[0]:p[2],Math.pow(u,.75))}
+function rescale(t){let mx=1e-9,lo=Infinity,hi=-Infinity;for(const v of t.m.d){if(Number.isNaN(v))continue;mx=Math.max(mx,Math.abs(v));lo=Math.min(lo,v);hi=Math.max(hi,v)}t.scale=t.kind==='prob'?Math.max(hi,1e-9):mx;t.lo=lo;t.hi=hi}
+function recolor(t){for(let i=0;i<t.m.r;i++)for(let j=0;j<t.m.c;j++)t.mesh.setColorAt(i*t.m.c+j,cval(t,t.m.get(i,j)));t.mesh.instanceColor.needsUpdate=true}
+function tensor(name,m,kind,meta={}){const mat=new THREE.MeshLambertMaterial({transparent:true,opacity:1});const mesh=new THREE.InstancedMesh(geo,mat,m.r*m.c);mesh.userData.name=name;
+  const t={name,m,kind,mesh,meta,shown:m.c,opacity:1,targetOpacity:1,flip:!!meta.flip};rescale(t);recolor(t);
+  const el=document.createElement('div');el.className='lbl';el.innerHTML=`<b>${meta.label||name}</b> <i>${m.r}×${m.c}</i>`;t.label=new CSS2DObject(el);t.label.center.set(0,1);mesh.add(t.label);
+  scene.add(mesh);meshes.push(mesh);tensors[name]=t;return t}
+const dummy=new THREE.Object3D();
+function cellXY(t,i,j){const ii=t.flip?t.m.r-1-i:i;return[t.x0+j*P,t.y0-ii*P]}
+function layoutCells(t){for(let i=0;i<t.m.r;i++)for(let j=0;j<t.m.c;j++){const[x,y]=cellXY(t,i,j),s=j<t.shown?1:.22;dummy.position.set(x,y,0);dummy.scale.set(s,s,s);dummy.updateMatrix();t.mesh.setMatrixAt(i*t.m.c+j,dummy.matrix)}t.mesh.instanceMatrix.needsUpdate=true;t.mesh.computeBoundingSphere()}
+function place(t,x0,y0){t.x0=x0;t.y0=y0;t.w=(t.m.c-1)*P+1;t.h=(t.m.r-1)*P+1;layoutCells(t);t.label.position.set(x0-.5,y0+1.9,0)}
+// lay out a row of tensors left → right, centred on x = cx
+function row(y,items,gap=5,cx=0){const ws=items.map(t=>(t.m.c-1)*P+1);const W=ws.reduce((a,b)=>a+b,0)+gap*(items.length-1);let x=cx-W/2;let hmax=0;items.forEach((t,k)=>{place(t,x+.5,y);x+=ws[k]+gap;hmax=Math.max(hmax,t.h)});return y-hmax-9}
+
+const act=(rows,cols,extra={})=>Object.assign({rows,cols},extra);
+const FR='frame (80 ms)';
+tensor('mel',mel,'in',{flip:true,label:'log-Mel X',rows:'mel bin (low→high Hz)',cols:'frame (10 ms)',desc:'log energy in each mel band, per 10 ms frame'});
+tensor('Wc1',Wc1,'w',{label:'W conv1',rows:'out channel',cols:'in channel × tap (20×3)',desc:'conv kernel: 16 filters, each sees 20 mel bins × 3 frames'});
+tensor('s1',s1,'act',{label:'conv1 · ReLU',rows:'channel',cols:'frame (20 ms)',desc:'after stride 2: 64 → 32 frames'});
+tensor('Wc2',Wc2,'w',{label:'W conv2',rows:'out channel',cols:'in channel × tap',desc:'16 filters × (16 channels × 3 taps)'});
+tensor('s2',s2,'act',{label:'conv2 · ReLU',rows:'channel',cols:'frame (40 ms)',desc:'32 → 16 frames'});
+tensor('Wc3',Wc3,'w',{label:'W conv3',rows:'out channel',cols:'in channel × tap',desc:'third stride-2 stage → 8× total'});
+tensor('s3',s3,'act',{label:'conv3 · ReLU',rows:'channel',cols:FR,desc:'16 → 8 frames: one column per 80 ms'});
+tensor('Wlin',Wlin,'w',{label:'W proj',rows:'d_model',cols:'flattened conv feature',desc:'projects conv features to d_model'});
+tensor('X0',X0,'act',{label:'X₀ encoder input',rows:'feature (d=16)',cols:FR,desc:'the sequence the Conformer layers work on'});
+tensor('ln1',ln1,'act',{label:'LN',rows:'feature',cols:FR,desc:'LayerNorm: each column → mean 0, variance 1'});
+tensor('W1a',W1a,'w',{label:'W FFN up',rows:'hidden (4d=64)',cols:'feature',desc:'expand 16 → 64'});
+tensor('h1',h1,'act',{label:'Swish(W·x)',rows:'hidden',cols:FR,desc:'FFN hidden layer'});
+tensor('W1b',W1b,'w',{label:'W FFN down',rows:'feature',cols:'hidden',desc:'project 64 → 16'});
+tensor('f1',f1,'act',{label:'FFN out',rows:'feature',cols:FR});
+tensor('X1',X1,'act',{label:'X₁ = X₀ + ½·FFN',rows:'feature',cols:FR,desc:'half-step residual (Macaron)'});
+tensor('ln2',ln2,'act',{label:'LN',rows:'feature',cols:FR});
+tensor('Wq',Wq,'w',{label:'W_Q',rows:'q dim (4 heads × 4)',cols:'feature'});
+tensor('Q',Q,'act',{label:'Q',rows:'4 heads × 4 dims',cols:'query frame',desc:'what each frame is looking for'});
+tensor('Wk',Wk,'w',{label:'W_K',rows:'k dim',cols:'feature'});
+tensor('K',K,'act',{label:'K',rows:'4 heads × 4 dims',cols:'key frame',desc:'what each frame offers'});
+tensor('Wv',Wv,'w',{label:'W_V',rows:'v dim',cols:'feature'});
+tensor('V',V,'act',{label:'V',rows:'4 heads × 4 dims',cols:'frame',desc:'the content that gets mixed'});
+for(let h=0;h<H;h++){tensor('S'+h,S[h],'act',{label:`scores h${h}`,rows:'query frame i',cols:'key frame j',desc:'q·k / √4 · dark = masked (future chunk)'});tensor('A'+h,A[h],'prob',{label:`softmax h${h}`,rows:'query frame i',cols:'key frame j',desc:'attention weights: each row sums to 1'})}
+tensor('Ocat',Ocat,'act',{label:'heads concat',rows:'4 heads × 4 dims',cols:FR,desc:'Σ_j A[i,j]·V[:,j] per head'});
+tensor('Wo',Wo,'w',{label:'W_O',rows:'feature',cols:'concat dim'});
+tensor('att',att,'act',{label:'MHSA out',rows:'feature',cols:FR});
+tensor('X2',X2,'act',{label:'X₂ = X₁ + MHSA',rows:'feature',cols:FR});
+tensor('ln3',ln3,'act',{label:'LN',rows:'feature',cols:FR});
+tensor('Wp1',Wp1,'w',{label:'W pointwise 1',rows:'2d = 32',cols:'feature',desc:'1×1 conv = per-frame linear, 16 → 32'});
+tensor('p1',p1,'act',{label:'pointwise out',rows:'value half | gate half',cols:FR});
+tensor('glu',glu,'act',{label:'GLU',rows:'channel',cols:FR,desc:'a ⊙ σ(b): top half gated by bottom half'});
+tensor('dwW',dwW,'w',{label:'depthwise k',rows:'channel',cols:'tap (t−4 … t)',desc:'one 5-tap causal kernel per channel (yours: 9 taps)'});
+tensor('dw',dw,'act',{label:'depthwise conv',rows:'channel',cols:FR,desc:'mixes time, never channels'});
+tensor('cn',cn,'act',{label:'LayerNorm',rows:'channel',cols:FR,desc:'your model: conv_norm_type = layer_norm'});
+tensor('sw',sw,'act',{label:'Swish',rows:'channel',cols:FR});
+tensor('Wp2',Wp2,'w',{label:'W pointwise 2',rows:'feature',cols:'channel'});
+tensor('p2',p2,'act',{label:'conv out',rows:'feature',cols:FR});
+tensor('X3',X3,'act',{label:'X₃ = X₂ + Conv',rows:'feature',cols:FR});
+tensor('ln4',ln4,'act',{label:'LN',rows:'feature',cols:FR});
+tensor('W2a',W2a,'w',{label:'W FFN up',rows:'hidden',cols:'feature'});
+tensor('h2',h2,'act',{label:'Swish(W·x)',rows:'hidden',cols:FR});
+tensor('W2b',W2b,'w',{label:'W FFN down',rows:'feature',cols:'hidden'});
+tensor('f2',f2,'act',{label:'FFN out',rows:'feature',cols:FR});
+tensor('X4',X4,'act',{label:'X₄ = X₃ + ½·FFN',rows:'feature',cols:FR});
+tensor('Y',Y,'act',{label:'H = LN(X₄) encoder out',rows:'feature',cols:FR,desc:'one 16-d vector per 80 ms of audio'});
+tensor('Jenc',Jenc,'w',{label:'W joint-enc',rows:'joint dim',cols:'feature'});
+tensor('encJ',encJ,'act',{label:'enc → joint',rows:'joint dim',cols:'frame t',desc:'encoder side of the joint, one column per t'});
+tensor('EmbT',EmbT,'w',{label:'token embedding',rows:'embed dim',cols:'token id',desc:'blank column is all zeros (blank_as_pad)'});
+tensor('Wl',Wl,'w',{label:'W LSTM [i f g o]',rows:'4 gates × 16',cols:'[x ; h]',desc:'one LSTM layer (yours: 2 layers × 640)'});
+tensor('G',Gm,'act',{label:'prediction g_u',rows:'hidden',cols:'u = tokens emitted so far',desc:'LSTM state after reading tokens y₁…y_u'});
+tensor('Jpred',Jpred,'w',{label:'W joint-pred',rows:'joint dim',cols:'hidden'});
+tensor('predJ',predJ,'act',{label:'pred → joint',rows:'joint dim',cols:'u'});
+tensor('hj',hjM,'act',{label:'ReLU(enc_t + pred_u)',rows:'joint dim',cols:'—',desc:'joint hidden for the current (t, u)'});
+tensor('Wj',Wj,'w',{label:'W out',rows:'token',cols:'joint dim'});
+tensor('pz',pzM,'prob',{label:'P(k | t,u)',rows:'token',cols:'—',desc:'softmax over 11 tokens + blank'});
+tensor('lat',lattice,'prob',{label:'P(blank) lattice',rows:'u (tokens emitted)',cols:'t (encoder frame)',desc:'blank → move right · token → move down'});
+
+/* ---- layout (top to bottom) ---- */
+let y=-22;
+y=row(y,[tensors.mel],5,-6);
+const melR=tensors.mel.x0+tensors.mel.w;
+y=row(y-2,[tensors.Wc1,tensors.s1],7);
+y=row(y,[tensors.Wc2,tensors.s2],7);
+y=row(y,[tensors.Wc3,tensors.s3],7);
+y=row(y,[tensors.Wlin,tensors.X0,tensors.ln1],7);
+const blockTop=y+4;
+y=row(y,[tensors.W1a,tensors.h1],7);
+y=row(y,[tensors.W1b,tensors.f1,tensors.X1,tensors.ln2],7);
+y=row(y,[tensors.Wq,tensors.Q,tensors.Wk,tensors.K,tensors.Wv,tensors.V],5);
+y=row(y,[0,1,2,3].flatMap(h=>[tensors['S'+h],tensors['A'+h]]),3.5);
+y=row(y,[tensors.Ocat,tensors.Wo,tensors.att,tensors.X2],6);
+y=row(y,[tensors.ln3,tensors.Wp1,tensors.p1,tensors.glu],6);
+y=row(y,[tensors.dwW,tensors.dw,tensors.cn,tensors.sw],6);
+y=row(y,[tensors.Wp2,tensors.p2,tensors.X3,tensors.ln4],6);
+y=row(y,[tensors.W2a,tensors.h2],7);
+y=row(y,[tensors.W2b,tensors.f2,tensors.X4,tensors.Y],6);
+const blockBot=y+6;
+y=row(y-4,[tensors.Jenc,tensors.encJ],7);
+y=row(y,[tensors.EmbT,tensors.Wl,tensors.G,tensors.Jpred,tensors.predJ],5);
+y=row(y,[tensors.hj,tensors.Wj,tensors.pz,tensors.lat],8);
+
+// waveform line, aligned so frame t sits above mel column t
+const mx0=tensors.mel.x0,xw0=mx0-(WIN/2)*P/HOP;
+const wavePts=[];for(let n=0;n<NS;n+=2)wavePts.push(new THREE.Vector3(xw0+n*P/HOP,6*wave[n],0));
+const waveLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(wavePts),new THREE.LineBasicMaterial({color:0x3fb8a9,transparent:true}));scene.add(waveLine);
+const waveB={x0:xw0,y0:7,w:NS*P/HOP,h:14};
+const winBox=new THREE.Mesh(new THREE.PlaneGeometry(WIN*P/HOP,14),new THREE.MeshBasicMaterial({color:0xf0a35e,transparent:true,opacity:.18,depthWrite:false}));
+winBox.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(WIN*P/HOP,14)),new THREE.LineBasicMaterial({color:0xf0a35e})));winBox.visible=false;scene.add(winBox);
+function lbl(text,cls,x,y,cx=0,cy=1){const el=document.createElement('div');el.className='lbl '+cls;el.innerHTML=text;const o=new CSS2DObject(el);o.center.set(cx,cy);o.position.set(x,y,0);scene.add(o);return o}
+const waveLbl=lbl('<b>waveform</b> <i>10,480 samples · 16 kHz · 0.655 s</i>','',xw0,9.5);
+// spectrum of the current frame, drawn to the right of the mel grid (low Hz at the bottom)
+const specB={x0:melR+5,y0:tensors.mel.y0,w:20,h:tensors.mel.h};
+const specGeo=new THREE.BufferGeometry().setFromPoints(Array.from({length:NB},()=>new THREE.Vector3()));
+const specLine=new THREE.Line(specGeo,new THREE.LineBasicMaterial({color:0xecc76c,transparent:true}));specLine.visible=false;scene.add(specLine);
+const specLbl=lbl('<b>|FFT|²</b> <i>257 bins, frame t</i>','',specB.x0,specB.y0+1.9);specLbl.visible=false;
+function drawSpec(t){const pos=specGeo.attributes.position;let mx=-1e9,mn=1e9;const db=spec[t].map(p=>10*Math.log10(p+1e-8));for(const v of db){mx=Math.max(mx,v)}mn=mx-70;for(let k=0;k<NB;k++){const u=Math.max(0,(db[k]-mn)/(mx-mn));pos.setXYZ(k,specB.x0+u*specB.w,specB.y0-specB.h+.5+k/(NB-1)*(specB.h-1),0)}pos.needsUpdate=true}
+// "× N layers" ghost slabs behind the block
+const blockB={x0:-60,y0:blockTop,w:120,h:blockTop-blockBot};
+const stack=new THREE.Group();for(let k=1;k<=3;k++){const m=new THREE.Mesh(new THREE.PlaneGeometry(blockB.w,blockB.h),new THREE.MeshBasicMaterial({color:0x3fb8a9,transparent:true,opacity:.05,depthWrite:false}));m.position.set(0,(blockTop+blockBot)/2,-9*k);m.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(blockB.w,blockB.h)),new THREE.LineBasicMaterial({color:0x3fb8a9,transparent:true,opacity:.35})));stack.add(m)}stack.visible=false;scene.add(stack);
+const stackLbl=lbl('× 24 layers in your model','big',blockB.x0+blockB.w-2,blockTop+5,1,1);stackLbl.visible=false;
+// token names beside P(k|t,u) and the embedding columns
+const tokLbls=[];VOCAB.forEach((v,k)=>{const t=tensors.pz,[x,yy]=cellXY(t,k,0);tokLbls.push(lbl(v,'tok',x+.9,yy,0,.5))});
+VOCAB.forEach((v,k)=>{const t=tensors.EmbT,[x,yy]=cellXY(t,t.m.r-1,k);tokLbls.push(lbl(v,'tok',x,yy-.9,.5,0))});
+// decoding path through the lattice + transcript
+const L=tensors.lat;const pathPts=[];{let t=0,u=0;const cxy=(t,u)=>{const[x,yy]=cellXY(L,u,Math.min(t,TP-1));return new THREE.Vector3(x+(t>=TP?1.2:0),yy,.6)};pathPts.push(cxy(0,0));for(const s of dec.path){if(s.k===BLANK)t++;else u++;pathPts.push(cxy(t,u))}}
+const pathLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pathPts),new THREE.LineBasicMaterial({color:0xec7a52}));pathLine.visible=false;scene.add(pathLine);
+const outLbl=lbl('','out',L.x0,L.y0-L.h-2.5,0,1);outLbl.visible=false;
+
+// big section labels for the overview
+const sectionLbls=[['Audio → log-Mel',tensors.mel.y0+12],['8× subsampling',tensors.Wc1.y0+2],['Conformer block (× N)',blockTop],['RNN-T: prediction + joint',tensors.Jenc.y0+2]].map(([t,yy])=>{const o=lbl(t,'big',-70,yy,1,1);o.visible=false;return o});
+// highlight outlines
+const outlines=[0xf0a35e,0x5aa9ff,0x4ade80,0xffffff].map(c=>{const o=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1)),new THREE.LineBasicMaterial({color:c}));o.visible=false;scene.add(o);return o});
+function cover(o,t,r0,r1,c0,c1){c0=Math.max(0,c0);c1=Math.min(t.m.c-1,c1);if(c1<c0){o.visible=false;return}const[xa,ya]=cellXY(t,r0,c0),[xb,yb]=cellXY(t,r1,c1);o.position.set((xa+xb)/2,(ya+yb)/2,0);o.scale.set(Math.abs(xb-xa)+1.25,Math.abs(yb-ya)+1.25,.8);o.visible=true}
+function hideOutlines(){outlines.forEach(o=>o.visible=false)}
+
+function applyTheme(name){theme=name;const th=THEMES[name];PAL=th.pal;document.documentElement.dataset.theme=name;try{localStorage.setItem('stt3d-theme',name)}catch(e){}
+  for(const n of Object.keys(tensors))recolor(tensors[n]);
+  waveLine.material.color.setHex(th.wave);specLine.material.color.setHex(th.spec);winBox.material.color.setHex(th.win);winBox.children[0].material.color.setHex(th.win);
+  outlines.forEach((o,i)=>o.material.color.setHex(th.outl[i]));stack.children.forEach(m=>{m.material.color.setHex(th.stack);m.children[0].material.color.setHex(th.stack)});pathLine.material.color.setHex(th.path);
+  const b=document.getElementById('themeBtn');b.textContent=name==='dark'?'☀ Light':'☾ Dark';b.setAttribute('aria-pressed',String(name==='dark'))}
+document.getElementById('themeBtn').onclick=()=>applyTheme(theme==='dark'?'light':'dark');
+
+/* ================================================================
+   3. The walkthrough
+   ================================================================ */
+const all=Object.keys(tensors),blockNames=['ln1','W1a','h1','W1b','f1','X1','ln2','Wq','Q','Wk','K','Wv','V','S0','A0','S1','A1','S2','A2','S3','A3','Ocat','Wo','att','X2','ln3','Wp1','p1','glu','dwW','dw','cn','sw','Wp2','p2','X3','ln4','W2a','h2','W2b','f2','X4','Y'];
+const fmt=v=>Number.isNaN(v)?'masked':(v>=0?' ':'')+v.toFixed(3);
+const STEPS=[
+{g:'Start',t:'Overview: audio in, text out',focus:all,extra:['wave'],
+ b:`<p>This is a <b>complete speech recogniser</b>, shrunk until every number fits on screen. It has the same design as your <em>Nemotron streaming 0.6B</em> model: a <b>FastConformer encoder</b> with an <b>RNN-T</b> decoder.</p>
+ <p>From top to bottom: a waveform becomes a <b>log-Mel spectrogram</b>. Three strided convs cut it to <b>8× fewer frames</b>. A <b>Conformer block</b> mixes the frames with attention and convolution. The <b>prediction network</b> and <b>joint network</b> then pick one token (or blank) at a time.</p>
+ <p>The weights are random (seeded), so the output text is gibberish. The <b>shapes and the maths are real</b>. Hover any cell to see its value.</p>`,
+ chips:['0.655 s audio','20 mel bins','d = 16','4 heads','1 block','12 tokens']},
+{g:'Audio → features',t:'The waveform',focus:[],extra:['wave'],
+ b:`<p>A microphone gives <b>16,000 numbers per second</b>. This clip is 10,480 samples (0.655 s): a vowel, an <em>s</em>-like hiss, then two more vowels.</p>
+ <p>That is far too many steps for attention, and the meaning sits in <b>which frequencies are present</b> over time, not in single samples. So the first job is to turn the samples into a time-frequency picture.</p>`,
+ f:'x ∈ ℝ^10480   (16 kHz, mono, float in −1…1)'},
+{g:'Audio → features',t:'STFT: 25 ms windows every 10 ms',focus:['mel'],extra:['wave','spec'],anim:{type:'stft'},
+ b:`<p>Slide a <b>400-sample Hann window</b> (25 ms) along the audio in <b>160-sample hops</b> (10 ms). Each window gets a 512-point FFT. Its squared magnitude gives <b>257 frequency bins</b> (gold curve).</p>
+ <p>The orange box is the current window. Watch the curve change from voiced vowels (harmonic peaks) to the hiss (energy at high frequencies).</p>`,
+ f:'frames T = 1 + (10480 − 400) / 160 = 64\nP[t,k] = |FFT(hann · x[160t : 160t+400])|²\nk = 0 … 256',chips:['your model: same 25 ms / 10 ms / n_fft 512']},
+{g:'Audio → features',t:'Mel filters and log',focus:['mel'],anim:{type:'col',X:'mel',Y:'mel'},
+ b:`<p>257 bins is more detail than speech needs. <b>Triangular mel filters</b> are narrow at low frequencies and wide at high ones, the way hearing works. They sum the power into <b>20 bands</b> (your model uses <b>128</b>). Then a <b>log</b> squashes the huge dynamic range.</p>
+ <p>The grid is time (left → right, 10 ms per column) by mel band (low pitch at the bottom). Bright means loud. You can see the vowels' low-frequency energy and the hiss at the top.</p>`,
+ f:'mel[m,t] = log( Σ_k F[m,k] · P[t,k] + ε )\nX: (20, 64)',chips:['your config: features 128 · log true · normalize NA']},
+{g:'8× subsampling',t:'Conv 1: 64 → 32 frames',focus:['mel','Wc1','s1'],anim:{type:'conv',X:'mel',Y:'s1',k:3,s:2,p:1},
+ b:`<p>10 ms frames are too dense for attention: 1 minute would be 6,000 steps. FastConformer first <b>shrinks time 8×</b> with three stride-2 convolutions.</p>
+ <p>Each output column (green box) looks at <b>3 neighbouring input frames</b> across all mel bands (orange box). Each filter is one row of the green/violet weight grid. Stride 2 means the box jumps two frames at a time.</p>`,
+ f:'s1[o,t] = ReLU( Σ_c Σ_q W[o, 3c+q]\n                · X[c, 2t+q−1] )\n(20, 64) → (16, 32)',chips:['real: 2-D dw_striding, 256 channels']},
+{g:'8× subsampling',t:'Conv 2: 32 → 16 frames',focus:['s1','Wc2','s2'],anim:{type:'conv',X:'s1',Y:'s2',k:3,s:2,p:1},
+ b:`<p>The same operation again on the 16-channel output. Each column now covers 40 ms of audio, and each output frame has a wider <b>receptive field</b>: it has seen 7 mel frames in total.</p>`,
+ f:'(16, 32) → (16, 16)'},
+{g:'8× subsampling',t:'Conv 3 + projection: 80 ms frames',focus:['s3','Wc3','Wlin','X0'],anim:{type:'matmul',W:'Wlin',X:'s3',Y:'X0'},
+ b:`<p>A third stride-2 conv gives <b>8 frames, one per 80 ms</b>, the <em>encoder frame rate</em> of your model. A linear layer then maps the conv features to <b>d_model</b> (16 here, <b>1024</b> in yours).</p>
+ <p>The animation shows a matrix multiply: <b>row i of W</b> (orange) · <b>column j of the input</b> (blue) = <b>one cell</b> of the output (green).</p>`,
+ f:'X₀ = W_proj · s3\n(16,16) · (16,8) → (16,8)\n64 mel → 8 encoder frames (8×)',chips:['streaming chunk [56,13] = 14 × 80 ms = 1.12 s']},
+{g:'Conformer block',t:'The Macaron block',focus:blockNames,
+ b:`<p>One <b>Conformer block</b> is four sub-layers. Each one adds its result back onto a <b>residual stream</b>:</p>
+ <p><b>½ FFN</b> → <b>multi-head self-attention</b> (global context) → <b>convolution module</b> (local patterns) → <b>½ FFN</b> → LayerNorm.</p>
+ <p>The two half-weighted FFNs sandwich the rest, like a macaron. The input and output shapes are the same, (16, 8), so blocks can be stacked. Your model stacks <b>24</b>.</p>`,
+ f:'x₁ = x + ½·FFN(x)\nx₂ = x₁ + MHSA(x₁)\nx₃ = x₂ + Conv(x₂)\ny  = LN( x₃ + ½·FFN(x₃) )'},
+{g:'Conformer block',t:'½ FFN: expand 4× then project back',focus:['X0','ln1','W1a','h1','W1b','f1','X1'],anim:{type:'matmul',W:'W1a',X:'ln1',Y:'h1'},
+ b:`<p><b>LayerNorm</b> rescales every frame (column) to mean 0, variance 1. A linear layer expands <b>16 → 64</b> (4×), then <b>Swish</b>, then back down <b>64 → 16</b>.</p>
+ <p>The FFN works on <b>each frame separately</b>: it never mixes time. Its output is added at <b>half weight</b>.</p>`,
+ f:'h  = Swish(W_up · LN(X₀))     (64, 8)\n\nX₁ = X₀ + ½ · W_down · h      (16, 8)',chips:['real: 1024 → 4096 → 1024']},
+{g:'Conformer block',t:'Attention: Q, K, V',focus:['ln2','Wq','Q','Wk','K','Wv','V'],anim:{type:'matmul',W:'Wq',X:'ln2',Y:'Q'},
+ b:`<p>Three linear maps turn each normalised frame into a <b>query</b> (what am I looking for?), a <b>key</b> (what do I contain?) and a <b>value</b> (what do I pass on?).</p>
+ <p>The 16 rows are split into <b>4 heads × 4 dims</b>, so each head can track something different (your model: 8 heads × 128).</p>`,
+ f:'Q = W_Q · LN(X₁)   (16, 8)\nK = W_K · LN(X₁)   (16, 8)\nV = W_V · LN(X₁)   (16, 8)',chips:['real: rel_pos attention adds a relative-position term']},
+{g:'Conformer block',t:'Scores and the streaming mask',focus:['Q','K','S0','S1','S2','S3'],anim:{type:'scores',h:0},
+ b:`<p>For each head, every query frame <b>i</b> dots with every key frame <b>j</b>, scaled by √4. That gives an <b>8 × 8 score grid</b> per head.</p>
+ <p>The dark cells are <b>masked</b>. This is <em>chunked-limited</em> attention, which is what makes your model streaming: frames are grouped into chunks (2 frames here), and a frame may only look at its own chunk and the past. Your <code>[56, 13]</code> setting means 56 frames of history and chunks of 14 frames (1.12 s latency). <code>[56, 0]</code> gives 80 ms chunks.</p>`,
+ f:'S_h[i,j] = q_i · k_j / √d_h\n   if chunk(j) ≤ chunk(i)\nS_h[i,j] = −∞   (future chunk: masked)'},
+{g:'Conformer block',t:'Softmax: who listens to whom',focus:['S0','A0','S1','A1','S2','A2','S3','A3'],anim:{type:'rows',X:'S0',Y:'A0'},
+ b:`<p>A <b>softmax along each row</b> turns scores into weights that sum to 1. Bright cells show which frames frame <i>i</i> is reading from.</p>
+ <p>The masked future gets exactly 0. Even with random weights the four heads already spread their attention differently.</p>`,
+ f:'A_h[i, :] = softmax( S_h[i, :] )\nΣ_j A_h[i, j] = 1'},
+{g:'Conformer block',t:'Mix values, merge heads',focus:['V','A0','A1','A2','A3','Ocat','Wo','att','X1','X2'],anim:{type:'matmul',W:'Wo',X:'Ocat',Y:'att'},
+ b:`<p>Each head takes a <b>weighted average of value vectors</b>: out_i = Σ_j A[i, j] · v_j. The 4 heads × 4 dims are stacked back into 16 rows. <b>W_O</b> mixes them, and the result is added to the residual stream.</p>
+ <p>After this sub-layer, every frame carries information from the frames it attended to: <b>global context</b>.</p>`,
+ f:'O_h = V_h · A_hᵀ        (4, 8)\nX₂ = X₁ + W_O · concat(O_0..O_3)'},
+{g:'Conformer block',t:'Conv module: pointwise + GLU',focus:['X2','ln3','Wp1','p1','glu'],anim:{type:'matmul',W:'Wp1',X:'ln3',Y:'p1'},
+ b:`<p>Attention is good at long-range links. <b>Convolution</b> is good at short acoustic patterns, such as a consonant burst or a formant change. The module starts with a <b>pointwise (1×1) conv</b>, which is a per-frame linear map 16 → 32.</p>
+ <p>A <b>GLU</b> then splits the 32 rows into a value half <i>a</i> and a gate half <i>b</i>, and keeps <i>a ⊙ σ(b)</i>. The network learns what to let through.</p>`,
+ f:'[a; b] = W_pw1 · LN(X₂)        (32, 8)\nglu = a ⊙ σ(b)                (16, 8)'},
+{g:'Conformer block',t:'Causal depthwise conv',focus:['glu','dwW','dw'],anim:{type:'conv',X:'glu',Y:'dw',k:5,s:1,p:4,causal:true},
+ b:`<p><b>Depthwise</b> means every channel has its <b>own small kernel</b> (one row of the weight grid) and channels are never mixed. That makes it very cheap.</p>
+ <p>It is <b>causal</b>: output frame <i>t</i> sees only frames <i>t−4 … t</i>, never the future. That is <code>conv_context_size: causal</code> in your config, with kernel 9 (8 past frames = 640 ms).</p>`,
+ f:'dw[c, t] = Σ_{q=0..4} k_c[q] · glu[c, t−4+q]',chips:['your model: kernel 9, causal']},
+{g:'Conformer block',t:'LayerNorm, Swish, pointwise, residual',focus:['dw','cn','sw','Wp2','p2','X2','X3'],anim:{type:'matmul',W:'Wp2',X:'sw',Y:'p2'},
+ b:`<p>The classic Conformer uses BatchNorm here. Your model uses <b>LayerNorm</b> (<code>conv_norm_type: layer_norm</code>), which needs no batch statistics, so it behaves the same in streaming. Then <b>Swish</b>, a second pointwise conv, and the residual add.</p>`,
+ f:'X₃ = X₂ + W_pw2 · Swish(LN(dw))'},
+{g:'Conformer block',t:'Second ½ FFN and final LayerNorm',focus:['X3','ln4','W2a','h2','W2b','f2','X4','Y'],anim:{type:'col',X:'X4',Y:'Y'},
+ b:`<p>The second half-FFN closes the macaron, and a final LayerNorm gives the block output <b>H</b>.</p>
+ <p>Each column of H is a 16-number summary of 80 ms of speech in context. These columns are what the decoder reads.</p>`,
+ f:'X₄ = X₃ + ½·FFN(X₃)\nH  = LN(X₄)        (16, 8)'},
+{g:'Conformer block',t:'Stack it: × N layers',focus:blockNames,extra:['stack'],
+ b:`<p>A real encoder repeats this block many times. Each layer refines the representation, and the receptive field grows with depth.</p>
+ <p>For streaming, NeMo <b>caches</b> each layer's past keys/values and the conv module's past frames. Each new chunk then only computes its own frames, which is the "cache-aware" part of your model.</p>`,
+ chips:['24 layers','d = 1024','8 heads','FFN 4096','≈ 0.6 B params']},
+{g:'RNN-T decoder',t:'Encoder side of the joint',focus:['Y','Jenc','encJ'],anim:{type:'matmul',W:'Jenc',X:'Y',Y:'encJ'},
+ b:`<p>The <b>Transducer</b> has two inputs: the audio (encoder) and the text written so far (prediction network). Both are projected into a shared <b>joint space</b>.</p>
+ <p>Here each encoder frame <i>t</i> becomes a joint vector <i>enc_t</i> (16-d here, 640 in your model).</p>`,
+ f:'enc = W_je · H        (16, 8)'},
+{g:'RNN-T decoder',t:'Prediction network: a tiny language model',focus:['EmbT','Wl','G','Jpred','predJ'],anim:{type:'matmul',W:'Jpred',X:'G',Y:'predJ'},
+ b:`<p>The <b>prediction network</b> reads the tokens emitted so far and summarises them. It is an embedding followed by an <b>LSTM</b> (your model: 2 layers × 640).</p>
+ <p>It starts from the blank token, whose embedding is all zeros (<code>blank_as_pad</code>). Each emitted token updates the LSTM, giving one state <i>g_u</i> per prefix (columns u = 0…${U}). It never sees audio: it is the part of the model that knows how words are spelled.</p>`,
+ f:'g_u = LSTM( embed(y_u), g_{u−1} )\npred = W_jp · G        (16, '+(U+1)+')'},
+{g:'RNN-T decoder',t:'Joint network: one decision per (t, u)',focus:['encJ','predJ','hj','Wj','pz','lat'],anim:{type:'joint'},
+ b:`<p>For an encoder frame <i>t</i> and a text prefix <i>u</i>: add the two joint vectors, apply <b>ReLU</b> (your config: <code>activation: relu</code>), and project to the vocabulary with a softmax.</p>
+ <p>The result <b>P(k | t, u)</b> covers every token <b>plus blank ∅</b>. Blank means "nothing more to say for this frame, move to the next".</p>`,
+ f:'z(t,u) = W_out · ReLU(enc_t + pred_u) + b\nP(k | t,u) = softmax(z)\n12 outputs = 11 tokens + blank',chips:['your model: 13,087 tokens + blank']},
+{g:'RNN-T decoder',t:'Greedy decoding through the lattice',focus:['lat','pz','hj'],extra:['path'],anim:{type:'decode'},
+ b:`<p>The lattice shows <b>P(blank)</b> for every (t, u). Greedy decoding starts at the top-left. At each cell it takes the most likely symbol:</p>
+ <p><b>blank → step right</b> (next 80 ms frame). <b>token → step down</b> (write it, update the LSTM, stay on this frame). Your model allows a few tokens per frame.</p>
+ <p>Because the path can only go right or down, the alignment is <b>monotonic</b>. Text never comes out ahead of the audio, so RNN-T streams naturally and does not hallucinate on silence. With these random weights the "text" is noise; a trained model's path would spell the words.</p>`,
+ f:'decoded tokens: '+dec.toks.map(k=>VOCAB[k]).join(' ')},
+{g:'Wrap-up',t:'Toy vs your real model',focus:all,extra:['wave','path'],
+ b:`<p>Everything you just watched happens for every 80 ms chunk in your streaming model, only much wider:</p>
+ <table class="real"><tr><th></th><th>this page</th><th>s1_hi_en (Nemotron 0.6B)</th></tr>
+ <tr><td>features</td><td>20 mel</td><td>128 mel, 25/10 ms</td></tr>
+ <tr><td>subsampling</td><td>3 × 1-D conv</td><td>8× dw_striding, 256 ch</td></tr>
+ <tr><td>encoder</td><td>1 × d16, 4 heads</td><td>24 × d1024, 8 heads</td></tr>
+ <tr><td>conv module</td><td>k5 causal, LN</td><td>k9 causal, LN</td></tr>
+ <tr><td>attention</td><td>chunks of 2</td><td>[56, 0/3/6/13]</td></tr>
+ <tr><td>prediction</td><td>1 × LSTM 16</td><td>2 × LSTM 640</td></tr>
+ <tr><td>joint</td><td>16, ReLU</td><td>640, ReLU</td></tr>
+ <tr><td>vocabulary</td><td>11 + blank</td><td>13,087 + blank</td></tr></table>
+ <p>Related sheets: <a href="fastconformer-architecture-A4.html">FastConformer</a> · <a href="stt-decoder-families-A4.html">CTC / RNN-T / TDT</a> · <a href="whisper-architecture-A4.html">Whisper</a>.</p>`}
+];
+const firstStep={};STEPS.forEach((s,k)=>s.focus.forEach(n=>{if(!(n in firstStep))firstStep[n]=k}));
+// the overview shows everything; real "first appearance" is the first non-overview step
+STEPS.forEach((s,k)=>{if(k===0)return;s.focus.forEach(n=>{if(firstStep[n]===0)firstStep[n]=k})});
+
+/* ---- the maths for each step, plus a worked example using this model's live numbers ---- */
+const R=String.raw,n=(v,d=3)=>Number.isFinite(v)?v.toFixed(d):String(v);
+const dotTerms=(a,b,show=3)=>{let s=0;const parts=[];for(let k=0;k<a.length;k++){s+=a[k]*b[k];if(k<show)parts.push(R`(${n(a[k],2)})(${n(b[k],2)})`)}return{s,parts,txt:parts.join(' + ')+(a.length>show?R` + \dots`:'')}};
+const brk=(terms,per=2)=>terms.map((t,i)=>(i>0&&i%per===0?R`\\&\quad+`:(i>0?'+':''))+t).join(' ');
+const rowOf=(Mx,i)=>Array.from({length:Mx.c},(_,j)=>Mx.get(i,j));
+const binom=(a,b)=>{let r=1;for(let i=1;i<=b;i++)r=r*(a-b+i)/i;return Math.round(r)};
+function peakBin(t){let k=3;for(let q=3;q<NB;q++)if(spec[t][q]>spec[t][k])k=q;return k}
+const MATH={
+1:{m:R`$$x[n]\in[-1,1],\qquad n=0,\dots,N-1,\qquad N=16000\times0.655=10\,480$$`,
+   w:()=>{let e=0;for(const v of wave)e+=v*v;const rms=Math.sqrt(e/NS);return R`<p>RMS level: $\sqrt{\tfrac1N\sum_n x[n]^2}=${n(rms)}$, which is $20\log_{10}(${n(rms)})=${n(20*Math.log10(rms),1)}$ dBFS. The peak is normalised to $0.9$.</p><p>Sample $x[3000]$ (at $t=3000/16000=0.1875$ s, inside the first vowel) $=${n(wave[3000])}$.</p>`}},
+2:{m:R`$$w[n]=\tfrac12\Big(1-\cos\tfrac{2\pi n}{400}\Big),\qquad n=0,\dots,399$$
+$$X_t[k]=\sum_{n=0}^{399}x[160t+n]\,w[n]\,e^{-2\pi i\,kn/512}$$
+$$P_t[k]=|X_t[k]|^2,\qquad f_k=k\cdot\tfrac{16000}{512}=31.25\,k\ \text{Hz}$$
+$$T=1+\Big\lfloor\tfrac{10480-400}{160}\Big\rfloor=64\ \text{frames}$$`,
+   w:()=>{const rowsH=[15,28,45].map(t=>{const k=peakBin(t);return`<tr><td>${t}</td><td>${t*10} ms</td><td>${k}</td><td>${(k*31.25).toFixed(0)} Hz</td><td>${(10*Math.log10(spec[t][k])).toFixed(1)} dB</td></tr>`}).join('');
+     return`<p>The strongest bin $k^*=\\arg\\max_k P_t[k]$ for three frames:</p><table><tr><th>t</th><th>start</th><th>k*</th><th>f = 31.25k</th><th>power</th></tr>${rowsH}</table><p>The vowels peak at low frequencies (formants), while the hiss frame (t = 28) has its energy high up.</p>`}},
+3:{m:R`$$\text{mel}(f)=2595\,\log_{10}\!\Big(1+\frac{f}{700}\Big)$$
+$$F_m[k]=\begin{cases}\dfrac{f_k-f_{m-1}}{f_m-f_{m-1}} & f_{m-1}\le f_k\le f_m\\[4pt]\dfrac{f_{m+1}-f_k}{f_{m+1}-f_m} & f_m<f_k\le f_{m+1}\\[4pt]0&\text{otherwise}\end{cases}$$
+$$X[m,t]=\log\Big(\sum_{k=0}^{256}F_m[k]\,P_t[k]+\varepsilon\Big)$$`,
+   w:()=>R`<p>The 22 edge points are evenly spaced on the mel scale from 0 to $\text{mel}(8000)=${n(hz2mel(8000),1)}$, so the triangles get wider as frequency goes up:</p><p>band 2: $${n(melHz[2],0)}\to${n(melHz[3],0)}\to${n(melHz[4],0)}$ Hz (width $${n(melHz[4]-melHz[2],0)}$ Hz)<br>band 17: $${n(melHz[17],0)}\to${n(melHz[18],0)}\to${n(melHz[19],0)}$ Hz (width $${n(melHz[19]-melHz[17],0)}$ Hz)</p><p>Values: $X[2,15]=${n(mel.get(2,15),2)}$ (vowel, low band) and $X[17,28]=${n(mel.get(17,28),2)}$ (hiss, high band).</p>`},
+4:{m:R`$$s_1[o,t]=\mathrm{ReLU}\Big(\sum_{c=0}^{19}\sum_{q=0}^{2}W[o,\,3c+q]\;X[c,\,2t+q-1]\Big)$$
+$$T_{\text{out}}=\Big\lfloor\frac{T+2p-k}{s}\Big\rfloor+1=\Big\lfloor\frac{64+2-3}{2}\Big\rfloor+1=32$$`,
+   w:()=>{const o=3,t=10;let z=0;for(let c=0;c<NM;c++)for(let q=0;q<3;q++){const ti=2*t+q-1;if(ti>=0&&ti<T)z+=Wc1.get(o,c*3+q)*mel.get(c,ti)}
+     return R`<p>Output cell $s_1[${o},${t}]$ reads input frames $2t-1,\,2t,\,2t+1=${2*t-1},${2*t},${2*t+1}$ across all 20 bands: $20\times3=60$ products.</p><p>Pre-activation sum $=${n(z)}$, so $\mathrm{ReLU}=${n(Math.max(0,z))}$ (the value stored: $${n(s1.get(o,t))}$).</p><p>Parameters: $16\times60=960$ weights.</p>`}},
+5:{m:R`$$r_\ell=r_{\ell-1}+(k-1)\,j_{\ell-1},\qquad j_\ell=j_{\ell-1}\,s_\ell,\qquad r_0=1,\;j_0=1$$`,
+   w:()=>R`<p>How many 10 ms input frames one output frame "sees" (receptive field $r$) and how far apart neighbouring outputs are (jump $j$):</p><table><tr><th>layer</th><th>r</th><th>j</th><th>frame rate</th></tr><tr><td>input</td><td>1</td><td>1</td><td>10 ms</td></tr><tr><td>conv1</td><td>1+2·1 = 3</td><td>2</td><td>20 ms</td></tr><tr><td>conv2</td><td>3+2·2 = 7</td><td>4</td><td>40 ms</td></tr><tr><td>conv3</td><td>7+2·4 = 15</td><td>8</td><td>80 ms</td></tr></table><p>15 mel frames cover $(15-1)\cdot160+400=2640$ samples $=165$ ms of audio per encoder frame.</p>`},
+6:{m:R`$$X_0=W_{\text{proj}}\,s_3,\qquad X_0[i,j]=\sum_{k=0}^{15}W_{\text{proj}}[i,k]\;s_3[k,j]$$
+$$64\xrightarrow{\;/2\;}32\xrightarrow{\;/2\;}16\xrightarrow{\;/2\;}8\ \text{frames},\qquad 10\text{ ms}\times8=80\text{ ms}$$`,
+   w:()=>{const d=dotTerms(rowOf(Wlin,0),colOf(s3,3));return R`<p>$X_0[0,3]=${d.txt}=${n(d.s)}$</p><p>That is one dot product of length 16; the whole layer is $16\times8=128$ of them.</p>`}},
+7:{m:R`$$\begin{aligned}\tilde x&=x+\tfrac12\,\mathrm{FFN}_1(x)\\ x'&=\tilde x+\mathrm{MHSA}(\tilde x)\\ x''&=x'+\mathrm{Conv}(x')\\ y&=\mathrm{LN}\big(x''+\tfrac12\,\mathrm{FFN}_2(x'')\big)\end{aligned}$$`,
+   w:()=>{const nm=Mx=>{const v=colOf(Mx,0);return Math.sqrt(v.reduce((a,b)=>a+b*b,0))};return R`<p>Length $\lVert\cdot\rVert_2$ of frame 0's vector as it moves down the residual stream:</p><table><tr><th>X₀</th><th>X₁</th><th>X₂</th><th>X₃</th><th>X₄</th><th>H</th></tr><tr><td>${n(nm(X0),2)}</td><td>${n(nm(X1),2)}</td><td>${n(nm(X2),2)}</td><td>${n(nm(X3),2)}</td><td>${n(nm(X4),2)}</td><td>${n(nm(Y),2)}</td></tr></table><p>Each sub-layer only <i>adds</i> to the stream. The final LayerNorm resets the length to $\sqrt{d}=4$.</p>`}},
+8:{m:R`$$\mathrm{LN}(x)=\gamma\odot\frac{x-\mu}{\sqrt{\sigma^2+\epsilon}}+\beta,\qquad \mu=\tfrac1d\sum_i x_i,\quad \sigma^2=\tfrac1d\sum_i(x_i-\mu)^2$$
+$$\mathrm{FFN}(x)=W_2\,\mathrm{Swish}(W_1x),\qquad \mathrm{Swish}(z)=z\,\sigma(z)=\frac{z}{1+e^{-z}}$$`,
+   w:()=>{const v=colOf(X0,0),mu=v.reduce((a,b)=>a+b,0)/v.length,sd=Math.sqrt(v.reduce((a,b)=>a+(b-mu)**2,0)/v.length);const z=dotTerms(rowOf(W1a,0),colOf(ln1,0)).s;
+     return R`<p>Frame 0: $\mu=${n(mu)}$, $\sigma=${n(sd)}$, so $\mathrm{LN}(x)_0=(${n(v[0])}-(${n(mu)}))/${n(sd)}=${n(ln1.get(0,0))}$ (here $\gamma=1,\beta=0$).</p><p>First hidden unit: $z=(W_1\,\mathrm{LN}(x))_0=${n(z)}$, so $\mathrm{Swish}(z)=${n(z)}\cdot\sigma(${n(z)})=${n(swish(z))}$.</p>`}},
+9:{m:R`$$q_i=W_Q\,x_i,\quad k_i=W_K\,x_i,\quad v_i=W_V\,x_i,\qquad q_i^{(h)}=q_i[\,4h:4h+4\,]$$`,
+   w:()=>R`<p>Head 0's query for frame 0: $q_0^{(0)}=[${[0,1,2,3].map(d=>n(Q.get(d,0),2)).join(',\;')}]$.</p><p>Parameters for $W_Q,W_K,W_V$: $3\cdot16^2=768$ here; $3\cdot1024^2=3{,}145{,}728$ per layer in your model, plus $W_O$.</p>`},
+10:{m:R`$$S^{(h)}_{ij}=\frac{q_i^{(h)}\cdot k_j^{(h)}}{\sqrt{d_h}}+M_{ij}$$
+$$M_{ij}=\begin{cases}0&\lfloor j/C\rfloor\le\lfloor i/C\rfloor\\-\infty&\text{otherwise}\end{cases}$$`,
+   w:()=>{const i=3,j=2,q=[0,1,2,3].map(d=>Q.get(d,i)),k=[0,1,2,3].map(d=>K.get(d,j)),d=dotTerms(q,k,4);
+     return R`<p>$$\begin{aligned}S^{(0)}_{${i}${j}}&=\tfrac12\big(${brk(d.parts)}\big)\\&=${n(d.s)}/2=${n(S[0].get(i,j))}\end{aligned}$$</p><p>With chunk size $C=2$: query 2 is in chunk $\lfloor2/2\rfloor=1$ and key 5 is in chunk $2$, so $M_{2,5}=-\infty$ (masked). In your model, $[56,13]$ means $C=14$ frames and at most 56 past frames.</p>`}},
+11:{m:R`$$A_{ij}=\frac{e^{S_{ij}}}{\sum_{k}e^{S_{ik}}},\qquad \sum_j A_{ij}=1$$
+$$e^{-\infty}=0\ \Rightarrow\ A_{ij}=0\ \text{for masked }j$$`,
+   w:()=>{const i=3,vis=[0,1,2,3],mx=Math.max(...vis.map(j=>S[0].get(i,j)));const ex=vis.map(j=>Math.exp(S[0].get(i,j)));const Z=ex.reduce((a,b)=>a+b,0);
+     return`<p>Head 0, query frame 3 (sees keys 0…3):</p><table><tr><th>j</th><th>S</th><th>e^S</th><th>A</th></tr>${vis.map((j,q)=>`<tr><td>${j}</td><td>${n(S[0].get(i,j))}</td><td>${n(ex[q])}</td><td>${n(A[0].get(i,j))}</td></tr>`).join('')}<tr><td>4–7</td><td>−∞</td><td>0</td><td>0</td></tr></table><p>$\\sum e^{S}=${n(Z)}$, and the weights sum to $${n(vis.reduce((a,j)=>a+A[0].get(i,j),0))}$.</p>`}},
+12:{m:R`$$o^{(h)}_i=\sum_j A^{(h)}_{ij}\,v^{(h)}_j,\qquad \mathrm{MHSA}(X)=W_O\big[o^{(0)};o^{(1)};o^{(2)};o^{(3)}\big]$$`,
+   w:()=>{const i=3,t=[0,1,2,3].map(j=>R`${n(A[0].get(i,j),2)}\cdot(${n(V.get(0,j),2)})`).join(' + ');return R`<p>First dimension of head 0's output for frame 3:</p><p>$$\begin{aligned}o^{(0)}_3[0]&=${brk(t.split(' + '))}\\&=${n(Ocat.get(0,i))}\end{aligned}$$</p><p>It is a weighted average of the value vectors, using the softmax row from the previous step.</p>`}},
+13:{m:R`$$[a;\,b]=W_{\text{pw1}}\,\mathrm{LN}(x)\in\mathbb R^{2d},\qquad \mathrm{GLU}(a,b)=a\odot\sigma(b)$$`,
+   w:()=>{const a=p1.get(0,0),b=p1.get(D,0);return R`<p>Channel 0, frame 0: $a=${n(a)}$, $b=${n(b)}$, $\sigma(b)=${n(sigm(b))}$, so $a\,\sigma(b)=${n(glu.get(0,0))}$.</p><p>The gate $\sigma(b)\in(0,1)$ decides how much of $a$ passes through.</p>`}},
+14:{m:R`$$y[c,t]=\sum_{q=0}^{K-1}k_c[q]\;x[c,\,t-(K-1)+q],$$
+$$x[c,\tau]=0\ \text{for}\ \tau<0\ \ (\text{causal: no future frames})$$
+$$\text{params: depthwise } d\,K\quad\text{vs. full conv } d^2K$$`,
+   w:()=>{const t=2,terms=[];for(let q=0;q<KS;q++){const ti=t-(KS-1)+q;terms.push(ti<0?R`${n(dwW.get(0,q),2)}\cdot0`:R`${n(dwW.get(0,q),2)}\cdot(${n(glu.get(0,ti),2)})`)}
+     return R`<p>$y[0,2]$ uses frames $-2,-1,0,1,2$; the first two are before the start, so they are 0:</p><p>$$\begin{aligned}y[0,2]&=${brk(terms)}\\&=${n(dw.get(0,2))}\end{aligned}$$</p><p>Parameters: $16\cdot5=80$ vs. $16^2\cdot5=1280$ for a full conv (16× fewer). Your model: $1024\cdot9=9{,}216$ vs. $9{,}437{,}184$ (1024× fewer).</p>`}},
+15:{m:R`$$\text{BatchNorm: }\mu_c=\frac1{BT}\sum_{b,t}x_{b,c,t}\qquad\text{LayerNorm: }\mu_t=\frac1d\sum_{c}x_{c,t}$$
+$$x''=x'+W_{\text{pw2}}\,\mathrm{Swish}\big(\mathrm{LN}(y)\big)$$`,
+   w:()=>{const v=colOf(dw,0),mu=v.reduce((a,b)=>a+b,0)/v.length,sd=Math.sqrt(v.reduce((a,b)=>a+(b-mu)**2,0)/v.length);
+     return R`<p>LayerNorm for frame 0 only needs frame 0: $\mu_0=${n(mu)}$, $\sigma_0=${n(sd)}$.</p><p>BatchNorm's $\mu_c$ averages over all frames $t$, including future ones. Training statistics then differ from what a streaming chunk sees. LayerNorm avoids this, which is why your config uses <code>conv_norm_type: layer_norm</code>.</p>`}},
+16:{m:R`$$X_4=X_3+\tfrac12\,W_2\,\mathrm{Swish}\big(W_1\,\mathrm{LN}(X_3)\big),\qquad H=\mathrm{LN}(X_4)$$`,
+   w:()=>{const st=j=>{const v=colOf(Y,j),mu=v.reduce((a,b)=>a+b,0)/v.length;return[mu,Math.sqrt(v.reduce((a,b)=>a+(b-mu)**2,0)/v.length)]};const[a0,b0]=st(0),[a7,b7]=st(7);
+     return R`<p>Check the final LayerNorm: frame 0 has mean $${n(a0)}$ and std $${n(b0)}$; frame 7 has mean $${n(a7)}$ and std $${n(b7)}$.</p>`}},
+17:{m:R`$$\text{params/layer}\approx\underbrace{16d^2}_{\text{2 FFNs}}+\underbrace{4d^2}_{\text{MHSA}}+\underbrace{3d^2+Kd}_{\text{conv}}\approx23\,d^2$$
+$$\text{full: }O(T^2d)\qquad\text{chunked-limited: }O\big(T\,(L+C)\,d\big)$$`,
+   w:()=>{const d=1024,per=23*d*d,Tm=750,full=Tm*Tm,ch=Tm*(56+14);return R`<p>Your model: $23\cdot1024^2=${(per/1e6).toFixed(1)}$ M per layer, $\times24\approx${(per*24/1e9).toFixed(2)}$ B. Add rel-pos projections and the decoder and you get ≈ 0.6 B.</p><p>60 s of audio is $T=750$ frames. Full attention: $750^2=${full.toLocaleString()}$ scores per head per layer. Chunked $[56,13]$: each query sees at most $56+14=70$ keys, so $\le${ch.toLocaleString()}$, which is ${(full/ch).toFixed(1)}× fewer and grows linearly with $T$.</p>`}},
+18:{m:R`$$e_t=W_{je}\,h_t\in\mathbb R^{J},\qquad t=0,\dots,T'-1$$`,
+   w:()=>R`<p>Here $W_{je}$ is $16\times16$. In your model it is $640\times1024=655{,}360$ weights. It is applied once per frame, not once per $(t,u)$ pair, so it is cheap.</p><p>$e_0[0]=${n(encJ.get(0,0))}$</p>`},
+19:{m:R`$$\begin{aligned}i_u&=\sigma(W_i[x_u;g_{u-1}]+b_i)\\ f_u&=\sigma(W_f[x_u;g_{u-1}]+b_f)\\ \tilde c_u&=\tanh(W_c[x_u;g_{u-1}]+b_c)\\ o_u&=\sigma(W_o[x_u;g_{u-1}]+b_o)\\ c_u&=f_u\odot c_{u-1}+i_u\odot\tilde c_u\\ g_u&=o_u\odot\tanh(c_u)\end{aligned}$$
+$$x_u=E[y_u],\qquad x_0=E[\varnothing]=\mathbf 0$$`,
+   w:()=>{const g0=dec.G[0],nn=g=>Math.sqrt(g.reduce((a,b)=>a+b*b,0));return R`<p>Parameters: $4\cdot16\cdot(16+16)=2048$ here (forget bias starts at $+1$). Your model: $2$ layers $\times\,4\cdot640\cdot1280\approx6.55$ M.</p><p>$\lVert g_0\rVert=${n(nn(g0))}$: with $x_0=\mathbf0$, $g_{-1}=c_{-1}=\mathbf0$ and zero gate biases, $\tilde c_0=\tanh(0)=0$, so $c_0=g_0=\mathbf0$ exactly. A trained model has learned biases, so its $g_0\ne0$. After all ${U} tokens, $\lVert g_{${U}}\rVert=${n(nn(dec.G[U]))}$.</p>`}},
+20:{m:R`$$z_{t,u}=W_{\text{out}}\,\mathrm{ReLU}(e_t+p_u)+b$$
+$$P(k\mid t,u)=\frac{e^{z_{t,u,k}}}{\sum_{k'}e^{z_{t,u,k'}}}$$`,
+   w:()=>{const s0=dec.path[0],top=s0.p.map((p,k)=>[p,k]).sort((a,b)=>b[0]-a[0]).slice(0,3);
+     return R`<p>At $(t,u)=(0,0)$ the top three outputs are ${top.map(([p,k])=>R`$P(\text{${VOCAB[k]==='∅'?'blank':VOCAB[k].replace('▁','_')}})=${n(p)}$`).join(', ')}.</p><p>Size in your model: for 10 s ($T'=125$) and a 40-token transcript, the full lattice is $125\times41\times13{,}088\approx${(125*41*13088/1e6).toFixed(0)}$ M logits. That is why training uses a fused joint and loss (<code>fuse_loss_wer</code>).</p>`}},
+21:{m:R`$$P(\mathbf y\mid\mathbf x)=\sum_{\mathbf a\in\mathcal B^{-1}(\mathbf y)}\ \prod_i P(a_i\mid t_i,u_i)$$
+$$\begin{aligned}\alpha(t,u)=\;&\alpha(t-1,u)\,\varnothing(t-1,u)\\+\;&\alpha(t,u-1)\,y(t,u-1),\qquad\alpha(0,0)=1\end{aligned}$$
+$$P(\mathbf y\mid\mathbf x)=\alpha(T'-1,U)\,\varnothing(T'-1,U)$$
+$$\mathcal L_{\text{RNN-T}}=-\log P(\mathbf y\mid\mathbf x)$$
+$$\text{greedy: }k^*=\arg\max_k P(k\mid t,u)$$`,
+   w:()=>{const Tn=TP,al=Array.from({length:Tn},()=>new Float64Array(U+1)),yP=(t,u)=>joint(t,dec.G[u]).p[dec.toks[u]],bl=(t,u)=>lattice.get(u,t);
+     for(let t=0;t<Tn;t++)for(let u=0;u<=U;u++){if(t===0&&u===0){al[0][0]=1;continue}al[t][u]=(t>0?al[t-1][u]*bl(t-1,u):0)+(u>0?al[t][u-1]*yP(t,u-1):0)}
+     const Py=al[Tn-1][U]*bl(Tn-1,U);let lg=0;for(const s of dec.path)lg+=Math.log(s.p[s.k]);
+     return R`<p>Greedy output: <code>${dec.toks.map(k=>VOCAB[k]).join(' ')}</code> ($U=${U}$ tokens, $T'=${Tn}$ frames).</p><p>Number of valid alignments, i.e. ways to interleave $T'$ blanks and $U$ tokens with a blank last: $\binom{T'-1+U}{U}=\binom{${Tn-1+U}}{${U}}=${binom(Tn-1+U,U).toLocaleString()}$.</p><p>Forward algorithm over all of them: $\log P(\mathbf y\mid\mathbf x)=${n(Math.log(Py))}$. The single greedy path alone: $\sum\log P=${n(lg)}$. The sum over alignments is always $\ge$ the best single path.</p>`}}
+};
+
+/* ---- TOC + card ---- */
+const toc=document.getElementById('toc');let lastG='';
+STEPS.forEach((s,k)=>{if(s.g!==lastG){const h=document.createElement('h3');h.textContent=s.g;toc.appendChild(h);lastG=s.g}const b=document.createElement('button');b.type='button';b.innerHTML=`<span>${String(k).padStart(2,'0')}</span>${s.t}`;b.onclick=()=>go(k);toc.appendChild(b)});
+const tocBtns=[...toc.querySelectorAll('button')];
+
+let labelsOn=true,cur=-1,animT=0,camFrom=null,camTo=null,camT=1;
+const readout=document.getElementById('readout');
+function boundsOf(s){let x0=Infinity,x1=-Infinity,y0=-Infinity,y1=Infinity;const inc=b=>{x0=Math.min(x0,b.x0);x1=Math.max(x1,b.x0+b.w);y0=Math.max(y0,b.y0);y1=Math.min(y1,b.y0-b.h)};
+  s.focus.forEach(n=>{const t=tensors[n];inc({x0:t.x0-.5,y0:t.y0+3,w:t.w,h:t.h+3})});(s.extra||[]).forEach(e=>{if(e==='wave')inc(waveB);if(e==='spec')inc(specB);if(e==='stack')inc(blockB)});return{x0,x1,y0,y1}}
+function go(k){k=Math.max(0,Math.min(STEPS.length-1,k));if(k===cur)return;cur=k;const s=STEPS[k];animT=0;
+  document.getElementById('kicker').textContent=`${s.g} · step ${k} of ${STEPS.length-1}`;
+  document.getElementById('title').textContent=s.t;
+  const mt=MATH[k],bodyEl=document.getElementById('body');if(window.MathJax&&MathJax.typesetClear)MathJax.typesetClear([bodyEl]);
+  bodyEl.innerHTML=s.b+(mt?`<div class="mathbox"><div class="mlabel">The maths</div>${mt.m}</div><details class="worked" open><summary>Worked example · numbers from this model</summary><div class="wk">${mt.w()}</div></details>`:(s.f?`<div class="formula">${s.f}</div>`:''))+(s.chips?`<div class="chips">${s.chips.map(c=>`<span class="chip">${c}</span>`).join('')}</div>`:'');
+  typesetCard();
+  document.getElementById('count').textContent=`${k+1} / ${STEPS.length}`;
+  document.getElementById('prev').disabled=k===0;document.getElementById('next').disabled=k===STEPS.length-1;
+  tocBtns.forEach((b,i)=>b.classList.toggle('on',i===k));document.querySelector('.scroll').scrollTop=0;
+  const focus=new Set(s.focus),showAll=k===0||k===STEPS.length-1;labelsOn=!showAll;sectionLbls.forEach(o=>o.visible=showAll);
+  for(const n of all){const t=tensors[n],fs=firstStep[n]??0;
+    if(showAll){t.targetOpacity=focus.has(n)?.95:.3;setShown(t,t.m.c,false)}
+    else if(fs>k){t.targetOpacity=.16;setShown(t,0,false)}
+    else if(fs===k){t.targetOpacity=1;setShown(t,0,false);t.reveal=0}
+    else{t.targetOpacity=focus.has(n)?1:.2;setShown(t,t.m.c,false)}}
+  const ex=new Set(s.extra||[]);
+  waveLine.material.opacity=ex.has('wave')||showAll?1:.18;winBox.visible=false;specLine.visible=ex.has('spec');specLbl.visible=ex.has('spec');
+  stack.visible=ex.has('stack');stackLbl.visible=ex.has('stack');pathLine.visible=ex.has('path');outLbl.visible=ex.has('path');
+  pathLine.geometry.setDrawRange(0,k===STEPS.length-1?pathPts.length:0);outLbl.element.textContent=k===STEPS.length-1?`“${transcript}”`:'';
+  hideOutlines();readout.textContent='';
+  setJoint(0);
+  // camera framing
+  const b=boundsOf(s),cx=(b.x0+b.x1)/2,cy=(b.y0+b.y1)/2,w=b.x1-b.x0,h=b.y0-b.y1,asp=camera.aspect,vf=THREE.MathUtils.degToRad(camera.fov);
+  const dist=Math.max(h,w/asp)/(2*Math.tan(vf/2))*1.12+12;
+  camFrom={p:camera.position.clone(),t:controls.target.clone()};camTo={p:showAll?new THREE.Vector3(cx+dist*.55,cy+dist*.12,dist*.85):new THREE.Vector3(cx+dist*.16,cy+dist*.07,dist),t:new THREE.Vector3(cx,cy,0)};camT=matchMedia('(prefers-reduced-motion: reduce)').matches?1:0;
+  if(camT===1){camera.position.copy(camTo.p);controls.target.copy(camTo.t)}
+  try{history.replaceState(null,'','#step-'+k)}catch(e){}}
+function typesetCard(){const el=document.getElementById('body');if(window.MathJax&&MathJax.typesetPromise)MathJax.typesetPromise([el]).catch(e=>console.warn(e))}
+window.__typesetCard=typesetCard;
+function setShown(t,n,force){if(t.shown!==n||force){t.shown=n;layoutCells(t)}t.reveal=undefined}
+function setJoint(i){const s=dec.path[i];tensors.hj.m.d.set(s.hj);tensors.pz.m.d.set(s.p);rescale(tensors.hj);recolor(tensors.hj);rescale(tensors.pz);recolor(tensors.pz);return s}
+document.getElementById('prev').onclick=()=>go(cur-1);document.getElementById('next').onclick=()=>go(cur+1);
+addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('button')&&(e.key===' '||e.key==='Enter'))return;if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(cur+1)}if(e.key==='ArrowLeft'){e.preventDefault();go(cur-1)}});
+
+/* ---- per-step animations ---- */
+const ANIM={
+ stft(a,tm){const t=Math.floor(tm*7)%T;winBox.visible=true;winBox.position.set(xw0+(t*HOP+WIN/2)*P/HOP,0,.3);drawSpec(t);cover(outlines[0],tensors.mel,0,NM-1,t,t);readout.textContent=`frame t=${t} · samples ${t*HOP}…${t*HOP+WIN-1} · ${(t*10)} ms → mel column ${t}`},
+ col(a,tm){const X=tensors[a.X],Y=tensors[a.Y],j=Math.floor(tm*3)%Y.m.c;cover(outlines[1],X,0,X.m.r-1,j,j);if(a.X!==a.Y)cover(outlines[2],Y,0,Y.m.r-1,j,j);
+   const v=colOf(Y.m,j),mu=v.reduce((p,q)=>p+q,0)/v.length,sd=Math.sqrt(v.reduce((p,q)=>p+(q-mu)**2,0)/v.length);readout.textContent=a.X===a.Y?`column t=${j}: ${v.length} mel energies for ${(j*10)}–${j*10+25} ms`:`column ${j}: after LayerNorm mean = ${mu.toFixed(3)}, std = ${sd.toFixed(3)}`},
+ rows(a,tm){const X=tensors[a.X],Y=tensors[a.Y],i=Math.floor(tm*2)%Y.m.r;cover(outlines[1],X,i,i,0,X.m.c-1);cover(outlines[2],Y,i,i,0,Y.m.c-1);
+   let s=0,best=0;for(let j=0;j<Y.m.c;j++){s+=Y.m.get(i,j);if(Y.m.get(i,j)>Y.m.get(i,best))best=j}readout.textContent=`head 0, query frame ${i}: Σ weights = ${s.toFixed(3)} · strongest key = frame ${best} (${Y.m.get(i,best).toFixed(2)}) · frames > ${Math.floor(i/CHUNK)*CHUNK+CHUNK-1} masked`},
+ matmul(a,tm){const W=tensors[a.W],X=tensors[a.X],Y=tensors[a.Y],n=Y.m.r*Y.m.c,k=Math.floor(tm*9)%n,j=Math.floor(k/Y.m.r),i=k%Y.m.r;
+   cover(outlines[0],W,i,i,0,W.m.c-1);cover(outlines[1],X,0,X.m.r-1,j,j);cover(outlines[2],Y,i,i,j,j);
+   let s=0;for(let q=0;q<W.m.c;q++)s+=W.m.get(i,q)*X.m.get(q,j);readout.textContent=`${a.Y}[${i},${j}]: Σ_k W[${i},k]·x[k,${j}] over ${W.m.c} terms = ${s.toFixed(3)}${Math.abs(s-Y.m.get(i,j))>1e-4?` → after activation ${Y.m.get(i,j).toFixed(3)}`:''}`},
+ conv(a,tm){const X=tensors[a.X],Y=tensors[a.Y],t=Math.floor(tm*2.5)%Y.m.c,c0=t*a.s-a.p;cover(outlines[0],X,0,X.m.r-1,c0,c0+a.k-1);cover(outlines[2],Y,0,Y.m.r-1,t,t);
+   readout.textContent=`output frame ${t} ← input frames ${Math.max(0,c0)}…${Math.min(X.m.c-1,c0+a.k-1)}${c0<0?' (zero-padded on the left)':''}${a.causal?' · no future frames':''}`},
+ scores(a,tm){const h=a.h,k=Math.floor(tm*5)%(TP*TP),i=Math.floor(k/TP),j=k%TP,Sx=tensors['S'+h];cover(outlines[0],tensors.Q,h*DH,h*DH+DH-1,i,i);cover(outlines[1],tensors.K,h*DH,h*DH+DH-1,j,j);cover(outlines[2],Sx,i,i,j,j);
+   readout.textContent=visible(i,j)?`head ${h}: S[${i},${j}] = q_${i}·k_${j}/√4 = ${Sx.m.get(i,j).toFixed(3)}`:`head ${h}: S[${i},${j}] masked: key frame ${j} is in a future chunk for query ${i}`},
+ joint(a,tm){const i=Math.floor(tm*1.1)%dec.path.length,s=setJoint(i);cover(outlines[0],tensors.encJ,0,JH-1,s.t,s.t);cover(outlines[1],tensors.predJ,0,JH-1,s.u,s.u);cover(outlines[2],tensors.lat,s.u,s.u,s.t,s.t);cover(outlines[3],tensors.pz,s.k,s.k,0,0);
+   readout.textContent=`t=${s.t}, u=${s.u}: best = ${VOCAB[s.k]} (${(s.p[s.k]*100).toFixed(1)}%) · P(blank) = ${(s.p[BLANK]*100).toFixed(1)}%`},
+ decode(a,tm){const n=dec.path.length,period=n/1.4+3,local=tm%period,i=Math.min(n-1,Math.floor(local*1.4)),s=setJoint(i);
+   pathLine.geometry.setDrawRange(0,i+2);cover(outlines[2],tensors.lat,s.u,s.u,s.t,s.t);cover(outlines[3],tensors.pz,s.k,s.k,0,0);
+   const sofar=dec.path.slice(0,i+1).filter(p=>p.k!==BLANK).map(p=>VOCAB[p.k]).join('').replace(/▁/g,' ');outLbl.element.textContent=`“${sofar.trim()}”`;
+   readout.textContent=`(t=${s.t}, u=${s.u}) → ${s.k===BLANK?'blank ∅: move right to frame '+(s.t+1):'emit '+VOCAB[s.k]+': move down, update LSTM'}`}
+};
+
+/* ---- hover tooltip ---- */
+const tip=document.getElementById('tip'),ray=new THREE.Raycaster(),ptr=new THREE.Vector2();let hoverEv=null;
+canvas.addEventListener('pointermove',e=>{hoverEv=e});canvas.addEventListener('pointerleave',()=>{hoverEv=null;tip.style.display='none'});
+function doHover(){if(!hoverEv)return;const r=canvas.getBoundingClientRect();ptr.set((hoverEv.clientX-r.left)/r.width*2-1,-(hoverEv.clientY-r.top)/r.height*2+1);ray.setFromCamera(ptr,camera);
+  const hit=ray.intersectObjects(meshes.filter(m=>tensors[m.userData.name].opacity>.25),false)[0];
+  if(!hit){tip.style.display='none';return}const t=tensors[hit.object.userData.name],i=Math.floor(hit.instanceId/t.m.c),j=hit.instanceId%t.m.c,mt=t.meta;
+  tip.innerHTML=`<b>${mt.label||t.name}</b> [${i}, ${j}] = ${fmt(t.m.get(i,j))}<br><span style="color:#71837f">${t.m.r}×${t.m.c} · row: ${mt.rows||''} · col: ${mt.cols||''}</span>${mt.desc?`<div class="d">${mt.desc}</div>`:''}`;
+  tip.style.display='block';const x=hoverEv.clientX-r.left+14,y=hoverEv.clientY-r.top+14;tip.style.left=Math.min(x,r.width-300)+'px';tip.style.top=Math.min(y,r.height-110)+'px';hoverEv=null}
+
+/* ---- render loop ---- */
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);labelR.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix()}
+new ResizeObserver(resize).observe(stage);resize();
+const clock=new THREE.Clock(),ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+function frame(){const dt=Math.min(clock.getDelta(),.1);animT+=dt;
+  if(camT<1){camT=Math.min(1,camT+dt/1.1);const e=ease(camT);camera.position.lerpVectors(camFrom.p,camTo.p,e);controls.target.lerpVectors(camFrom.t,camTo.t,e)}
+  for(const n of all){const t=tensors[n];t.opacity+=(t.targetOpacity-t.opacity)*Math.min(1,dt*6);t.mesh.material.opacity=t.opacity;t.label.element.style.opacity=!labelsOn?0:t.opacity>.5?1:t.opacity>.25?.45:0;
+    if(t.reveal!==undefined){t.reveal+=dt/1.1;const n2=Math.min(t.m.c,Math.ceil(t.reveal*t.m.c));if(n2!==t.shown){t.shown=n2;layoutCells(t)}if(t.reveal>=1)t.reveal=undefined}}
+  const s=STEPS[cur];if(s&&s.anim&&animT>.9)ANIM[s.anim.type](s.anim,animT-.9);
+  controls.update();doHover();renderer.render(scene,camera);labelR.render(scene,camera);requestAnimationFrame(frame)}
+const start=parseInt((location.hash.match(/step-(\d+)/)||[])[1]||'0',10);
+applyTheme(theme);camera.position.set(0,-200,900);controls.target.set(0,-200,0);go(Number.isFinite(start)?start:0);frame();
+window.__stt={go,STEPS,transcript,dec};
+</script>
+</body>
+</html>

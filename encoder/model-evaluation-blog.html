@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Model Evaluation: Is Your Model Actually Good?</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  window.MathJax = {
+    tex:{inlineMath:[['$','$'],['\\(','\\)']], displayMath:[['$$','$$'],['\\[','\\]']]},
+    svg:{fontCache:'global'}
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<style>
+:root{
+  --paper:#F6F1E7; --paper2:#FBF7EF; --card:#FFFFFF;
+  --ink:#22282A; --ink-soft:#4C5658; --muted:#7E8888; --line:#E4DBCB;
+  --teal:#0E5C58; --teal-deep:#093F3C; --teal-soft:#E3EEEC;
+  --amber:#D9663B; --amber-soft:#F7E4D8; --gold:#C9A24B;
+  --violet:#6C5CE7; --blue:#2E86DE; --green:#2E9E5B; --neg:#D9663B;
+  --tp:#2E9E5B; --tn:#2E86DE; --fp:#D9663B; --fn:#B83A5E;
+  --shadow:0 1px 2px rgba(20,40,38,.04),0 8px 30px -12px rgba(20,40,38,.18);
+  --shadow-lg:0 30px 60px -24px rgba(14,92,88,.30);
+  --radius:18px; --maxw:1180px;
+  --mono:'JetBrains Mono',monospace; --disp:'Fraunces',serif; --body:'Spectral',Georgia,serif;
+  --code-bg:#0E2A28; --code-border:#15403c; --code-text:#CFE9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 12% -10%, #FCEBDD55, transparent 40%),radial-gradient(circle at 100% 0%, #DCEBE955, transparent 45%);
+  background-attachment:fixed;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;line-height:1.12;color:var(--teal-deep);letter-spacing:-.01em}
+a{color:var(--teal);text-decoration:none}
+code,kbd,.mono{font-family:var(--mono)}
+
+.layout{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;padding:20px clamp(20px,5vw,48px) 80px;display:grid;grid-template-columns:240px 1fr;gap:48px;align-items:start}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.toc{display:none}}
+main{min-width:0}
+section{margin-bottom:60px;scroll-margin-top:90px}
+section h2{font-size:clamp(28px,4vw,40px);margin:6px 0 20px}
+section h3{font-size:23px;margin:34px 0 12px;color:var(--teal)}
+p{margin:0 0 18px;color:var(--ink-soft)}
+.lead-in{font-size:20px;color:var(--ink-soft)}
+strong{color:var(--ink)}
+ul.plain{margin:0 0 18px;padding-left:22px;color:var(--ink-soft)}
+ul.plain li{margin:6px 0}
+
+/* progress + topbar */
+#progress{position:fixed;top:0;left:0;height:4px;width:0%;z-index:60;background:linear-gradient(90deg,var(--teal),var(--gold),var(--amber))}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;
+  padding:14px clamp(16px,4vw,40px);backdrop-filter:blur(8px);
+  background:linear-gradient(var(--paper),rgba(246,241,231,0));transition:background .3s,box-shadow .3s}
+.topbar.solid{background:rgba(246,241,231,.9);box-shadow:0 1px 0 var(--line)}
+.brand{font-family:var(--disp);font-weight:600;font-size:18px;color:var(--teal-deep);display:flex;align-items:center;gap:10px}
+.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-soft)}
+.topnav a{margin-left:22px;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.topnav a:hover{color:var(--amber)}
+@media(max-width:820px){.topnav{display:none}}
+.nbar-left{display:flex;align-items:center;gap:10px}
+.nbtn{font-family:var(--mono);font-size:12px;letter-spacing:.04em;text-transform:uppercase;display:inline-flex;align-items:center;padding:7px 13px;border-radius:999px;
+  border:1px solid var(--line);background:var(--card);color:var(--teal);cursor:pointer;text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s,border-color .2s}
+.nbtn:hover{transform:translateY(-1px);border-color:var(--amber);background:var(--teal-soft);box-shadow:var(--shadow)}
+@media(max-width:560px){.nbtn .lbl{display:none}.nbtn{padding:7px 10px}}
+
+/* hero */
+.hero{max-width:var(--maxw);margin:0 auto;padding:140px clamp(20px,5vw,48px) 30px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;position:relative;z-index:2}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:120px}}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:18px}
+.hero h1{font-size:clamp(38px,6vw,72px);font-weight:600;margin:0 0 18px}
+.hero h1 .em{font-style:italic;color:var(--amber)}
+.hero p.lead{font-size:20px;color:var(--ink-soft);max-width:42ch;margin:0 0 26px}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:13px 22px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.btn.ghost{background:transparent;color:var(--teal)}
+.btn.ghost:hover{background:var(--teal-soft)}
+.hero-fig{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.hero-fig svg{display:block;width:100%;height:auto}
+.pnode{animation:breathe 3.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+
+/* toc */
+.toc{position:sticky;top:96px;font-family:var(--mono);font-size:12.5px}
+.toc h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.toc a{display:block;color:var(--ink-soft);padding:6px 0 6px 14px;border-left:2px solid var(--line);transition:.2s;line-height:1.4}
+.toc a:hover{color:var(--teal)}
+.toc a.active{color:var(--teal-deep);border-left-color:var(--amber);font-weight:600}
+
+.sec-no{font-family:var(--mono);font-size:13px;color:var(--amber);letter-spacing:.1em}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* callouts + cards */
+.note{background:var(--teal-soft);border-left:4px solid var(--teal);border-radius:10px;padding:16px 20px;margin:22px 0;font-size:17px;color:var(--teal-deep)}
+.note.amber{background:var(--amber-soft);border-left-color:var(--amber);color:#8a3f1e}
+.note.violet{background:#ECEAFB;border-left-color:var(--violet);color:#3d3380}
+.icards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:22px 0}
+.icard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s,border-color .25s}
+.icard:hover{transform:translateY(-4px);border-color:var(--amber);box-shadow:var(--shadow-lg)}
+.icard .emoji{font-size:26px;margin-bottom:10px}
+.icard h4{font-size:19px;color:var(--teal-deep);margin:0 0 6px}
+.icard p{font-size:15.5px;color:var(--ink-soft);margin:0}
+
+.fig{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:24px 0;box-shadow:var(--shadow)}
+.fig svg{display:block;width:100%;height:auto;max-width:780px;margin:0 auto}
+.fig figcaption{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;margin-top:14px;letter-spacing:.02em}
+
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:15.5px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+thead{background:var(--teal);color:#fff;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--paper2)}
+td.mono,th.mono{font-family:var(--mono)}
+table caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--amber);padding:0 0 10px;font-weight:600}
+.tscroll{overflow-x:auto}
+
+pre{background:var(--code-bg);color:var(--code-text);border-radius:14px;padding:20px 22px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;box-shadow:var(--shadow);border:1px solid var(--code-border);margin:18px 0;position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:9px;right:15px;font-size:10.5px;color:#5f8a84;letter-spacing:.2em}
+code.inl{background:var(--teal-soft);color:var(--teal-deep);padding:2px 7px;border-radius:6px;font-size:14px}
+.c-kw{color:#F2A0C0}.c-fn{color:#7FD1E8}.c-str{color:#E7E08B}.c-num{color:#F2C879}.c-com{color:#6f9a94}
+
+.keybox{background:linear-gradient(180deg,#fff,#FBF7EF);border:1.5px solid var(--gold);border-radius:14px;padding:8px 18px;margin:18px auto;text-align:center;box-shadow:var(--shadow)}
+.eqcard{background:var(--paper2);border:1px dashed var(--line);border-radius:12px;padding:6px 18px;margin:18px 0;overflow-x:auto}
+
+/* metric formula cards */
+.mcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:22px 0}
+.mcard{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--c,var(--teal));border-radius:16px;padding:18px 20px;box-shadow:var(--shadow)}
+.mcard h4{margin:0 0 4px;font-size:20px}
+.mcard .q{font-family:var(--mono);font-size:12px;color:var(--c,var(--teal));letter-spacing:.04em;margin-bottom:6px}
+.mcard p{font-size:15.5px;margin:8px 0 0}
+.mcard .ex{font-family:var(--mono);font-size:12.5px;background:var(--paper2);border-radius:8px;padding:8px 10px;margin-top:10px;color:var(--ink)}
+
+/* ===== dark walkthrough (10 photos) ===== */
+.demo{background:linear-gradient(160deg,#0E5C58,#093F3C);border-radius:var(--radius);padding:26px;margin:24px 0;box-shadow:var(--shadow-lg);color:#DCEFEC}
+.demo h4{color:#fff;margin:0 0 4px;font-size:20px}
+.demo .dsub{font-family:var(--mono);font-size:12px;color:#9fc9c3;margin-bottom:18px}
+.photos{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+@media(max-width:620px){.photos{grid-template-columns:repeat(2,1fr)}}
+.ph{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:10px 6px;text-align:center;font-family:var(--mono);font-size:11px;color:#bfe0db;transition:background .35s,border-color .35s,transform .35s,box-shadow .35s}
+.ph .em{font-size:30px;line-height:1.1;display:block}
+.ph .pred{display:block;margin-top:4px;opacity:.25;transition:opacity .35s}
+.ph .tag{display:inline-block;margin-top:6px;padding:2px 7px;border-radius:999px;font-weight:600;opacity:0;transition:opacity .35s}
+.ph.done .pred,.ph.done .tag{opacity:1}
+.ph.cur{transform:translateY(-4px);box-shadow:0 0 0 2px var(--gold),0 8px 24px -8px rgba(201,162,75,.7)}
+.ph.TP .tag{background:var(--tp);color:#fff}.ph.TN .tag{background:var(--tn);color:#fff}
+.ph.FP .tag{background:var(--fp);color:#fff}.ph.FN .tag{background:var(--fn);color:#fff}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px;align-items:start}
+@media(max-width:760px){.dgrid{grid-template-columns:1fr}}
+.cm{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;font-family:var(--mono);font-size:12px}
+.cm .hd{color:#9fc9c3;text-align:center;align-self:end;padding:4px}
+.cm .rh{color:#9fc9c3;writing-mode:horizontal-tb;align-self:center;padding-right:4px;text-align:right}
+.cell{border-radius:10px;padding:12px 8px;text-align:center;color:#fff;transition:transform .3s,box-shadow .3s}
+.cell b{display:block;font-size:26px;font-family:var(--disp)}
+.cell.TP{background:rgba(46,158,91,.85)}.cell.TN{background:rgba(46,134,222,.85)}
+.cell.FP{background:rgba(217,102,59,.85)}.cell.FN{background:rgba(184,58,94,.85)}
+.cell.bump{transform:scale(1.08);box-shadow:0 0 0 3px var(--gold)}
+.dmet{font-family:var(--mono);font-size:13px;line-height:1.9;color:#dcefec}
+.dmet b{color:#F2C879}
+.demo-cap{min-height:46px;margin:18px 0 6px;font-size:16px;color:#eafaf7;line-height:1.5}
+.demo-ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.demo-ctrl button{font-family:var(--mono);font-size:12px;padding:9px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:transparent;color:#dcefec;cursor:pointer;transition:.2s}
+.demo-ctrl button:hover:not(:disabled){background:rgba(255,255,255,.12)}
+.demo-ctrl button:disabled{opacity:.35;cursor:not-allowed}
+.demo-ctrl button.primary{background:var(--gold);border-color:var(--gold);color:#3a2c08;font-weight:600}
+.dots{display:flex;gap:7px;margin-left:auto}
+.dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.25);transition:.2s}
+.dots i.on{background:var(--gold);transform:scale(1.3)}
+
+/* ===== light explorers ===== */
+.explorer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin:24px 0;box-shadow:var(--shadow)}
+.explorer h4{margin:0 0 4px;font-size:20px}
+.explorer .esub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:16px}
+.ctrls{display:flex;gap:22px;flex-wrap:wrap;align-items:center;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:18px}
+.ctl{display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--muted)}
+.ctl .v{color:var(--teal-deep);font-weight:600;font-size:13px}
+.ctl input[type=range]{width:170px;accent-color:var(--amber)}
+.ctl.chk{flex-direction:row;align-items:center;gap:8px;font-size:12px;color:var(--ink-soft)}
+.minibtn{font-family:var(--mono);font-size:12px;padding:9px 15px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:.2s}
+.minibtn:hover{background:var(--teal-deep)}
+.minibtn.ghost{background:transparent;color:var(--teal)}
+.esvg svg{display:block;width:100%;height:auto}
+.eread{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);margin-top:10px;line-height:1.7}
+.eread b{color:var(--teal-deep)}
+.eread .g{color:#9a7a1e}
+.lab2{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:start}
+@media(max-width:860px){.lab2{grid-template-columns:1fr}}
+.lcm{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;font-family:var(--mono);font-size:11.5px;margin-bottom:14px}
+.lcm .hd{color:var(--muted);text-align:center;padding:2px}
+.lcm .rh{color:var(--muted);align-self:center;text-align:right;padding-right:4px}
+.lcm .cell{padding:9px 6px}
+.lcm .cell b{font-size:21px}
+.bars{display:flex;flex-direction:column;gap:7px}
+.bar{display:grid;grid-template-columns:96px 1fr 52px;gap:8px;align-items:center;font-family:var(--mono);font-size:12px;color:var(--ink-soft)}
+.bar .tr{height:14px;border-radius:7px;background:#F1EBDF;overflow:hidden}
+.bar .fl{height:100%;border-radius:7px;transition:width .35s}
+.bar .val{text-align:right;color:var(--teal-deep);font-weight:600}
+
+/* map */
+.map{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin:22px 0}
+.mgrp{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow);border-top:4px solid var(--c)}
+.mgrp h4{margin:0 0 4px;font-size:18px}
+.mgrp .cnt{font-family:var(--mono);font-size:11px;color:var(--c);letter-spacing:.08em;text-transform:uppercase}
+.mgrp ul{margin:10px 0 0;padding-left:18px;font-size:15px;color:var(--ink-soft)}
+.mgrp li{margin:3px 0}
+
+details.iq{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:10px 0;box-shadow:var(--shadow)}
+details.iq summary{cursor:pointer;padding:14px 18px;font-family:var(--disp);font-size:18px;color:var(--teal-deep);list-style:none}
+details.iq summary::-webkit-details-marker{display:none}
+details.iq summary::before{content:"＋ ";color:var(--amber);font-family:var(--mono)}
+details.iq[open] summary::before{content:"－ "}
+details.iq div{padding:0 18px 14px;font-size:16.5px;color:var(--ink-soft)}
+
+footer{position:relative;z-index:2;background:var(--teal-deep);color:#BFD8D4;padding:48px clamp(20px,5vw,48px);text-align:center;font-family:var(--mono);font-size:13px}
+footer .big{font-family:var(--disp);font-size:24px;color:#fff;margin-bottom:10px}
+footer .links{margin:18px 0 6px;line-height:2}
+footer .links a{color:#9fd9d2}
+footer .sub{opacity:.7;margin-top:10px;font-size:12px}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+  .reveal{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="topbar" id="topbar">
+  <div class="nbar-left">
+    <a class="nbtn" href="javascript:history.back()" title="Go back">←<span class="lbl">&nbsp;Back</span></a>
+    <a class="nbtn" href="../index.html" title="Home">⌂<span class="lbl">&nbsp;Home</span></a>
+    <div class="brand"><span class="dot"></span> Model Evaluation · Notebook</div>
+  </div>
+  <nav class="topnav">
+    <a href="#split">Split</a><a href="#confusion">Confusion</a><a href="#metrics">Metrics</a><a href="#lab">ROC lab</a><a href="#regression">Regression</a><a href="#map">Map</a><a href="#code">Code</a>
+  </nav>
+</div>
+
+<header class="hero">
+  <div>
+    <div class="eyebrow reveal">Foundations · Measuring a model</div>
+    <h1 class="reveal">Is your model <span class="em">actually</span> good?</h1>
+    <p class="lead reveal">Model evaluation compares a model's predictions with the real answers on data it has never seen. This page walks through the full toolkit: how to split data, the confusion matrix (TP, FP, FN, TN), precision, recall and F1, ROC and AUC, regression errors, and how to choose. Each idea comes with a picture or a live lab.</p>
+    <div class="cta reveal">
+      <a class="btn" href="#why">Start reading</a>
+      <a class="btn ghost" href="#lab">Open the threshold lab</a>
+    </div>
+  </div>
+  <div class="hero-fig reveal">
+    <svg viewBox="0 0 460 300" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono">
+      <text x="230" y="22" text-anchor="middle" font-size="11" fill="#7E8888">PREDICTED</text>
+      <text x="168" y="44" text-anchor="middle" font-size="12" fill="#093F3C">Positive</text>
+      <text x="318" y="44" text-anchor="middle" font-size="12" fill="#093F3C">Negative</text>
+      <text x="22" y="160" font-size="11" fill="#7E8888" transform="rotate(-90 22 160)" text-anchor="middle">ACTUAL</text>
+      <text x="78" y="110" text-anchor="end" font-size="12" fill="#093F3C">Pos</text>
+      <text x="78" y="215" text-anchor="end" font-size="12" fill="#093F3C">Neg</text>
+      <g class="pnode"><rect x="94" y="54" width="148" height="96" rx="14" fill="#2E9E5B"/><text x="168" y="98" text-anchor="middle" font-size="26" fill="#fff" font-family="Fraunces">TP</text><text x="168" y="122" text-anchor="middle" font-size="10.5" fill="#E6F6EC">caught it ✓</text></g>
+      <g class="pnode" style="animation-delay:.5s"><rect x="248" y="54" width="148" height="96" rx="14" fill="#B83A5E"/><text x="322" y="98" text-anchor="middle" font-size="26" fill="#fff" font-family="Fraunces">FN</text><text x="322" y="122" text-anchor="middle" font-size="10.5" fill="#FBE3EA">missed it ✗</text></g>
+      <g class="pnode" style="animation-delay:1s"><rect x="94" y="158" width="148" height="96" rx="14" fill="#D9663B"/><text x="168" y="202" text-anchor="middle" font-size="26" fill="#fff" font-family="Fraunces">FP</text><text x="168" y="226" text-anchor="middle" font-size="10.5" fill="#FCE9DF">false alarm ✗</text></g>
+      <g class="pnode" style="animation-delay:1.5s"><rect x="248" y="158" width="148" height="96" rx="14" fill="#2E86DE"/><text x="322" y="202" text-anchor="middle" font-size="26" fill="#fff" font-family="Fraunces">TN</text><text x="322" y="226" text-anchor="middle" font-size="10.5" fill="#E2EEFB">correctly ignored ✓</text></g>
+      <text x="245" y="284" text-anchor="middle" fill="#7E8888" font-size="10.5">every classification metric is built from these four numbers</text>
+    </svg>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <h5>Contents</h5>
+    <a href="#why">1 · What is evaluation</a>
+    <a href="#split">2 · Splitting &amp; cross-validation</a>
+    <a href="#fit">3 · Overfit vs underfit</a>
+    <a href="#confusion">4 · Confusion matrix</a>
+    <a href="#metrics">5 · Precision, recall, F1</a>
+    <a href="#lab">6 · Threshold &amp; ROC lab</a>
+    <a href="#multiclass">7 · Multi-class &amp; top-k</a>
+    <a href="#regression">8 · Regression metrics</a>
+    <a href="#beyond">9 · Beyond the basics</a>
+    <a href="#map">10 · How many methods?</a>
+    <a href="#code">11 · Code</a>
+    <a href="#interview">12 · Interview questions</a>
+  </aside>
+
+  <main>
+
+    <!-- 01 -->
+    <section id="why" class="reveal">
+      <div class="sec-no">01</div>
+      <h2>What model evaluation is</h2>
+      <p class="lead-in">Training tells you how well a model memorised its examples. Evaluation tells you how well it will do on <em>new</em> data, which is the only thing that matters in the real world.</p>
+      <p><strong>Model evaluation</strong> is the process of measuring a trained model's performance by comparing its predictions with the true values on a <strong>held-out test set</strong>. Two questions decide everything else:</p>
+      <div class="icards">
+        <div class="icard"><div class="emoji">✂️</div><h4>1 · On which data?</h4><p>Never on the training data. You need a split (train / validation / test) or cross-validation, so the score reflects unseen data.</p></div>
+        <div class="icard"><div class="emoji">📏</div><h4>2 · With which ruler?</h4><p>The metric depends on the task: classification (precision, recall, F1, AUC), regression (MAE, RMSE, R²), speech (WER) and so on.</p></div>
+        <div class="icard"><div class="emoji">💰</div><h4>3 · What does a mistake cost?</h4><p>Missing a cancer case is worse than a false alarm. Spam is the opposite. The cost of each error type picks your metric.</p></div>
+      </div>
+      <div class="note amber"><strong>The accuracy trap.</strong> 1,000 patients, 10 have the disease. A model that always says "healthy" is <b>99% accurate</b> and completely useless: it catches 0 of the 10 sick patients. That's why we need more than accuracy.</div>
+    </section>
+
+    <!-- 02 -->
+    <section id="split" class="reveal">
+      <div class="sec-no">02</div>
+      <h2>Splitting data &amp; cross-validation</h2>
+      <p class="lead-in">A score is only honest if the model has never seen the data it is scored on. These are the standard ways to arrange that.</p>
+      <div class="fig">
+        <svg viewBox="0 0 760 120" font-family="JetBrains Mono">
+          <rect x="10" y="30" width="520" height="44" rx="8" fill="#0E5C58"/><text x="270" y="57" text-anchor="middle" fill="#fff" font-size="13">TRAIN 70% · the model learns from this</text>
+          <rect x="536" y="30" width="108" height="44" rx="8" fill="#C9A24B"/><text x="590" y="50" text-anchor="middle" fill="#3a2c08" font-size="12">VALIDATION</text><text x="590" y="65" text-anchor="middle" fill="#3a2c08" font-size="11">15% · tune</text>
+          <rect x="650" y="30" width="100" height="44" rx="8" fill="#D9663B"/><text x="700" y="50" text-anchor="middle" fill="#fff" font-size="12">TEST</text><text x="700" y="65" text-anchor="middle" fill="#fff" font-size="11">15% · once</text>
+          <text x="270" y="100" text-anchor="middle" fill="#7E8888" font-size="11">fit weights</text>
+          <text x="590" y="100" text-anchor="middle" fill="#7E8888" font-size="11">pick epochs, threshold, hyper-params</text>
+          <text x="750" y="18" text-anchor="end" fill="#D9663B" font-size="10.5">touch only at the end</text>
+        </svg>
+        <figcaption>Hold-out split. The test set is used once, for the final number; using it to tune makes the number optimistic.</figcaption>
+      </div>
+      <div class="tscroll"><table>
+        <caption>Seven ways to get an honest score</caption>
+        <thead><tr><th>Method</th><th>How it works</th><th>Use when</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Hold-out</strong></td><td>One train / test split (e.g. 80/20).</td><td>Lots of data, quick checks.</td></tr>
+          <tr><td><strong>Train / val / test</strong></td><td>Tune on validation, report on test.</td><td>Deep learning (early stopping, LR, threshold).</td></tr>
+          <tr><td><strong>k-fold CV</strong></td><td>Split into k folds; each fold is the test once; average the k scores.</td><td>Small or medium data; you want mean ± spread.</td></tr>
+          <tr><td><strong>Stratified k-fold</strong></td><td>k-fold that keeps the class ratio in every fold.</td><td>Imbalanced classification.</td></tr>
+          <tr><td><strong>Leave-one-out</strong></td><td>k = n: test on one sample at a time.</td><td>Tiny datasets (expensive).</td></tr>
+          <tr><td><strong>Time-series split</strong></td><td>Train on the past, test on the future, rolling forward.</td><td>Forecasting; never shuffle time.</td></tr>
+          <tr><td><strong>Bootstrap</strong></td><td>Resample with replacement many times; score each.</td><td>Confidence intervals for a metric.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="note violet"><strong>Group leakage.</strong> If the same speaker, patient or user appears in both train and test, the score is inflated. Split by <em>group</em> (speaker-disjoint, patient-disjoint). In the speech projects on this site, dev and test speakers are always removed from training for exactly this reason.</div>
+
+      <div class="explorer">
+        <h4>k-fold cross-validation lab</h4>
+        <div class="esub">pick k · step through the folds · each fold takes a turn as the test set</div>
+        <div class="ctrls">
+          <div class="ctl">folds k <span class="v" id="kLab">5</span><input type="range" id="kRange" min="2" max="10" value="5"></div>
+          <button class="minibtn" id="kNext">Next fold →</button>
+          <button class="minibtn ghost" id="kAll">Show all folds</button>
+        </div>
+        <div class="esvg" id="kSvg"></div>
+        <div class="eread" id="kRead"></div>
+      </div>
+    </section>
+
+    <!-- 03 -->
+    <section id="fit" class="reveal">
+      <div class="sec-no">03</div>
+      <h2>Overfitting vs underfitting</h2>
+      <p class="lead-in">Compare the training score with the validation score. The gap between them tells you what's wrong.</p>
+      <div class="fig">
+        <svg viewBox="0 0 780 230" font-family="JetBrains Mono">
+          <g transform="translate(10,20)">
+            <rect width="240" height="170" rx="12" fill="#FBF7EF" stroke="#E4DBCB"/>
+            <text x="120" y="22" text-anchor="middle" font-size="13" fill="#093F3C" font-weight="600">Underfit</text>
+            <path d="M20 60 C80 80,140 92,220 96" stroke="#0E5C58" stroke-width="3" fill="none"/>
+            <path d="M20 66 C80 86,140 100,220 104" stroke="#D9663B" stroke-width="3" fill="none"/>
+            <text x="120" y="140" text-anchor="middle" font-size="11" fill="#4C5658">both errors stay high</text>
+            <text x="120" y="158" text-anchor="middle" font-size="11" fill="#7E8888">→ bigger model, more epochs</text>
+          </g>
+          <g transform="translate(270,20)">
+            <rect width="240" height="170" rx="12" fill="#FBF7EF" stroke="#2E9E5B"/>
+            <text x="120" y="22" text-anchor="middle" font-size="13" fill="#2E9E5B" font-weight="600">Good fit ✓</text>
+            <path d="M20 40 C70 90,130 112,220 120" stroke="#0E5C58" stroke-width="3" fill="none"/>
+            <path d="M20 46 C70 96,130 112,220 114" stroke="#D9663B" stroke-width="3" fill="none"/>
+            <text x="120" y="140" text-anchor="middle" font-size="11" fill="#4C5658">both low, small gap</text>
+            <text x="120" y="158" text-anchor="middle" font-size="11" fill="#7E8888">→ ship it, test once</text>
+          </g>
+          <g transform="translate(530,20)">
+            <rect width="240" height="170" rx="12" fill="#FBF7EF" stroke="#E4DBCB"/>
+            <text x="120" y="22" text-anchor="middle" font-size="13" fill="#093F3C" font-weight="600">Overfit</text>
+            <path d="M20 40 C70 90,130 118,220 126" stroke="#0E5C58" stroke-width="3" fill="none"/>
+            <path d="M20 46 C70 90,110 96,140 94 S200 74,220 64" stroke="#D9663B" stroke-width="3" fill="none"/>
+            <line x1="140" y1="34" x2="140" y2="126" stroke="#C9A24B" stroke-dasharray="4 4"/><text x="146" y="44" font-size="10" fill="#9a7a1e">stop here</text>
+            <text x="120" y="140" text-anchor="middle" font-size="11" fill="#4C5658">val error rises again</text>
+            <text x="120" y="158" text-anchor="middle" font-size="11" fill="#7E8888">→ regularise, early stop</text>
+          </g>
+          <circle cx="290" cy="222" r="5" fill="#0E5C58"/><text x="300" y="226" font-size="11" fill="#4C5658">training error</text>
+          <circle cx="420" cy="222" r="5" fill="#D9663B"/><text x="430" y="226" font-size="11" fill="#4C5658">validation error</text>
+        </svg>
+        <figcaption>x-axis: epochs (or model complexity) · y-axis: error</figcaption>
+      </div>
+      <ul class="plain">
+        <li><strong>Underfitting</strong>: the model is too simple; it is wrong on both training and new data.</li>
+        <li><strong>Overfitting</strong>: the model memorises the training set, including its noise, and does worse on new data.</li>
+        <li><strong>Fixes for overfitting</strong>: more or more varied data, <strong>regularisation</strong> (L2 / weight decay, dropout), data augmentation, early stopping on the validation metric.</li>
+      </ul>
+    </section>
+
+    <!-- 04 -->
+    <section id="confusion" class="reveal">
+      <div class="sec-no">04</div>
+      <h2>The confusion matrix: TP, FP, FN, TN</h2>
+      <p class="lead-in">Take a binary classifier: "is this photo a <b>dog</b>?" Each prediction falls into one of four boxes, depending on whether the truth and the prediction agree.</p>
+      <div class="mcards" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))">
+        <div class="mcard" style="--c:var(--tp)"><h4>True Positive (TP)</h4><div class="q">actual dog · predicted dog</div><p>A hit: the model said "dog" and it is a dog.</p></div>
+        <div class="mcard" style="--c:var(--tn)"><h4>True Negative (TN)</h4><div class="q">actual not-dog · predicted not-dog</div><p>Correctly ignored: a cat is called "not dog".</p></div>
+        <div class="mcard" style="--c:var(--fp)"><h4>False Positive (FP)</h4><div class="q">actual not-dog · predicted dog</div><p>A false alarm (Type I error): a cat is called "dog".</p></div>
+        <div class="mcard" style="--c:var(--fn)"><h4>False Negative (FN)</h4><div class="q">actual dog · predicted not-dog</div><p>A miss (Type II error): a real dog is called "not dog".</p></div>
+      </div>
+      <p>Memory trick: the second word (<b>Positive</b>/<b>Negative</b>) is what the model <em>predicted</em>; the first word (<b>True</b>/<b>False</b>) says whether that prediction was right.</p>
+
+      <div class="demo">
+        <h4>Ten photos, one at a time</h4>
+        <div class="dsub">6 real dogs · 4 cats · watch each prediction land in its box</div>
+        <div class="photos" id="photos"></div>
+        <div class="dgrid">
+          <div>
+            <div class="cm">
+              <div></div><div class="hd">pred: dog</div><div class="hd">pred: not dog</div>
+              <div class="rh">actual dog</div><div class="cell TP" id="cTP"><b>0</b>TP</div><div class="cell FN" id="cFN"><b>0</b>FN</div>
+              <div class="rh">actual not dog</div><div class="cell FP" id="cFP"><b>0</b>FP</div><div class="cell TN" id="cTN"><b>0</b>TN</div>
+            </div>
+          </div>
+          <div class="dmet" id="pMet"></div>
+        </div>
+        <div class="demo-cap" id="pCap"></div>
+        <div class="demo-ctrl">
+          <button id="pPrev">← Prev</button><button id="pNext">Next →</button><button class="primary" id="pPlay">▶ Play</button>
+          <div class="dots" id="pDots"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section id="metrics" class="reveal">
+      <div class="sec-no">05</div>
+      <h2>Accuracy, precision, recall, F1</h2>
+      <p class="lead-in">Every metric below is a ratio of the four boxes. Final counts from the ten photos: <b>TP = 4, FN = 2, FP = 1, TN = 3</b>.</p>
+      <div class="mcards">
+        <div class="mcard" style="--c:var(--teal)"><h4>Accuracy</h4><div class="q">how often is it right overall?</div>
+          $$\frac{TP+TN}{TP+TN+FP+FN}$$<div class="ex">(4 + 3) / 10 = 0.70</div><p>Misleading when classes are imbalanced (the 99% trap).</p></div>
+        <div class="mcard" style="--c:var(--fp)"><h4>Precision</h4><div class="q">when it says "dog", how often is it right?</div>
+          $$\frac{TP}{TP+FP}$$<div class="ex">4 / (4 + 1) = 0.80</div><p>High precision = few false alarms. Matters for spam filters and recommendations.</p></div>
+        <div class="mcard" style="--c:var(--fn)"><h4>Recall (sensitivity, TPR)</h4><div class="q">of all real dogs, how many did it find?</div>
+          $$\frac{TP}{TP+FN}$$<div class="ex">4 / (4 + 2) = 0.667</div><p>High recall = few misses. Matters for disease screening and fraud.</p></div>
+        <div class="mcard" style="--c:var(--violet)"><h4>F1 score</h4><div class="q">one number for the balance</div>
+          $$F_1 = 2\cdot\frac{P\cdot R}{P+R}$$<div class="ex">2·0.8·0.667 / 1.467 = 0.727</div><p>Harmonic mean: it is low if <em>either</em> P or R is low.</p></div>
+        <div class="mcard" style="--c:var(--tn)"><h4>Specificity (TNR)</h4><div class="q">of all real non-dogs, how many were ignored?</div>
+          $$\frac{TN}{TN+FP}$$<div class="ex">3 / (3 + 1) = 0.75</div><p>Recall for the negative class. FPR = 1 − specificity.</p></div>
+        <div class="mcard" style="--c:var(--gold)"><h4>F-beta</h4><div class="q">tilt the balance on purpose</div>
+          $$F_\beta=(1+\beta^2)\frac{P\cdot R}{\beta^2P+R}$$<div class="ex">β = 2 → recall counts 2× · β = 0.5 → precision counts 2×</div></div>
+      </div>
+      <div class="note"><strong>Why a harmonic mean?</strong> P = 1.0 and R = 0.02 averages to 0.51 (looks fine), but F1 = 0.04. The harmonic mean punishes the weak side, so you can't hide a terrible recall behind a perfect precision.</div>
+      <h3>The precision–recall tug of war</h3>
+      <p>Most classifiers output a <strong>score</strong> (a probability), and a <strong>threshold</strong> turns it into yes or no. Raise the threshold and the model says "yes" less often: precision goes up and recall goes down. Lower it and the opposite happens. You can't usually max both; you pick the trade-off your problem needs. The next lab lets you feel it.</p>
+    </section>
+
+    <!-- 06 -->
+    <section id="lab" class="reveal">
+      <div class="sec-no">06</div>
+      <h2>Threshold lab: precision, recall &amp; the ROC curve</h2>
+      <p class="lead-in">20 test samples with model scores. Teal dots are real positives, amber dots are real negatives. Slide the threshold and watch every metric move together.</p>
+      <div class="explorer">
+        <h4>Move the decision threshold</h4>
+        <div class="esub">score ≥ threshold → predicted positive</div>
+        <div class="ctrls">
+          <div class="ctl">threshold <span class="v" id="thLab">0.50</span><input type="range" id="thRange" min="0" max="1" step="0.01" value="0.5"></div>
+          <button class="minibtn ghost" id="thBest">Best F1 threshold</button>
+        </div>
+        <div class="esvg" id="lineSvg"></div>
+        <div class="lab2" style="margin-top:12px">
+          <div>
+            <div class="lcm">
+              <div></div><div class="hd">pred +</div><div class="hd">pred −</div>
+              <div class="rh">actual +</div><div class="cell TP" id="lTP"></div><div class="cell FN" id="lFN"></div>
+              <div class="rh">actual −</div><div class="cell FP" id="lFP"></div><div class="cell TN" id="lTN"></div>
+            </div>
+            <div class="bars" id="lBars"></div>
+          </div>
+          <div class="esvg" id="rocSvg"></div>
+        </div>
+        <div class="eread" id="lRead"></div>
+      </div>
+      <h3>Reading the ROC curve and AUC</h3>
+      <p>The <strong>ROC curve</strong> plots recall (true-positive rate) against the false-positive rate for <em>every</em> threshold. The <strong>AUC</strong> (area under it) is the probability that a randomly chosen positive gets a higher score than a randomly chosen negative.</p>
+      <ul class="plain">
+        <li><b>AUC = 1.0</b>: perfect ranking. <b>AUC = 0.5</b>: coin flip (the diagonal). Below 0.5: the labels are probably flipped.</li>
+        <li>AUC doesn't depend on the threshold, so it is good for <em>comparing</em> models. You still need a threshold to deploy one.</li>
+        <li>With heavy class imbalance, prefer the <strong>precision–recall curve</strong> and its area (average precision): ROC can look great even when precision is poor.</li>
+      </ul>
+    </section>
+
+    <!-- 07 -->
+    <section id="multiclass" class="reveal">
+      <div class="sec-no">07</div>
+      <h2>Multi-class reports &amp; top-k accuracy</h2>
+      <p class="lead-in">With more than two classes, compute precision, recall and F1 <em>per class</em> (that class vs the rest), then average. This is exactly what scikit-learn's <code class="inl">classification_report</code> prints.</p>
+      <div class="tscroll"><table>
+        <caption>classification_report for the ten photos</caption>
+        <thead><tr><th>class</th><th class="mono">precision</th><th class="mono">recall</th><th class="mono">f1-score</th><th class="mono">support</th></tr></thead>
+        <tbody>
+          <tr><td>dog</td><td class="mono">0.80</td><td class="mono">0.67</td><td class="mono">0.73</td><td class="mono">6</td></tr>
+          <tr><td>not dog</td><td class="mono">0.60</td><td class="mono">0.75</td><td class="mono">0.67</td><td class="mono">4</td></tr>
+          <tr><td><strong>accuracy</strong></td><td></td><td></td><td class="mono">0.70</td><td class="mono">10</td></tr>
+          <tr><td><strong>macro avg</strong></td><td class="mono">0.70</td><td class="mono">0.71</td><td class="mono">0.70</td><td class="mono">10</td></tr>
+          <tr><td><strong>weighted avg</strong></td><td class="mono">0.72</td><td class="mono">0.70</td><td class="mono">0.70</td><td class="mono">10</td></tr>
+        </tbody>
+      </table></div>
+      <div class="icards">
+        <div class="icard"><div class="emoji">⚖️</div><h4>Macro average</h4><p>Plain mean over classes. Every class counts equally, so a small class with bad recall drags it down. Use it to protect rare classes.</p></div>
+        <div class="icard"><div class="emoji">🏋️</div><h4>Weighted average</h4><p>Mean weighted by support (class size). Follows the big classes. Weighted recall always equals accuracy.</p></div>
+        <div class="icard"><div class="emoji">🧮</div><h4>Micro average</h4><p>Pool all TP/FP/FN first, then compute. For single-label problems micro-F1 = accuracy.</p></div>
+      </div>
+      <h3>Top-1 and top-5 accuracy</h3>
+      <p>For image classifiers with many classes (ImageNet has 1,000), <strong>top-1 accuracy</strong> counts a hit only if the highest-scoring class is correct; <strong>top-5 accuracy</strong> counts it if the correct class is anywhere in the five highest scores. "Siberian husky" vs "Alaskan malamute" is a forgivable miss at top-1 and a hit at top-5.</p>
+    </section>
+
+    <!-- 08 -->
+    <section id="regression" class="reveal">
+      <div class="sec-no">08</div>
+      <h2>Regression metrics: MAE, MSE, RMSE, R²</h2>
+      <p class="lead-in">When the model predicts a number (a house price), there are no TP/FP boxes, only <em>errors</em>: prediction minus truth.</p>
+      <div class="mcards" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))">
+        <div class="mcard" style="--c:var(--teal)"><h4>MAE</h4><div class="q">average size of the miss</div>$$\frac1n\sum|y_i-\hat y_i|$$<p>Same unit as the target. Robust to outliers.</p></div>
+        <div class="mcard" style="--c:var(--amber)"><h4>MSE / RMSE</h4><div class="q">punish big misses harder</div>$$\text{RMSE}=\sqrt{\tfrac1n\sum(y_i-\hat y_i)^2}$$<p>Squaring makes one large error dominate. RMSE is back in the target's unit.</p></div>
+        <div class="mcard" style="--c:var(--violet)"><h4>R² (coefficient of determination)</h4><div class="q">how much variance is explained?</div>$$R^2 = 1-\frac{\sum(y_i-\hat y_i)^2}{\sum(y_i-\bar y)^2}$$<p>1 = perfect, 0 = no better than predicting the mean, &lt; 0 = worse than the mean.</p></div>
+        <div class="mcard" style="--c:var(--gold)"><h4>MAPE</h4><div class="q">average % error</div>$$\frac{100}{n}\sum\left|\frac{y_i-\hat y_i}{y_i}\right|$$<p>Easy to explain; breaks when true values are near 0.</p></div>
+      </div>
+      <div class="explorer">
+        <h4>Regression lab: one bad prediction</h4>
+        <div class="esub">8 house prices (₹ lakh) · grow the error on house H and watch RMSE react far more than MAE</div>
+        <div class="ctrls">
+          <div class="ctl">error on house H <span class="v" id="rLab">0</span><input type="range" id="rRange" min="-40" max="60" value="0"></div>
+          <button class="minibtn ghost" id="rReset">Reset</button>
+        </div>
+        <div class="esvg" id="rSvg"></div>
+        <div class="bars" id="rBars" style="margin-top:12px"></div>
+        <div class="eread" id="rRead"></div>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="beyond" class="reveal">
+      <div class="sec-no">09</div>
+      <h2>Beyond the basics</h2>
+      <p class="lead-in">A few more tools you'll meet in papers, interviews and production dashboards.</p>
+      <div class="tscroll"><table>
+        <thead><tr><th>Metric</th><th>What it measures</th><th>Why use it</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Log loss</strong> (cross-entropy)</td><td>$-\frac1n\sum[y\log p+(1-y)\log(1-p)]$</td><td>Scores the <em>probabilities</em>, not just the labels; punishes confident mistakes hard. Usually the training loss too.</td></tr>
+          <tr><td><strong>MCC</strong> (Matthews correlation)</td><td>Correlation between prediction and truth, −1 … +1, uses all four boxes.</td><td>One honest number for imbalanced binary problems.</td></tr>
+          <tr><td><strong>Balanced accuracy</strong></td><td>Mean of recall over classes.</td><td>Removes the "always predict the majority class" trap.</td></tr>
+          <tr><td><strong>PR-AUC / average precision</strong></td><td>Area under the precision–recall curve.</td><td>Better than ROC-AUC when positives are rare.</td></tr>
+          <tr><td><strong>Calibration</strong> (ECE, reliability plot)</td><td>Does "0.8 confidence" mean right 80% of the time?</td><td>Needed when scores drive decisions or costs.</td></tr>
+          <tr><td><strong>WER / CER</strong> (speech)</td><td>$\text{WER}=\frac{S+D+I}{N}$: substitutions, deletions, insertions over reference words.</td><td>The standard ASR metric; CER for scripts without clear word boundaries.</td></tr>
+          <tr><td><strong>BLEU / ROUGE / perplexity</strong></td><td>n-gram overlap (translation, summaries); how surprised a language model is.</td><td>Text generation and language models.</td></tr>
+          <tr><td><strong>Latency, throughput, RTF</strong></td><td>Time per request, requests per second, compute time ÷ audio time.</td><td>Production: a model that is accurate but too slow still fails.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="note"><strong>Metric vs loss.</strong> The loss is what the optimiser can differentiate (cross-entropy, CTC, RNN-T). The metric is what you report (F1, WER). Track both: the loss can keep falling while the metric stalls, which is a sign to stop training.</div>
+    </section>
+
+    <!-- 10 -->
+    <section id="map" class="reveal">
+      <div class="sec-no">10</div>
+      <h2>How many evaluation methods are there?</h2>
+      <p class="lead-in">There is no single fixed count, but they fall into five families. Together that's <b>about 30 common methods</b>, and you'll use only a handful for any one problem.</p>
+      <div class="map">
+        <div class="mgrp" style="--c:var(--teal)"><div class="cnt">7 methods</div><h4>Data splitting</h4><ul><li>Hold-out</li><li>Train / val / test</li><li>k-fold CV</li><li>Stratified k-fold</li><li>Leave-one-out</li><li>Time-series split</li><li>Bootstrap</li></ul></div>
+        <div class="mgrp" style="--c:var(--green)"><div class="cnt">11 metrics</div><h4>Classification</h4><ul><li>Confusion matrix (TP, FP, FN, TN)</li><li>Accuracy · balanced accuracy</li><li>Precision · recall · specificity</li><li>F1 · F-beta</li><li>ROC-AUC · PR-AUC</li><li>Log loss · MCC</li><li>Top-k accuracy</li></ul></div>
+        <div class="mgrp" style="--c:var(--violet)"><div class="cnt">5 metrics</div><h4>Regression</h4><ul><li>MAE</li><li>MSE</li><li>RMSE</li><li>R²</li><li>MAPE</li></ul></div>
+        <div class="mgrp" style="--c:var(--amber)"><div class="cnt">4+ metrics</div><h4>Sequences &amp; text</h4><ul><li>WER · CER (speech)</li><li>BLEU · ROUGE</li><li>Perplexity</li></ul></div>
+        <div class="mgrp" style="--c:var(--gold)"><div class="cnt">3+ checks</div><h4>Production</h4><ul><li>Calibration</li><li>Latency · throughput · RTF</li><li>Error analysis by slice (accent, noise, device)</li></ul></div>
+      </div>
+      <h3>Which metric, when?</h3>
+      <div class="tscroll"><table>
+        <thead><tr><th>Situation</th><th>Report</th></tr></thead>
+        <tbody>
+          <tr><td>Balanced classes, all errors cost the same</td><td>Accuracy (+ confusion matrix)</td></tr>
+          <tr><td>Missing a positive is expensive (disease, fraud)</td><td><b>Recall</b>, F2</td></tr>
+          <tr><td>False alarms are expensive (spam, auto-blocking)</td><td><b>Precision</b>, F0.5</td></tr>
+          <tr><td>Imbalanced, need one number</td><td>F1, MCC, PR-AUC</td></tr>
+          <tr><td>Comparing models before choosing a threshold</td><td>ROC-AUC (PR-AUC if imbalanced)</td></tr>
+          <tr><td>Probabilities drive decisions</td><td>Log loss + calibration</td></tr>
+          <tr><td>Predicting a number</td><td>MAE (robust) or RMSE (big errors matter) + R²</td></tr>
+          <tr><td>Speech recognition</td><td>WER / CER per language and per condition + RTF</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 11 -->
+    <section id="code" class="reveal">
+      <div class="sec-no">11</div>
+      <h2>Code: scikit-learn &amp; Keras</h2>
+      <p class="lead-in">Everything on this page is a one-liner in scikit-learn. These are the ten photos from section 4.</p>
+<pre data-lang="PYTHON"><span class="c-kw">from</span> sklearn.metrics <span class="c-kw">import</span> (confusion_matrix, classification_report, accuracy_score,
+                             precision_score, recall_score, f1_score, roc_auc_score)
+<span class="c-com"># 1 = dog, 0 = not dog</span>
+y_true = [<span class="c-num">1</span>,<span class="c-num">1</span>,<span class="c-num">0</span>,<span class="c-num">1</span>,<span class="c-num">0</span>,<span class="c-num">1</span>,<span class="c-num">0</span>,<span class="c-num">1</span>,<span class="c-num">0</span>,<span class="c-num">1</span>]
+y_pred = [<span class="c-num">1</span>,<span class="c-num">1</span>,<span class="c-num">1</span>,<span class="c-num">0</span>,<span class="c-num">0</span>,<span class="c-num">1</span>,<span class="c-num">0</span>,<span class="c-num">0</span>,<span class="c-num">0</span>,<span class="c-num">1</span>]
+
+tn, fp, fn, tp = <span class="c-fn">confusion_matrix</span>(y_true, y_pred).ravel()   <span class="c-com"># 3 1 2 4</span>
+<span class="c-fn">print</span>(<span class="c-fn">accuracy_score</span>(y_true, y_pred))    <span class="c-com"># 0.70</span>
+<span class="c-fn">print</span>(<span class="c-fn">precision_score</span>(y_true, y_pred))   <span class="c-com"># 0.80</span>
+<span class="c-fn">print</span>(<span class="c-fn">recall_score</span>(y_true, y_pred))      <span class="c-com"># 0.667</span>
+<span class="c-fn">print</span>(<span class="c-fn">f1_score</span>(y_true, y_pred))          <span class="c-com"># 0.727</span>
+<span class="c-fn">print</span>(<span class="c-fn">classification_report</span>(y_true, y_pred, target_names=[<span class="c-str">"not dog"</span>, <span class="c-str">"dog"</span>]))</pre>
+<pre data-lang="PYTHON"><span class="c-com"># cross-validation + AUC (scores, not hard labels)</span>
+<span class="c-kw">from</span> sklearn.model_selection <span class="c-kw">import</span> StratifiedKFold, cross_val_score
+<span class="c-kw">from</span> sklearn.linear_model <span class="c-kw">import</span> LogisticRegression
+
+cv = <span class="c-fn">StratifiedKFold</span>(n_splits=<span class="c-num">5</span>, shuffle=<span class="c-kw">True</span>, random_state=<span class="c-num">0</span>)
+scores = <span class="c-fn">cross_val_score</span>(<span class="c-fn">LogisticRegression</span>(), X, y, cv=cv, scoring=<span class="c-str">"f1"</span>)
+<span class="c-fn">print</span>(<span class="c-str">f"F1 = {scores.mean():.3f} ± {scores.std():.3f}"</span>)
+
+proba = model.<span class="c-fn">predict_proba</span>(X_test)[:, <span class="c-num">1</span>]
+<span class="c-fn">print</span>(<span class="c-str">"ROC-AUC"</span>, <span class="c-fn">roc_auc_score</span>(y_test, proba))</pre>
+<pre data-lang="KERAS"><span class="c-com"># Keras: a sigmoid output gives probabilities → threshold → report</span>
+model.<span class="c-fn">compile</span>(optimizer=<span class="c-str">"adam"</span>, loss=<span class="c-str">"binary_crossentropy"</span>,
+              metrics=[<span class="c-str">"accuracy"</span>, keras.metrics.<span class="c-fn">Precision</span>(), keras.metrics.<span class="c-fn">Recall</span>(), keras.metrics.<span class="c-fn">AUC</span>()])
+y_prob = model.<span class="c-fn">predict</span>(X_test).ravel()
+y_pred = (y_prob >= <span class="c-num">0.5</span>).<span class="c-fn">astype</span>(int)
+<span class="c-fn">print</span>(<span class="c-fn">classification_report</span>(y_test, y_pred))
+<span class="c-com"># heat-map of the confusion matrix</span>
+sns.<span class="c-fn">heatmap</span>(<span class="c-fn">confusion_matrix</span>(y_test, y_pred), annot=<span class="c-kw">True</span>, fmt=<span class="c-str">"d"</span>)</pre>
+      <p>For a full deep dive on precision, recall and F1 with more labs, read <a href="model-evaluation-metrics-blog.html">Right, but how right?</a>.</p>
+    </section>
+
+    <!-- 12 -->
+    <section id="interview" class="reveal">
+      <div class="sec-no">12</div>
+      <h2>Interview questions</h2>
+      <details class="iq"><summary>Why is accuracy a bad metric for imbalanced data?</summary><div>Because predicting the majority class gives high accuracy with zero useful predictions (99% accuracy with 1% positives). Use recall/precision/F1, MCC, balanced accuracy or PR-AUC instead.</div></details>
+      <details class="iq"><summary>Precision vs recall in one sentence each?</summary><div>Precision: of everything I flagged, how much was right (TP / (TP + FP)). Recall: of everything that was really positive, how much did I flag (TP / (TP + FN)).</div></details>
+      <details class="iq"><summary>Why is F1 a harmonic mean and not an arithmetic mean?</summary><div>The harmonic mean is dominated by the smaller value, so a model can't score well by being excellent on one and terrible on the other.</div></details>
+      <details class="iq"><summary>What does AUC = 0.85 mean?</summary><div>If you pick one random positive and one random negative, the model scores the positive higher 85% of the time. It measures ranking quality, independent of any threshold.</div></details>
+      <details class="iq"><summary>When do you prefer PR-AUC over ROC-AUC?</summary><div>When positives are rare. ROC uses the false-positive rate, whose denominator (all negatives) is huge, so many false alarms barely move it; precision exposes them.</div></details>
+      <details class="iq"><summary>How do you choose the threshold?</summary><div>On the validation set, never the test set: maximise F1 or F-beta, or meet a business constraint (e.g. recall ≥ 95%, then the best precision), then freeze it and report on test.</div></details>
+      <details class="iq"><summary>MAE or RMSE?</summary><div>MAE when every unit of error costs the same and outliers shouldn't dominate; RMSE when large errors are disproportionately bad. If RMSE ≫ MAE, a few big errors exist.</div></details>
+      <details class="iq"><summary>Why k-fold cross-validation, and why stratified?</summary><div>One split can be lucky or unlucky; k folds give a mean and a spread. Stratification keeps the class ratio equal in every fold so no fold is missing the rare class.</div></details>
+      <details class="iq"><summary>What is data leakage in evaluation?</summary><div>Any way test information reaches training: the same speaker/patient in both sets, normalising with statistics computed on all data, tuning on the test set, or shuffling time series. It inflates scores that then collapse in production.</div></details>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="big">Split honestly. Count the four boxes. Pick the metric that matches the cost of being wrong.</div>
+  <div>Accuracy · Precision = TP/(TP+FP) · Recall = TP/(TP+FN) · F1 = 2PR/(P+R) · AUC · MAE · RMSE · R² · WER</div>
+  <div class="links">
+    <a href="model-evaluation-metrics-blog.html">Precision &amp; recall deep dive</a> ·
+    <a href="https://www.youtube.com/watch?v=2osIZ-dSPGE" target="_blank" rel="noopener">codebasics: Precision, Recall, F1 (video)</a> ·
+    <a href="https://saturncloud.io/glossary/model-evaluation/" target="_blank" rel="noopener">Saturn Cloud: Model evaluation</a> ·
+    <a href="https://scikit-learn.org/stable/modules/model_evaluation.html" target="_blank" rel="noopener">scikit-learn: metrics and scoring</a>
+  </div>
+  <div class="sub">ML Universe · Foundations · Model evaluation</div>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const f2 = v => (isFinite(v) ? v.toFixed(2) : '—');
+const f3 = v => (isFinite(v) ? v.toFixed(3) : '—');
+
+/* ===== progress + sticky ===== */
+const prog=$('progress'), tb=$('topbar');
+function onScroll(){const h=document.documentElement,m=h.scrollHeight-h.clientHeight;
+  prog.style.width=(m>0?h.scrollTop/m*100:0)+'%'; tb.classList.toggle('solid',h.scrollTop>40);}
+document.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+/* ===== reveal ===== */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in');}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* ===== scrollspy ===== */
+const tl=[...document.querySelectorAll('.toc a')];
+const spy=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;
+  tl.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));}}),{rootMargin:'-28% 0px -60% 0px'});
+document.querySelectorAll('main section[id]').forEach(s=>spy.observe(s));
+
+/* ===== 1 · ten photos walkthrough ===== */
+const PHOTOS=[[1,1],[1,1],[0,1],[1,0],[0,0],[1,1],[0,0],[1,0],[0,0],[1,1]];   // [actual, predicted], 1 = dog
+const kind=([a,p])=>a&&p?'TP':!a&&!p?'TN':!a&&p?'FP':'FN';
+const WHY={TP:'a real dog, predicted dog → <b>True Positive</b>',TN:'a cat, predicted not dog → <b>True Negative</b>',
+  FP:'a cat, but the model said dog → <b>False Positive</b> (false alarm)',FN:'a real dog, but the model said not dog → <b>False Negative</b> (a miss)'};
+$('photos').innerHTML=PHOTOS.map((x,i)=>`<div class="ph" id="ph${i}"><span class="em">${x[0]?'🐶':'🐱'}</span>#${i+1} ${x[0]?'dog':'cat'}<span class="pred">pred: ${x[1]?'dog':'not dog'}</span><span class="tag">${kind(x)}</span></div>`).join('');
+function photoState(n){   // n photos classified
+  const c={TP:0,TN:0,FP:0,FN:0};
+  PHOTOS.forEach((x,i)=>{const el=$('ph'+i),k=kind(x);el.className='ph'+(i<n?' done '+k:'')+(i===n-1?' cur':'');if(i<n)c[k]++;});
+  ['TP','FN','FP','TN'].forEach(k=>{const el=$('c'+k);el.firstChild.textContent=c[k];el.classList.toggle('bump',n>0&&kind(PHOTOS[n-1])===k);});
+  const P=c.TP/(c.TP+c.FP),R=c.TP/(c.TP+c.FN),F=2*P*R/(P+R),A=(c.TP+c.TN)/Math.max(1,n);
+  $('pMet').innerHTML=`after ${n} of 10 photos<br>accuracy  = (TP+TN)/n = <b>${n?f3(A):'—'}</b><br>precision = TP/(TP+FP) = <b>${f3(P)}</b><br>recall    = TP/(TP+FN) = <b>${f3(R)}</b><br>F1        = 2PR/(P+R)  = <b>${f3(F)}</b>`;
+  $('pCap').innerHTML=n===0?'Press <b>Next</b> or <b>Play</b>: the model looks at one photo at a time.':
+    n<10?`Photo #${n}: ${WHY[kind(PHOTOS[n-1])]}.`:'Done: <b>TP 4 · FN 2 · FP 1 · TN 3</b>. Precision 0.80 (few false alarms), recall 0.667 (it missed 2 of 6 dogs), F1 0.727.';
+}
+(function(){let i=0,timer=null;const n=PHOTOS.length+1,dots=$('pDots');
+  for(let k=0;k<n;k++)dots.appendChild(document.createElement('i'));
+  const apply=()=>{photoState(i);[...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));$('pPrev').disabled=i===0;$('pNext').disabled=i===n-1;};
+  const stop=()=>{if(timer){clearInterval(timer);timer=null;$('pPlay').textContent='▶ Play';}};
+  const go=k=>{i=Math.max(0,Math.min(n-1,k));apply();};
+  $('pNext').onclick=()=>{stop();go(i+1);};$('pPrev').onclick=()=>{stop();go(i-1);};
+  $('pPlay').onclick=()=>{if(timer){stop();return;}if(i===n-1)go(0);$('pPlay').textContent='⏸ Pause';timer=setInterval(()=>{i>=n-1?stop():go(i+1);},1400);};
+  apply();})();
+
+/* ===== 2 · k-fold lab ===== */
+let kFold=0,kShowAll=false;
+function foldScore(k,i){return 0.84+0.05*Math.sin(i*2.7+k*1.3)+0.015*Math.cos(i*5.1);}   // illustrative scores
+function drawK(){const k=+$('kRange').value;$('kLab').textContent=k;if(kFold>=k)kFold=0;
+  const W=720,rowH=26,top=6,lab=78,bw=W-lab-90,H=top+k*rowH+8;let s='';
+  for(let r=0;r<k;r++){const y=top+r*rowH,act=kShowAll||r===kFold;
+    s+=`<text x="0" y="${y+16}" font-size="11" font-family="JetBrains Mono" fill="${act?'#093F3C':'#C9BFAE'}">fold ${r+1}</text>`;
+    for(let c=0;c<k;c++){const x=lab+c*bw/k,test=c===r;
+      s+=`<rect x="${x+1}" y="${y+3}" width="${bw/k-2}" height="18" rx="4" fill="${test?'#D9663B':'#0E5C58'}" opacity="${act?(test?1:.75):.12}"/>`;}
+    if(act)s+=`<text x="${lab+bw+10}" y="${y+16}" font-size="11.5" font-family="JetBrains Mono" fill="#093F3C" font-weight="600">F1 ${foldScore(k,r).toFixed(3)}</text>`;}
+  $('kSvg').innerHTML=`<svg viewBox="0 0 ${W} ${H}">${s}</svg>`;
+  const sc=[...Array(k)].map((_,i)=>foldScore(k,i)),m=sc.reduce((a,b)=>a+b)/k,sd=Math.sqrt(sc.reduce((a,b)=>a+(b-m)**2,0)/k);
+  $('kRead').innerHTML=kShowAll?`k = ${k}: every sample was tested exactly once. Final score = mean ± std = <b>${m.toFixed(3)} ± ${sd.toFixed(3)}</b> (scores are illustrative). Each model trains on ${((k-1)/k*100).toFixed(0)}% of the data.`:
+    `Fold ${kFold+1} of ${k}: train on the <b style="color:#0E5C58">teal</b> ${k-1} parts (${((k-1)/k*100).toFixed(0)}%), test on the <b style="color:#D9663B">orange</b> part. Press Next to rotate.`;}
+$('kRange').addEventListener('input',()=>{kShowAll=false;drawK();});
+$('kNext').onclick=()=>{kShowAll=false;kFold=(kFold+1)%(+$('kRange').value);drawK();};
+$('kAll').onclick=()=>{kShowAll=true;drawK();};
+
+/* ===== 3 · threshold + ROC lab ===== */
+const SAMPLES=[[.95,1],[.91,1],[.88,0],[.86,1],[.82,1],[.74,1],[.69,1],[.66,0],[.61,1],[.55,1],
+               [.52,0],[.47,0],[.43,1],[.39,0],[.33,1],[.31,0],[.24,0],[.18,0],[.12,0],[.05,0]];
+const POS=SAMPLES.filter(s=>s[1]).length,NEG=SAMPLES.length-POS;
+function counts(th){const c={TP:0,FP:0,FN:0,TN:0};SAMPLES.forEach(([s,y])=>{const p=s>=th;c[p&&y?'TP':p&&!y?'FP':!p&&y?'FN':'TN']++;});return c;}
+function mets(c){const P=c.TP/(c.TP+c.FP),R=c.TP/(c.TP+c.FN);return {acc:(c.TP+c.TN)/SAMPLES.length,P,R,F:2*P*R/(P+R),spec:c.TN/(c.TN+c.FP),fpr:c.FP/(c.FP+c.TN)};}
+const ths=[1.01,...SAMPLES.map(s=>s[0]),0];
+const ROC=ths.map(t=>{const m=mets(counts(t));return [m.fpr,m.R];});
+let auc=0;SAMPLES.forEach(([a,ya])=>{if(ya)SAMPLES.forEach(([b,yb])=>{if(!yb)auc+=a>b?1:a===b?.5:0;});});auc/=POS*NEG;
+function bar(name,v,col){return `<div class="bar"><span>${name}</span><div class="tr"><div class="fl" style="width:${isFinite(v)?v*100:0}%;background:${col}"></div></div><span class="val">${f2(v)}</span></div>`;}
+function drawLab(){const th=+$('thRange').value;$('thLab').textContent=th.toFixed(2);
+  const c=counts(th),m=mets(c);
+  /* number line */
+  const W=720,H=96,pl=20,pr=20,X=v=>pl+v*(W-pl-pr);let s=`<line x1="${pl}" y1="50" x2="${W-pr}" y2="50" stroke="#E4DBCB" stroke-width="4" stroke-linecap="round"/>`;
+  s+=`<rect x="${X(th)}" y="14" width="${W-pr-X(th)}" height="72" fill="#2E9E5B" opacity=".06"/>`;
+  SAMPLES.forEach(([v,y],i)=>{const up=i%2?-1:1,cy=50+up*16,pred=v>=th,ok=pred===!!y;
+    s+=`<circle cx="${X(v)}" cy="${cy}" r="8" fill="${y?'#0E5C58':'#D9663B'}" stroke="${ok?'#fff':'#22282A'}" stroke-width="${ok?1.5:2.5}"/>`;});
+  s+=`<line x1="${X(th)}" y1="8" x2="${X(th)}" y2="92" stroke="#C9A24B" stroke-width="3"/><text x="${Math.min(X(th)+6,W-110)}" y="12" font-size="11" font-family="JetBrains Mono" fill="#9a7a1e">predict + →</text>`;
+  [0,.5,1].forEach(v=>s+=`<text x="${X(v)}" y="${H}" font-size="10" text-anchor="middle" font-family="JetBrains Mono" fill="#7E8888">${v}</text>`);
+  $('lineSvg').innerHTML=`<svg viewBox="0 0 ${W} ${H+4}">${s}</svg>`;
+  /* matrix + bars */
+  [['TP','lTP'],['FN','lFN'],['FP','lFP'],['TN','lTN']].forEach(([k,id])=>$(id).innerHTML=`<b>${c[k]}</b>${k}`);
+  $('lBars').innerHTML=bar('accuracy',m.acc,'#0E5C58')+bar('precision',m.P,'#D9663B')+bar('recall',m.R,'#B83A5E')+bar('F1',m.F,'#6C5CE7')+bar('specificity',m.spec,'#2E86DE');
+  /* ROC */
+  const S=280,p=34,RX=v=>p+v*(S-p-10),RY=v=>S-p-v*(S-p-10);
+  let r=`<rect x="${p}" y="10" width="${S-p-10}" height="${S-p-10}" fill="#FBF7EF" stroke="#E4DBCB"/><line x1="${RX(0)}" y1="${RY(0)}" x2="${RX(1)}" y2="${RY(1)}" stroke="#C9BFAE" stroke-dasharray="5 4"/>`;
+  r+=`<polygon points="${RX(0)},${RY(0)} ${ROC.map(([x,y])=>RX(x)+','+RY(y)).join(' ')} ${RX(1)},${RY(0)}" fill="#0E5C58" opacity=".10"/>`;
+  r+=`<polyline points="${ROC.map(([x,y])=>RX(x)+','+RY(y)).join(' ')}" fill="none" stroke="#0E5C58" stroke-width="2.5"/>`;
+  r+=`<circle cx="${RX(m.fpr)}" cy="${RY(m.R)}" r="7" fill="#C9A24B" stroke="#fff" stroke-width="2"/>`;
+  r+=`<text x="${RX(.55)}" y="${RY(.2)}" font-size="13" font-family="JetBrains Mono" fill="#093F3C" font-weight="600">AUC = ${auc.toFixed(3)}</text>`;
+  r+=`<text x="${(p+S)/2}" y="${S-6}" font-size="10" text-anchor="middle" font-family="JetBrains Mono" fill="#7E8888">false-positive rate</text><text x="11" y="${S/2}" font-size="10" text-anchor="middle" font-family="JetBrains Mono" fill="#7E8888" transform="rotate(-90 11 ${S/2})">recall (TPR)</text>`;
+  $('rocSvg').innerHTML=`<svg viewBox="0 0 ${S} ${S}">${r}</svg>`;
+  $('lRead').innerHTML=`threshold <b>${th.toFixed(2)}</b> → TP ${c.TP} · FP ${c.FP} · FN ${c.FN} · TN ${c.TN} · precision <b>${f3(m.P)}</b> · recall <b>${f3(m.R)}</b> · F1 <b>${f3(m.F)}</b> · FPR ${f3(m.fpr)}<br><span class="g">Dots with a dark outline are mistakes. The gold dot on the ROC curve is the current threshold; the whole curve and the AUC don't change with it.</span>`;}
+$('thRange').addEventListener('input',drawLab);
+$('thBest').onclick=()=>{let best=[0,.5];for(let t=0;t<=1.0001;t+=.01){const F=mets(counts(t)).F;if(F>best[0]+1e-9)best=[F,t];}$('thRange').value=best[1].toFixed(2);drawLab();};
+
+/* ===== 4 · regression lab ===== */
+const HOUSES=[['A',50,52],['B',62,60],['C',45,48],['D',80,76],['E',70,73],['F',55,50],['G',90,85],['H',65,68]];
+function drawReg(){const extra=+$('rRange').value;$('rLab').textContent=(extra>0?'+':'')+extra;
+  const ys=HOUSES.map(h=>h[1]),ps=HOUSES.map((h,i)=>h[2]+(i===7?extra:0)),n=ys.length,mean=ys.reduce((a,b)=>a+b)/n;
+  const e=ys.map((y,i)=>ps[i]-y),mae=e.reduce((a,b)=>a+Math.abs(b),0)/n,mse=e.reduce((a,b)=>a+b*b,0)/n,rmse=Math.sqrt(mse),
+    r2=1-e.reduce((a,b)=>a+b*b,0)/ys.reduce((a,y)=>a+(y-mean)**2,0),mape=100*e.reduce((a,b,i)=>a+Math.abs(b/ys[i]),0)/n;
+  const W=720,H=170,pl=36,pb=26,mx=Math.max(130,...ps),Y=v=>H-pb-(v/mx)*(H-pb-10),bw=(W-pl)/n;let s='';
+  [0,50,100].forEach(v=>s+=`<line x1="${pl}" y1="${Y(v)}" x2="${W}" y2="${Y(v)}" stroke="#F1EBDF"/><text x="${pl-6}" y="${Y(v)+4}" font-size="10" text-anchor="end" font-family="JetBrains Mono" fill="#7E8888">${v}</text>`);
+  HOUSES.forEach((h,i)=>{const x=pl+i*bw+bw*.2,w=bw*.6;
+    s+=`<rect x="${x}" y="${Y(ys[i])}" width="${w*.48}" height="${Y(0)-Y(ys[i])}" rx="3" fill="#0E5C58" opacity=".8"/>`;
+    s+=`<rect x="${x+w*.52}" y="${Y(ps[i])}" width="${w*.48}" height="${Y(0)-Y(ps[i])}" rx="3" fill="${i===7&&extra?'#D9663B':'#C9A24B'}" opacity=".85"/>`;
+    s+=`<text x="${x+w/2}" y="${H-8}" font-size="11" text-anchor="middle" font-family="JetBrains Mono" fill="#4C5658">${h[0]} (${e[i]>0?'+':''}${e[i]})</text>`;});
+  $('rSvg').innerHTML=`<svg viewBox="0 0 ${W} ${H}">${s}</svg>`;
+  const sc=Math.max(20,rmse*1.2);
+  const b=(n,v,col,u,max)=>`<div class="bar"><span>${n}</span><div class="tr"><div class="fl" style="width:${Math.max(0,Math.min(1,v/max))*100}%;background:${col}"></div></div><span class="val">${v.toFixed(2)}${u}</span></div>`;
+  $('rBars').innerHTML=b('MAE',mae,'#0E5C58','',sc)+b('RMSE',rmse,'#D9663B','',sc)+b('MAPE %',mape,'#C9A24B','',Math.max(20,mape*1.2))+b('R²',Math.max(0,r2),'#6C5CE7','',1);
+  $('rRead').innerHTML=`teal = true price · gold = prediction (₹ lakh). MSE = <b>${mse.toFixed(1)}</b> · R² = <b>${r2.toFixed(3)}</b>. RMSE / MAE = <b>${(rmse/mae).toFixed(2)}</b>: <span class="g">${rmse/mae>1.6?'RMSE is pulled up by one big miss; MAE barely moves.':'errors are similar in size, so RMSE stays close to MAE.'}</span>`;}
+$('rRange').addEventListener('input',drawReg);
+$('rReset').onclick=()=>{$('rRange').value=0;drawReg();};
+
+drawK();drawLab();drawReg();
+</script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Whisper Architecture A4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Spectral:wght@400;600&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+Devanagari:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#22282A;--soft:#4C5658;--muted:#7E8888;--line:#D9D0BF;--teal:#0E5C58;--deep:#093F3C;--teal-soft:#E3EEEC;--amber:#D9663B;--amber-soft:#F7E4D8;--gold:#C9A24B;--gold-soft:#F3EAD3;--violet:#6C5CE7;--violet-soft:#ECEAFB;--blue:#2E86DE;--blue-soft:#E2EEF9;--green:#2E9E5B;--green-soft:#DFF1E5;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{display:flex;justify-content:center;min-height:100vh;background:#EDE7DA}.sheet-nav{position:fixed;z-index:5;top:14px;right:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100vw - 28px)}.sheet-nav a,.sheet-nav button{font-family:var(--mono);font-size:10px;letter-spacing:.035em;text-transform:uppercase;min-height:38px;padding:8px 11px;border-radius:999px;border:1px solid #E4DBCB;background:#fff;color:var(--teal);cursor:pointer;text-decoration:none;transition:border-color .2s,transform .2s,background .2s}.sheet-nav a:hover,.sheet-nav button:hover{border-color:var(--amber);transform:translateY(-1px);background:#FBF7EF}.sheet-nav a:focus-visible,.sheet-nav button:focus-visible{outline:3px solid rgba(217,102,59,.35);outline-offset:2px}svg{display:block;width:min(1240px,calc(100vw - 24px));height:auto;margin:24px 0;background:#fff;box-shadow:0 10px 40px -12px rgba(20,40,38,.3)}
+svg .m{font-family:'JetBrains Mono',monospace;font-variant-ligatures:none;font-feature-settings:'liga' 0,'calt' 0}svg .s{font-family:Fraunces,Georgia,serif;font-weight:600}svg .dv{font-family:'Noto Sans Devanagari','Samyak Devanagari',sans-serif}
+svg .stage{transform-box:fill-box;transform-origin:center}svg .stage.is-active{animation:focus .8s ease-out both}svg .flow-line.is-active{stroke:#D9663B!important;stroke-width:4!important;stroke-dasharray:9 13;animation:dash .8s linear both;filter:drop-shadow(0 0 4px rgba(217,102,59,.55))}svg .pulse{animation:breathe 3.8s ease-in-out infinite;animation-delay:var(--delay,0s)}body.paused svg *{animation-play-state:paused!important}@keyframes focus{0%{filter:none;opacity:.8}45%{filter:drop-shadow(0 0 10px rgba(217,102,59,.65));opacity:1}100%{filter:none;opacity:1}}@keyframes dash{from{stroke-dashoffset:32}to{stroke-dashoffset:-32}}@keyframes breathe{0%,100%{opacity:.58}50%{opacity:1;filter:drop-shadow(0 0 5px rgba(108,92,231,.4))}}
+@media(max-width:700px){body{padding-top:104px}.sheet-nav{top:8px;left:8px;right:8px;justify-content:center}.sheet-nav a,.sheet-nav button{font-size:9px;padding:7px 9px}svg{width:calc(100vw - 12px);margin:8px 0}}@media print{.sheet-nav{display:none}body{background:#fff;padding:0}svg{box-shadow:none;margin:0;width:210mm;height:297mm}@page{size:A4 portrait;margin:0}}body.export{background:#fff;padding:0}body.export .sheet-nav{display:none}body.export svg{width:1240px;height:1754px;margin:0;box-shadow:none}@media(prefers-reduced-motion:reduce){svg *{animation:none!important;transition:none!important}.motion-toggle{display:none}}
+</style>
+</head>
+<body>
+<nav class="sheet-nav" aria-label="Reference sheet actions">
+  <a href="../index.html">Home</a>
+  <a href="transformer-decoder-architecture-A4.html">Decoder sheet</a>
+  <a href="stt-decoder-families-A4.html">CTC / RNN-T sheet</a>
+  <a href="fastconformer-architecture-A4.html">FastConformer sheet</a>
+  <a href="whisper-architecture-A4.png" download>Download PNG</a>
+  <button class="motion-toggle" id="motionToggle" type="button" aria-pressed="false">Pause motion</button>
+  <button type="button" onclick="print()">Print / PDF</button>
+</nav>
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="1754" viewBox="0 0 1240 1754" role="img" aria-labelledby="sheetTitle sheetDesc">
+<title id="sheetTitle">Whisper speech recognition architecture</title>
+<desc id="sheetDesc">A one-page A4 reference for OpenAI Whisper: the 30-second log-Mel front end, the two-convolution stem, the Transformer encoder and decoder with cross-attention, a shape trace for large-v3, the multitask special-token format, model sizes, beam search with temperature fallback, and why Whisper is not a streaming model compared with a FastConformer RNN-T.</desc>
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#4C5658"/></marker>
+  <marker id="arrowCoral" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#D9663B"/></marker>
+  <marker id="arrowViolet" markerWidth="10" markerHeight="10" refX="8" refY="3.5" orient="auto"><path d="M0 0L8 3.5L0 7Z" fill="#6C5CE7"/></marker>
+  <pattern id="melGrid" x="0" y="0" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="5" height="5" rx="1" fill="#B7D5EB"/></pattern>
+</defs>
+<rect width="1240" height="1754" fill="#fff"/>
+
+<!-- Header -->
+<text x="50" y="58" class="m" font-size="13" fill="#D9663B" font-weight="600">SPEECH AI · OPENAI WHISPER · RADFORD ET AL. 2022 · arXiv 2212.04356</text>
+<text x="50" y="99" class="s" font-size="32" fill="#093F3C">Whisper: an encoder–decoder Transformer for speech</text>
+<text x="50" y="130" class="m" font-size="12" fill="#4C5658">Worked example · one 30 s window · 16 kHz · trained on 680k h of weakly labelled web audio (v3: 1M h labelled + 4M h pseudo-labelled) · 99 languages</text>
+<line x1="50" y1="147" x2="1190" y2="147" stroke="#D9D0BF" stroke-width="1.2"/>
+
+<!-- Section A: end-to-end path -->
+<text x="50" y="177" class="m" font-size="11" fill="#7E8888" font-weight="600">END-TO-END PATH · AUDIO → FEATURES → ENCODER → DECODER → TEXT TOKENS</text>
+<rect x="50" y="190" width="1140" height="222" rx="16" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+<g class="stage" data-step="0">
+  <rect x="72" y="210" width="166" height="80" rx="11" fill="#E2EEF9" stroke="#2E86DE" stroke-width="1.7"/>
+  <path transform="translate(-6 79) scale(1 0.7)" d="M98 256C106 238 114 270 122 246S138 240 146 262S162 268 170 244S186 240 194 262S210 266 218 248S224 246 228 254" fill="none" stroke="#2E86DE" stroke-width="2.2"/>
+  <text x="155" y="229" class="s" font-size="15" fill="#093F3C" text-anchor="middle">Waveform</text>
+  <text x="155" y="283" class="m" font-size="9.5" fill="#4C5658" text-anchor="middle">pad / trim → 30 s</text>
+</g>
+<line class="flow-line" data-step="1" x1="238" y1="250" x2="258" y2="250" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="1">
+  <rect x="262" y="210" width="166" height="80" rx="11" fill="#E2EEF9" stroke="#2E86DE" stroke-width="1.7"/>
+  <text x="345" y="238" class="s" font-size="16" fill="#093F3C" text-anchor="middle">Log-Mel</text>
+  <text x="345" y="262" class="m" font-size="10" fill="#4C5658" text-anchor="middle">(80, 3000)</text>
+  <text x="345" y="280" class="m" font-size="9" fill="#2E86DE" text-anchor="middle">10 ms / frame · v3: 128 bins</text>
+</g>
+<line class="flow-line" data-step="2" x1="428" y1="250" x2="448" y2="250" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="2">
+  <rect x="452" y="206" width="166" height="88" rx="12" fill="#F3EAD3" stroke="#C9A24B" stroke-width="1.8"/>
+  <text x="535" y="234" class="s" font-size="16" fill="#093F3C" text-anchor="middle">Conv stem</text>
+  <text x="535" y="257" class="m" font-size="9.5" fill="#4C5658" text-anchor="middle">2 × Conv1d k3 · GELU</text>
+  <text x="535" y="277" class="m" font-size="9.5" fill="#D9663B" text-anchor="middle" font-weight="600">stride 2 → 1500 frames</text>
+</g>
+<line class="flow-line" data-step="3" x1="618" y1="250" x2="638" y2="250" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="3">
+  <rect x="642" y="206" width="166" height="88" rx="12" fill="#E3EEEC" stroke="#0E5C58" stroke-width="1.8"/>
+  <text x="725" y="234" class="s" font-size="16" fill="#093F3C" text-anchor="middle">Encoder × N</text>
+  <text x="725" y="257" class="m" font-size="9.5" fill="#4C5658" text-anchor="middle">+ sinusoidal PE</text>
+  <text x="725" y="277" class="m" font-size="9.5" fill="#0E5C58" text-anchor="middle" font-weight="600">H: (1500, d)</text>
+</g>
+<line class="flow-line" data-step="4" x1="808" y1="250" x2="828" y2="250" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="4">
+  <rect x="832" y="206" width="166" height="88" rx="12" fill="#ECEAFB" stroke="#6C5CE7" stroke-width="1.8"/>
+  <text x="915" y="234" class="s" font-size="16" fill="#093F3C" text-anchor="middle">Decoder × N</text>
+  <text x="915" y="257" class="m" font-size="9.5" fill="#4C5658" text-anchor="middle">causal + cross-attn</text>
+  <text x="915" y="277" class="m" font-size="9.5" fill="#6C5CE7" text-anchor="middle" font-weight="600">one token per step</text>
+</g>
+<line class="flow-line" data-step="5" x1="998" y1="250" x2="1018" y2="250" stroke="#4C5658" stroke-width="1.8" marker-end="url(#arrow)"/>
+<g class="stage" data-step="5">
+  <rect x="1022" y="206" width="146" height="88" rx="12" fill="#0E2A28" stroke="#0E5C58" stroke-width="1.8"/>
+  <text x="1095" y="236" class="s" font-size="17" fill="#fff" text-anchor="middle">Text</text>
+  <text x="1095" y="259" class="m" font-size="10" fill="#F2C879" text-anchor="middle">byte-level BPE</text>
+  <text x="1095" y="279" class="m" font-size="9" fill="#CFE9E4" text-anchor="middle">51,865 tokens</text>
+</g>
+
+<text x="72" y="318" class="m" font-size="9.5" fill="#7E8888" font-weight="600">FRONT-END DETAIL · whisper/audio.py · every input becomes exactly 3000 mel frames → 1500 encoder frames</text>
+<g class="stage" data-step="1">
+  <rect x="72" y="328" width="268" height="66" rx="10" fill="#E2EEF9" stroke="#2E86DE"/>
+  <text x="206" y="349" class="m" font-size="10" fill="#093F3C" text-anchor="middle" font-weight="600">pad or trim to 30 s</text>
+  <text x="206" y="367" class="m" font-size="9" fill="#4C5658" text-anchor="middle">16,000 × 30 = 480,000 samples</text>
+  <text x="206" y="384" class="m" font-size="9" fill="#D9663B" text-anchor="middle" font-weight="600">a 2 s clip is zero-padded too</text>
+  <line x1="340" y1="361" x2="352" y2="361" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="356" y="328" width="268" height="66" rx="10" fill="#E2EEF9" stroke="#2E86DE"/>
+  <text x="490" y="349" class="m" font-size="10" fill="#093F3C" text-anchor="middle" font-weight="600">STFT · Hann window</text>
+  <text x="490" y="367" class="m" font-size="9" fill="#4C5658" text-anchor="middle">n_fft 400 (25 ms) · hop 160 (10 ms)</text>
+  <text x="490" y="384" class="m" font-size="9" fill="#2E86DE" text-anchor="middle" font-weight="600">→ 3000 frames × 201 bins</text>
+  <line x1="624" y1="361" x2="636" y2="361" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="640" y="328" width="268" height="66" rx="10" fill="#E2EEF9" stroke="#2E86DE"/>
+  <text x="774" y="349" class="m" font-size="10" fill="#093F3C" text-anchor="middle" font-weight="600">80 mel filters → log10</text>
+  <text x="774" y="367" class="m" font-size="9" fill="#4C5658" text-anchor="middle">clamp to (max − 8) · then (x + 4) / 4</text>
+  <text x="774" y="384" class="m" font-size="9" fill="#2E86DE" text-anchor="middle" font-weight="600">→ (80, 3000), about −1 … 1</text>
+</g>
+<g class="stage" data-step="2">
+  <line x1="908" y1="361" x2="920" y2="361" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="924" y="328" width="244" height="66" rx="10" fill="#F3EAD3" stroke="#C9A24B"/>
+  <text x="1046" y="349" class="m" font-size="10" fill="#093F3C" text-anchor="middle" font-weight="600">Conv1d(80→d, k3) · GELU</text>
+  <text x="1046" y="367" class="m" font-size="9" fill="#4C5658" text-anchor="middle">Conv1d(d→d, k3, s2) · GELU</text>
+  <text x="1046" y="384" class="m" font-size="9" fill="#D9663B" text-anchor="middle" font-weight="600">(d, 1500) · 20 ms / frame</text>
+</g>
+
+<!-- Section B: architecture -->
+<text x="50" y="442" class="m" font-size="11" fill="#D9663B" font-weight="600">THE MODEL · A STANDARD PRE-LN TRANSFORMER · THE ENCODER READS AUDIO, THE DECODER WRITES TOKENS</text>
+<rect x="50" y="454" width="652" height="550" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+
+<!-- Encoder tower -->
+<g class="stage" data-step="3">
+  <text x="205" y="484" class="s" font-size="18" fill="#0E5C58" text-anchor="middle">Encoder</text>
+  <rect x="96" y="500" width="218" height="38" rx="8" fill="#E2EEF9" stroke="#2E86DE"/>
+  <rect x="104" y="507" width="60" height="24" fill="url(#melGrid)"/>
+  <text x="240" y="523" class="m" font-size="9.5" fill="#093F3C" text-anchor="middle" font-weight="600">log-Mel (80, 3000)</text>
+  <line x1="205" y1="538" x2="205" y2="550" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="96" y="554" width="218" height="46" rx="8" fill="#F3EAD3" stroke="#C9A24B"/>
+  <text x="205" y="573" class="m" font-size="9.2" fill="#093F3C" text-anchor="middle">Conv1d k3 · GELU</text>
+  <text x="205" y="590" class="m" font-size="9.2" fill="#D9663B" text-anchor="middle" font-weight="600">Conv1d k3 stride 2 · GELU</text>
+  <line x1="205" y1="600" x2="205" y2="612" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="96" y="616" width="218" height="32" rx="8" fill="#fff" stroke="#0E5C58"/>
+  <text x="205" y="636" class="m" font-size="9.2" fill="#0E5C58" text-anchor="middle" font-weight="600">+ sinusoidal positions</text>
+  <line x1="205" y1="648" x2="205" y2="660" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <!-- block -->
+  <rect x="78" y="664" width="252" height="206" rx="12" fill="#F4F9F8" stroke="#0E5C58" stroke-width="1.4" stroke-dasharray="6 5"/>
+  <text x="318" y="684" class="s" font-size="15" fill="#0E5C58" text-anchor="end">× N</text>
+  <line x1="96" y1="676" x2="96" y2="864" stroke="#A9B2B2" stroke-width="2.2"/>
+  <rect x="116" y="694" width="196" height="56" rx="9" fill="#E3EEEC" stroke="#0E5C58"/>
+  <text x="126" y="713" class="m" font-size="9.6" fill="#093F3C" font-weight="600">LN → Self-attention</text>
+  <text x="126" y="729" class="m" font-size="8.6" fill="#4C5658">bidirectional · every frame</text>
+  <text x="126" y="743" class="m" font-size="8.6" fill="#4C5658">sees all 1500 frames</text>
+  <line x1="116" y1="760" x2="102" y2="760" stroke="#0E5C58" stroke-width="1.6"/>
+  <line x1="214" y1="750" x2="214" y2="760" stroke="#0E5C58" stroke-width="1.6"/><line x1="214" y1="760" x2="116" y2="760" stroke="#0E5C58" stroke-width="1.6"/>
+  <circle cx="96" cy="760" r="7" fill="#fff" stroke="#0E5C58" stroke-width="1.6"/><text x="96" y="764" class="m" font-size="10" fill="#0E5C58" text-anchor="middle">+</text>
+  <rect x="116" y="776" width="196" height="56" rx="9" fill="#F3EAD3" stroke="#C9A24B"/>
+  <text x="126" y="795" class="m" font-size="9.6" fill="#093F3C" font-weight="600">LN → MLP</text>
+  <text x="126" y="811" class="m" font-size="8.6" fill="#4C5658">Linear d → 4d · GELU</text>
+  <text x="126" y="825" class="m" font-size="8.6" fill="#4C5658">Linear 4d → d</text>
+  <line x1="214" y1="832" x2="214" y2="844" stroke="#C9A24B" stroke-width="1.6"/><line x1="214" y1="844" x2="102" y2="844" stroke="#C9A24B" stroke-width="1.6"/>
+  <circle cx="96" cy="844" r="7" fill="#fff" stroke="#C9A24B" stroke-width="1.6"/><text x="96" y="848" class="m" font-size="10" fill="#C9A24B" text-anchor="middle">+</text>
+  <line x1="205" y1="870" x2="205" y2="882" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="96" y="886" width="218" height="28" rx="8" fill="#fff" stroke="#0E5C58"/>
+  <text x="205" y="904" class="m" font-size="9.2" fill="#0E5C58" text-anchor="middle" font-weight="600">final LayerNorm (ln_post)</text>
+  <line x1="205" y1="914" x2="205" y2="926" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="96" y="930" width="218" height="50" rx="10" fill="#0E2A28"/>
+  <text x="205" y="952" class="s" font-size="15" fill="#fff" text-anchor="middle">H: (1500, d)</text>
+  <text x="205" y="970" class="m" font-size="8.8" fill="#CFE9E4" text-anchor="middle">computed once per 30 s window</text>
+</g>
+
+<!-- cross-attention bridge -->
+<path class="flow-line" data-step="4" d="M314 955H362V752H422" fill="none" stroke="#6C5CE7" stroke-width="2.2" marker-end="url(#arrowViolet)"/>
+<text x="378" y="846" class="m" font-size="9" fill="#6C5CE7" font-weight="600" transform="rotate(-90 378 846)" text-anchor="middle">K, V for every decoder layer</text>
+
+<!-- Decoder tower -->
+<g class="stage" data-step="4">
+  <text x="545" y="484" class="s" font-size="18" fill="#6C5CE7" text-anchor="middle">Decoder</text>
+  <rect x="426" y="500" width="250" height="38" rx="8" fill="#fff" stroke="#6C5CE7"/>
+  <text x="551" y="516" class="m" font-size="9" fill="#093F3C" text-anchor="middle" font-weight="600">tokens so far (L ≤ 448)</text>
+  <text x="551" y="530" class="m" font-size="8.4" fill="#4C5658" text-anchor="middle">SOT · hi · transcribe · … · y₁ … yₜ</text>
+  <line x1="551" y1="538" x2="551" y2="550" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="426" y="554" width="250" height="46" rx="8" fill="#ECEAFB" stroke="#6C5CE7"/>
+  <text x="551" y="573" class="m" font-size="9.2" fill="#093F3C" text-anchor="middle">token embedding Wₑ (51,865, d)</text>
+  <text x="551" y="590" class="m" font-size="9.2" fill="#6C5CE7" text-anchor="middle" font-weight="600">+ learned positions (448, d)</text>
+  <line x1="551" y1="600" x2="551" y2="612" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <!-- block -->
+  <rect x="404" y="616" width="284" height="254" rx="12" fill="#F7F6FE" stroke="#6C5CE7" stroke-width="1.4" stroke-dasharray="6 5"/>
+  <text x="676" y="636" class="s" font-size="15" fill="#6C5CE7" text-anchor="end">× N</text>
+  <line x1="422" y1="628" x2="422" y2="864" stroke="#A9B2B2" stroke-width="2.2"/>
+  <rect x="442" y="644" width="214" height="48" rx="9" fill="#ECEAFB" stroke="#6C5CE7"/>
+  <text x="452" y="663" class="m" font-size="9.6" fill="#093F3C" font-weight="600">LN → Masked self-attention</text>
+  <text x="452" y="680" class="m" font-size="8.6" fill="#4C5658">causal · token t sees ≤ t · KV cache</text>
+  <line x1="549" y1="692" x2="549" y2="702" stroke="#6C5CE7" stroke-width="1.6"/><line x1="549" y1="702" x2="428" y2="702" stroke="#6C5CE7" stroke-width="1.6"/>
+  <circle cx="422" cy="702" r="7" fill="#fff" stroke="#6C5CE7" stroke-width="1.6"/><text x="422" y="706" class="m" font-size="10" fill="#6C5CE7" text-anchor="middle">+</text>
+  <rect class="pulse" x="442" y="724" width="214" height="56" rx="9" fill="#F7E4D8" stroke="#D9663B" stroke-width="1.6"/>
+  <text x="452" y="743" class="m" font-size="9.6" fill="#093F3C" font-weight="600">LN → Cross-attention</text>
+  <text x="452" y="759" class="m" font-size="8.6" fill="#D9663B" font-weight="600">Q from text · K, V from H</text>
+  <text x="452" y="773" class="m" font-size="8.6" fill="#4C5658">"which audio frames now?"</text>
+  <line x1="549" y1="780" x2="549" y2="790" stroke="#D9663B" stroke-width="1.6"/><line x1="549" y1="790" x2="428" y2="790" stroke="#D9663B" stroke-width="1.6"/>
+  <circle cx="422" cy="790" r="7" fill="#fff" stroke="#D9663B" stroke-width="1.6"/><text x="422" y="794" class="m" font-size="10" fill="#D9663B" text-anchor="middle">+</text>
+  <rect x="442" y="804" width="214" height="40" rx="9" fill="#F3EAD3" stroke="#C9A24B"/>
+  <text x="452" y="821" class="m" font-size="9.6" fill="#093F3C" font-weight="600">LN → MLP</text>
+  <text x="452" y="836" class="m" font-size="8.6" fill="#4C5658">d → 4d · GELU → d</text>
+  <line x1="549" y1="844" x2="549" y2="854" stroke="#C9A24B" stroke-width="1.6"/><line x1="549" y1="854" x2="428" y2="854" stroke="#C9A24B" stroke-width="1.6"/>
+  <circle cx="422" cy="854" r="7" fill="#fff" stroke="#C9A24B" stroke-width="1.6"/><text x="422" y="858" class="m" font-size="10" fill="#C9A24B" text-anchor="middle">+</text>
+  <line x1="551" y1="870" x2="551" y2="882" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="426" y="886" width="250" height="28" rx="8" fill="#fff" stroke="#6C5CE7"/>
+  <text x="551" y="904" class="m" font-size="9.2" fill="#6C5CE7" text-anchor="middle" font-weight="600">final LayerNorm</text>
+  <line x1="551" y1="914" x2="551" y2="926" stroke="#4C5658" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="426" y="930" width="250" height="50" rx="10" fill="#0E2A28"/>
+  <text x="551" y="951" class="m" font-size="10" fill="#F2C879" text-anchor="middle" font-weight="600">logits = x · Wₑᵀ  (tied)</text>
+  <text x="551" y="969" class="m" font-size="8.8" fill="#CFE9E4" text-anchor="middle">(L, 51,865) → softmax → yₜ₊₁</text>
+</g>
+<!-- autoregressive loop -->
+<path class="flow-line" data-step="5" d="M676 955H690V519H680" fill="none" stroke="#D9663B" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#arrowCoral)"/>
+<text x="710" y="737" class="m" font-size="8.6" fill="#D9663B" font-weight="600" transform="rotate(90 710 737)" text-anchor="middle">append yₜ₊₁ · repeat until &lt;|endoftext|&gt;</text>
+<text x="376" y="996" class="m" font-size="9" fill="#7E8888" text-anchor="middle">residual: x = x + Sublayer(LN(x)) · same width d and N layers in both stacks</text>
+
+<!-- Right panel: shape trace -->
+<g class="stage" data-step="6">
+  <rect x="722" y="454" width="468" height="550" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <text x="742" y="484" class="s" font-size="18" fill="#093F3C">Shape trace · large-v3</text>
+  <text x="742" y="503" class="m" font-size="9.2" fill="#4C5658">d = 1280 · 32 + 32 layers · 20 heads · 64 dims per head</text>
+  <g class="m" font-size="9.4">
+    <text x="742" y="532" fill="#4C5658">waveform (pad to 30 s)</text><text x="1172" y="532" fill="#093F3C" text-anchor="end" font-weight="600">(480000,)</text>
+    <text x="742" y="558" fill="#4C5658">STFT magnitude²</text><text x="1172" y="558" fill="#093F3C" text-anchor="end" font-weight="600">(201, 3000)</text>
+    <text x="742" y="584" fill="#4C5658">log-Mel (v3 uses 128 bins)</text><text x="1172" y="584" fill="#2E86DE" text-anchor="end" font-weight="600">(128, 3000)</text>
+    <text x="742" y="610" fill="#4C5658">conv1 · k3 · stride 1</text><text x="1172" y="610" fill="#093F3C" text-anchor="end" font-weight="600">(1280, 3000)</text>
+    <text x="742" y="636" fill="#4C5658">conv2 · k3 · stride 2</text><text x="1172" y="636" fill="#D9663B" text-anchor="end" font-weight="600">(1280, 1500)</text>
+    <text x="742" y="662" fill="#4C5658">encoder output H</text><text x="1172" y="662" fill="#0E5C58" text-anchor="end" font-weight="600">(1500, 1280)</text>
+    <text x="742" y="688" fill="#4C5658">decoder input tokens</text><text x="1172" y="688" fill="#093F3C" text-anchor="end" font-weight="600">(L,)  L ≤ 448</text>
+    <text x="742" y="714" fill="#4C5658">decoder hidden</text><text x="1172" y="714" fill="#6C5CE7" text-anchor="end" font-weight="600">(L, 1280)</text>
+    <text x="742" y="740" fill="#4C5658">logits (v3 vocab)</text><text x="1172" y="740" fill="#093F3C" text-anchor="end" font-weight="600">(L, 51866)</text>
+  </g>
+  <g stroke="#EFE8DA" stroke-width="1"><line x1="742" y1="541" x2="1172" y2="541"/><line x1="742" y1="567" x2="1172" y2="567"/><line x1="742" y1="593" x2="1172" y2="593"/><line x1="742" y1="619" x2="1172" y2="619"/><line x1="742" y1="645" x2="1172" y2="645"/><line x1="742" y1="671" x2="1172" y2="671"/><line x1="742" y1="697" x2="1172" y2="697"/><line x1="742" y1="723" x2="1172" y2="723"/></g>
+
+  <text x="742" y="776" class="m" font-size="10" fill="#7E8888" font-weight="600">THREE KINDS OF ATTENTION</text>
+  <rect x="742" y="788" width="428" height="34" rx="8" fill="#E3EEEC"/>
+  <text x="754" y="803" class="m" font-size="9.2" fill="#0E5C58" font-weight="600">encoder self-attn</text><text x="1160" y="803" class="m" font-size="9.2" fill="#093F3C" text-anchor="end">1500 × 1500 · full, no mask</text>
+  <text x="754" y="816" class="m" font-size="8.4" fill="#4C5658">needs the whole window before it starts → not streaming</text>
+  <rect x="742" y="828" width="428" height="34" rx="8" fill="#ECEAFB"/>
+  <text x="754" y="843" class="m" font-size="9.2" fill="#6C5CE7" font-weight="600">decoder self-attn</text><text x="1160" y="843" class="m" font-size="9.2" fill="#093F3C" text-anchor="end">L × L · causal mask</text>
+  <text x="754" y="856" class="m" font-size="8.4" fill="#4C5658">K, V of past tokens cached → one new row per step</text>
+  <rect x="742" y="868" width="428" height="34" rx="8" fill="#F7E4D8"/>
+  <text x="754" y="883" class="m" font-size="9.2" fill="#D9663B" font-weight="600">cross-attn</text><text x="1160" y="883" class="m" font-size="9.2" fill="#093F3C" text-anchor="end">L × 1500 · Q text, K/V audio</text>
+  <text x="754" y="896" class="m" font-size="8.4" fill="#4C5658">K, V projected from H once, reused for every token</text>
+
+  <rect x="742" y="910" width="428" height="82" rx="10" fill="#0E2A28"/>
+  <text x="756" y="931" class="m" font-size="9.4" fill="#F2C879" font-weight="600">Key idea: alignment is learned, not built in</text>
+  <text x="756" y="950" class="m" font-size="8.8" fill="#CFE9E4">no CTC / RNN-T lattice · cross-attention decides</text>
+  <text x="756" y="966" class="m" font-size="8.8" fill="#CFE9E4">which frames each token reads → flexible, but can</text>
+  <text x="756" y="982" class="m" font-size="8.8" fill="#CFE9E4">loop, skip, or invent text when the audio is unclear</text>
+</g>
+
+<!-- Section C: multitask token format -->
+<text x="50" y="1034" class="m" font-size="11" fill="#D9663B" font-weight="600">MULTITASK FORMAT · ONE MODEL, THE PROMPT TOKENS PICK THE JOB</text>
+<g class="stage" data-step="7">
+  <rect x="50" y="1046" width="1140" height="166" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <g class="m" font-size="10.5" font-weight="600" text-anchor="middle">
+    <rect x="70" y="1066" width="190" height="34" rx="8" fill="#fff" stroke="#7E8888" stroke-dasharray="4 3"/><text x="165" y="1087" fill="#4C5658">&lt;|startofprev|&gt; …</text>
+    <rect x="272" y="1066" width="150" height="34" rx="8" fill="#F3EAD3" stroke="#C9A24B"/><text x="347" y="1087" fill="#093F3C">&lt;|startoftranscript|&gt;</text>
+    <rect class="pulse" x="432" y="1066" width="56" height="34" rx="8" fill="#E2EEF9" stroke="#2E86DE"/><text x="460" y="1087" fill="#2E86DE">&lt;|hi|&gt;</text>
+    <rect x="498" y="1066" width="106" height="34" rx="8" fill="#E3EEEC" stroke="#0E5C58"/><text x="551" y="1087" fill="#0E5C58">&lt;|transcribe|&gt;</text>
+    <rect x="614" y="1066" width="70" height="34" rx="8" fill="#ECEAFB" stroke="#6C5CE7"/><text x="649" y="1087" fill="#6C5CE7">&lt;|0.00|&gt;</text>
+    <rect x="694" y="1066" width="74" height="34" rx="8" fill="#fff" stroke="#22282A"/><text x="731" y="1088" class="dv" font-size="13" font-weight="500" fill="#22282A">नमस्ते</text>
+    <rect x="778" y="1066" width="74" height="34" rx="8" fill="#fff" stroke="#22282A"/><text x="815" y="1088" class="dv" font-size="13" font-weight="500" fill="#22282A">दोस्तों</text>
+    <rect x="862" y="1066" width="70" height="34" rx="8" fill="#ECEAFB" stroke="#6C5CE7"/><text x="897" y="1087" fill="#6C5CE7">&lt;|1.24|&gt;</text>
+    <rect x="942" y="1066" width="112" height="34" rx="8" fill="#F3EAD3" stroke="#C9A24B"/><text x="998" y="1087" fill="#093F3C">&lt;|endoftext|&gt;</text>
+  </g>
+  <g stroke="#7E8888" stroke-width="1.2" fill="none"><path d="M272 1108V1114H604V1108"/><path d="M614 1108V1114H1054V1108"/></g>
+  <text x="438" y="1128" class="m" font-size="9" fill="#7E8888" text-anchor="middle" font-weight="600">PROMPT · given (or predicted)</text>
+  <text x="834" y="1128" class="m" font-size="9" fill="#7E8888" text-anchor="middle" font-weight="600">GENERATED · text + 20 ms timestamps</text>
+  <text x="1072" y="1080" class="m" font-size="9" fill="#4C5658">vocab: 50,257</text>
+  <text x="1072" y="1094" class="m" font-size="9" fill="#4C5658">text BPE +</text>
+  <text x="1072" y="1108" class="m" font-size="9" fill="#4C5658">1,608 specials</text>
+  <g class="m" font-size="9">
+    <text x="70" y="1156" fill="#4C5658" font-weight="600">previous text prompt</text>
+    <text x="70" y="1172" fill="#4C5658">earlier window or a hint</text>
+    <text x="70" y="1188" fill="#4C5658">(names, spellings, style)</text>
+    <text x="330" y="1156" fill="#2E86DE" font-weight="600">language token · 99 langs</text>
+    <text x="330" y="1172" fill="#4C5658">leave it out and the decoder</text>
+    <text x="330" y="1188" fill="#4C5658">predicts it → free language ID</text>
+    <text x="600" y="1156" fill="#0E5C58" font-weight="600">task token</text>
+    <text x="600" y="1172" fill="#4C5658">&lt;|transcribe|&gt; same language</text>
+    <text x="600" y="1188" fill="#4C5658">&lt;|translate|&gt; → English text</text>
+    <text x="870" y="1156" fill="#6C5CE7" font-weight="600">timestamps · 0.02 s steps</text>
+    <text x="870" y="1172" fill="#4C5658">segment start/end tokens, or</text>
+    <text x="870" y="1188" fill="#4C5658">&lt;|notimestamps|&gt; for plain text</text>
+  </g>
+</g>
+
+<!-- Section D: sizes + decoding -->
+<text x="50" y="1242" class="m" font-size="11" fill="#D9663B" font-weight="600">MODEL SIZES · DECODING RULES THAT KEEP WHISPER FROM LOOPING</text>
+<g class="stage" data-step="8">
+  <rect x="50" y="1254" width="560" height="218" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <text x="70" y="1282" class="s" font-size="17" fill="#093F3C">Same design, six sizes</text>
+  <g class="m" font-size="9.2" fill="#7E8888" font-weight="600">
+    <text x="70" y="1306">MODEL</text><text x="270" y="1306" text-anchor="end">ENC / DEC</text><text x="360" y="1306" text-anchor="end">d</text><text x="440" y="1306" text-anchor="end">HEADS</text><text x="530" y="1306" text-anchor="end">PARAMS</text>
+  </g>
+  <line x1="70" y1="1314" x2="590" y2="1314" stroke="#D9D0BF"/>
+  <g class="m" font-size="9.6" fill="#22282A">
+    <text x="70" y="1332">tiny</text><text x="270" y="1332" text-anchor="end">4 / 4</text><text x="360" y="1332" text-anchor="end">384</text><text x="440" y="1332" text-anchor="end">6</text><text x="530" y="1332" text-anchor="end">39 M</text>
+    <text x="70" y="1354">base</text><text x="270" y="1354" text-anchor="end">6 / 6</text><text x="360" y="1354" text-anchor="end">512</text><text x="440" y="1354" text-anchor="end">8</text><text x="530" y="1354" text-anchor="end">74 M</text>
+    <text x="70" y="1376">small</text><text x="270" y="1376" text-anchor="end">12 / 12</text><text x="360" y="1376" text-anchor="end">768</text><text x="440" y="1376" text-anchor="end">12</text><text x="530" y="1376" text-anchor="end">244 M</text>
+    <text x="70" y="1398">medium</text><text x="270" y="1398" text-anchor="end">24 / 24</text><text x="360" y="1398" text-anchor="end">1024</text><text x="440" y="1398" text-anchor="end">16</text><text x="530" y="1398" text-anchor="end">769 M</text>
+    <text x="70" y="1420">large-v2 / v3</text><text x="270" y="1420" text-anchor="end">32 / 32</text><text x="360" y="1420" text-anchor="end">1280</text><text x="440" y="1420" text-anchor="end">20</text><text x="530" y="1420" text-anchor="end">1.55 B</text>
+  </g>
+  <rect x="62" y="1428" width="536" height="26" rx="7" fill="#F7E4D8"/>
+  <g class="m" font-size="9.6" fill="#D9663B" font-weight="600">
+    <text x="70" y="1445">large-v3-turbo</text><text x="270" y="1445" text-anchor="end">32 / 4</text><text x="360" y="1445" text-anchor="end">1280</text><text x="440" y="1445" text-anchor="end">20</text><text x="530" y="1445" text-anchor="end">809 M</text>
+  </g>
+  <text x="70" y="1466" class="m" font-size="8.6" fill="#7E8888">turbo keeps the full encoder and cuts the decoder to 4 layers → much faster decoding</text>
+</g>
+<g class="stage" data-step="9">
+  <rect x="630" y="1254" width="560" height="218" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <text x="650" y="1282" class="s" font-size="17" fill="#093F3C">Beam search + temperature fallback</text>
+  <text x="650" y="1304" class="m" font-size="9.2" fill="#4C5658">decode with beam 5 at T = 0; if the result fails a check, retry hotter:</text>
+  <g class="m" font-size="9.6" font-weight="600" text-anchor="middle">
+    <rect x="650" y="1316" width="66" height="26" rx="13" fill="#E3EEEC" stroke="#0E5C58"/><text x="683" y="1333" fill="#0E5C58">T 0.0</text>
+    <rect x="734" y="1316" width="66" height="26" rx="13" fill="#fff" stroke="#C9A24B"/><text x="767" y="1333" fill="#093F3C">0.2</text>
+    <rect x="818" y="1316" width="66" height="26" rx="13" fill="#fff" stroke="#C9A24B"/><text x="851" y="1333" fill="#093F3C">0.4</text>
+    <rect x="902" y="1316" width="66" height="26" rx="13" fill="#fff" stroke="#C9A24B"/><text x="935" y="1333" fill="#093F3C">0.6</text>
+    <rect x="986" y="1316" width="66" height="26" rx="13" fill="#fff" stroke="#C9A24B"/><text x="1019" y="1333" fill="#093F3C">0.8</text>
+    <rect x="1070" y="1316" width="66" height="26" rx="13" fill="#F7E4D8" stroke="#D9663B"/><text x="1103" y="1333" fill="#D9663B">1.0</text>
+  </g>
+  <g stroke="#4C5658" stroke-width="1.4"><line x1="716" y1="1329" x2="730" y2="1329" marker-end="url(#arrow)"/><line x1="800" y1="1329" x2="814" y2="1329" marker-end="url(#arrow)"/><line x1="884" y1="1329" x2="898" y2="1329" marker-end="url(#arrow)"/><line x1="968" y1="1329" x2="982" y2="1329" marker-end="url(#arrow)"/><line x1="1052" y1="1329" x2="1066" y2="1329" marker-end="url(#arrow)"/></g>
+  <g class="m" font-size="9.2" fill="#22282A">
+    <text x="650" y="1366">retry if  <tspan fill="#D9663B" font-weight="600">gzip compression ratio &gt; 2.4</tspan>  → text is repeating</text>
+    <text x="698" y="1386">or <tspan fill="#D9663B" font-weight="600">avg log-prob &lt; −1.0</tspan>  → model is unsure</text>
+    <text x="650" y="1410">skip as silence if  <tspan fill="#6C5CE7" font-weight="600">P(no speech) &gt; 0.6</tspan>  and log-prob &lt; −1.0</text>
+    <text x="650" y="1434">long audio: slide the 30 s window; the next window starts</text>
+    <text x="650" y="1450">at the last timestamp token; previous text is the prompt</text>
+    <text x="650" y="1466" fill="#7E8888">(good for context, but one hallucination can carry forward)</text>
+  </g>
+</g>
+
+<!-- Section E: streaming -->
+<text x="50" y="1502" class="m" font-size="11" fill="#D9663B" font-weight="600">WHY WHISPER IS AN OFFLINE MODEL · AND HOW IT COMPARES WITH A STREAMING RNN-T</text>
+<g class="stage" data-step="10">
+  <rect x="50" y="1514" width="366" height="164" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <text x="66" y="1540" class="s" font-size="16" fill="#093F3C">Why it is not streaming</text>
+  <g class="m" font-size="9" fill="#22282A">
+    <text x="66" y="1564">• fixed 30 s input window</text>
+    <text x="66" y="1584">• full encoder attention: frame 1 looks at</text>
+    <text x="78" y="1598">frame 1500, so it waits for all audio</text>
+    <text x="66" y="1618">• decoder starts after the encoder, then</text>
+    <text x="78" y="1632">emits tokens one at a time</text>
+    <text x="66" y="1652">• no blank symbol: on silence or noise it</text>
+    <text x="78" y="1666" fill="#D9663B" font-weight="600">can invent text ("Thank you.")</text>
+  </g>
+</g>
+<g class="stage" data-step="11">
+  <rect x="437" y="1514" width="366" height="164" rx="14" fill="#FFFDF8" stroke="#D9D0BF" stroke-width="1.4"/>
+  <text x="453" y="1540" class="s" font-size="16" fill="#093F3C">Making it near real-time</text>
+  <g class="m" font-size="9" fill="#22282A">
+    <text x="453" y="1564">• VAD chunks (Silero) + faster-whisper</text>
+    <text x="465" y="1578">(CTranslate2, int8 / fp16)</text>
+    <text x="453" y="1598">• whisper-streaming: re-decode a growing</text>
+    <text x="465" y="1612">buffer, emit only the prefix that two</text>
+    <text x="465" y="1626">runs agree on (LocalAgreement) · ~3 s lag</text>
+    <text x="453" y="1646">• distil-whisper / turbo: fewer decoder</text>
+    <text x="465" y="1660" fill="#7E8888">layers → faster, but still offline</text>
+  </g>
+</g>
+<g class="stage" data-step="12">
+  <rect x="824" y="1514" width="366" height="164" rx="14" fill="#0E2A28"/>
+  <text x="840" y="1540" class="s" font-size="16" fill="#fff">vs your s1_hi_en (RNN-T)</text>
+  <g class="m" font-size="9">
+    <text x="960" y="1562" fill="#7FA9A4" font-weight="600">WHISPER</text><text x="1066" y="1562" fill="#7FA9A4" font-weight="600">FASTCONF RNN-T</text>
+    <text x="840" y="1580" fill="#CFE9E4">encoder frame</text><text x="960" y="1580" fill="#CFE9E4">20 ms</text><text x="1066" y="1580" fill="#CFE9E4">80 ms</text>
+    <text x="840" y="1597" fill="#CFE9E4">latency</text><text x="960" y="1597" fill="#CFE9E4">seconds</text><text x="1066" y="1597" fill="#CFE9E4">0.08–1.12 s</text>
+    <text x="840" y="1614" fill="#CFE9E4">alignment</text><text x="960" y="1614" fill="#CFE9E4">cross-attn</text><text x="1066" y="1614" fill="#CFE9E4">monotonic</text>
+    <text x="840" y="1631" fill="#CFE9E4">language</text><text x="960" y="1631" fill="#CFE9E4">auto LID</text><text x="1066" y="1631" fill="#CFE9E4">prompt token</text>
+    <text x="840" y="1648" fill="#CFE9E4">translate</text><text x="960" y="1648" fill="#CFE9E4">yes</text><text x="1066" y="1648" fill="#CFE9E4">no</text>
+    <text x="840" y="1668" fill="#F2C879" font-weight="600">offline batch → Whisper · live bot → RNN-T</text>
+  </g>
+</g>
+
+<rect x="50" y="1694" width="1140" height="34" rx="10" fill="#0E2A28"/>
+<text x="620" y="1716" class="m" font-size="10" fill="#CFE9E4" text-anchor="middle">Radford et al. 2022 · "Robust Speech Recognition via Large-Scale Weak Supervision" · github.com/openai/whisper · model.py + audio.py + decoding.py</text>
+</svg>
+
+<script>
+(function(){
+  if(new URLSearchParams(location.search).has('export'))document.body.classList.add('export');
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)');
+  const toggle=document.getElementById('motionToggle');
+  const steps=[...new Set([...document.querySelectorAll('[data-step]')].map(el=>Number(el.dataset.step)))].sort((a,b)=>a-b);
+  let current=-1,timer=null,paused=false;
+  function show(step){document.querySelectorAll('.is-active').forEach(el=>el.classList.remove('is-active'));document.querySelectorAll(`[data-step="${step}"]`).forEach(el=>el.classList.add('is-active'))}
+  function advance(){current=(current+1)%steps.length;show(steps[current])}
+  function start(){if(reduce.matches||document.body.classList.contains('export'))return;advance();timer=setInterval(advance,900)}
+  function stop(){clearInterval(timer);timer=null}
+  toggle.addEventListener('click',()=>{paused=!paused;document.body.classList.toggle('paused',paused);toggle.setAttribute('aria-pressed',String(paused));toggle.textContent=paused?'Resume motion':'Pause motion';paused?stop():start()});
+  reduce.addEventListener('change',event=>{if(event.matches){stop();document.querySelectorAll('.is-active').forEach(el=>el.classList.remove('is-active'))}else if(!paused)start()});
+  start();
+})();
+</script>
+</body>
+</html>
