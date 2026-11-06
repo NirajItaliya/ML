@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How MLPs Store Facts — Transformers, in 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  window.MathJax = {
+    tex:{inlineMath:[['$','$'],['\\(','\\)']], displayMath:[['$$','$$'],['\\[','\\]']]},
+    svg:{fontCache:'global'}
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<style>
+:root{
+  --paper:#F6F1E7; --paper2:#FBF7EF; --card:#FFFFFF;
+  --ink:#22282A; --ink-soft:#4C5658; --muted:#7E8888; --line:#E4DBCB;
+  --teal:#0E5C58; --teal-deep:#093F3C; --teal-soft:#E3EEEC;
+  --amber:#D9663B; --amber-soft:#F7E4D8; --gold:#C9A24B;
+  --violet:#6C5CE7; --blue:#2E86DE; --green:#2E9E5B; --neg:#D9663B;
+  --shadow:0 1px 2px rgba(20,40,38,.04),0 8px 30px -12px rgba(20,40,38,.18);
+  --shadow-lg:0 30px 60px -24px rgba(14,92,88,.30);
+  --radius:18px; --maxw:1180px;
+  --mono:'JetBrains Mono',monospace; --disp:'Fraunces',serif; --body:'Spectral',Georgia,serif;
+  --code-bg:#0E2A28; --code-border:#15403c; --code-text:#CFE9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 12% -10%, #FCEBDD55, transparent 40%),radial-gradient(circle at 100% 0%, #DCEBE955, transparent 45%);
+  background-attachment:fixed;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;line-height:1.12;color:var(--teal-deep);letter-spacing:-.01em}
+a{color:var(--teal);text-decoration:none}
+code,kbd,.mono{font-family:var(--mono)}
+
+.layout{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;padding:20px clamp(16px,5vw,48px) 80px;display:grid;grid-template-columns:240px 1fr;gap:48px;align-items:start}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.toc{display:none}}
+main{min-width:0}
+section{margin-bottom:60px;scroll-margin-top:90px}
+section h2{font-size:clamp(28px,4vw,40px);margin:6px 0 20px}
+section h3{font-size:23px;margin:34px 0 12px;color:var(--teal)}
+p{margin:0 0 18px;color:var(--ink-soft)}
+.lead-in{font-size:20px;color:var(--ink-soft)}
+strong{color:var(--ink)}
+ul.clean{padding-left:22px;color:var(--ink-soft);margin:0 0 18px}
+ul.clean li{margin-bottom:8px}
+
+/* progress + topbar */
+#progress{position:fixed;top:0;left:0;height:4px;width:0%;z-index:60;background:linear-gradient(90deg,var(--teal),var(--gold),var(--amber))}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;
+  padding:14px clamp(16px,4vw,40px);backdrop-filter:blur(8px);
+  background:linear-gradient(var(--paper),rgba(246,241,231,0));transition:background .3s,box-shadow .3s}
+.topbar.solid{background:rgba(246,241,231,.9);box-shadow:0 1px 0 var(--line)}
+.brand{font-family:var(--disp);font-weight:600;font-size:18px;color:var(--teal-deep);display:flex;align-items:center;gap:10px}
+.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-soft)}
+.topnav a{margin-left:22px;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.topnav a:hover{color:var(--amber)}
+@media(max-width:1100px){.topnav{display:none}}
+@media(max-width:560px){.brand .bt{display:none}}
+
+/* hero */
+.hero{max-width:var(--maxw);margin:0 auto;padding:140px clamp(16px,5vw,48px) 30px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;position:relative;z-index:2}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:120px}}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:18px}
+.hero h1{font-size:clamp(38px,6vw,68px);font-weight:600;margin:0 0 18px}
+.hero h1 .em{font-style:italic;color:var(--amber)}
+.hero p.lead{font-size:20px;color:var(--ink-soft);max-width:42ch;margin:0 0 26px}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:13px 22px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.btn.ghost{background:transparent;color:var(--teal)}
+.btn.ghost:hover{background:var(--teal-soft)}
+.hero-fig{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.hero-fig svg{display:block;width:100%;height:auto}
+.source{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:18px}
+.source a{color:var(--amber)}
+
+.beam{stroke-linecap:round;fill:none;stroke-dasharray:10 200;animation:flow 2.8s linear infinite}
+@keyframes flow{from{stroke-dashoffset:210}to{stroke-dashoffset:0}}
+.pnode{animation:breathe 3.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+
+/* toc */
+.toc{position:sticky;top:96px;font-family:var(--mono);font-size:12.5px}
+.toc h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.toc a{display:block;color:var(--ink-soft);padding:6px 0 6px 14px;border-left:2px solid var(--line);transition:.2s;line-height:1.4}
+.toc a:hover{color:var(--teal)}
+.toc a.active{color:var(--teal-deep);border-left-color:var(--amber);font-weight:600}
+
+.sec-no{font-family:var(--mono);font-size:13px;color:var(--amber);letter-spacing:.1em}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* callouts */
+.note{background:var(--teal-soft);border-left:4px solid var(--teal);border-radius:10px;padding:16px 20px;margin:22px 0;font-size:17px;color:var(--teal-deep)}
+.note.amber{background:var(--amber-soft);border-left-color:var(--amber);color:#8a3f1e}
+.note.violet{background:#ECEAFB;border-left-color:var(--violet);color:#3d3380}
+.note strong{color:inherit}
+
+.icards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin:22px 0}
+.icard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s,border-color .25s}
+.icard:hover{transform:translateY(-4px);border-color:var(--amber);box-shadow:var(--shadow-lg)}
+.icard .emoji{font-size:26px;margin-bottom:10px}
+.icard h4{font-size:19px;color:var(--teal-deep);margin:0 0 6px}
+.icard p{font-size:15.5px;color:var(--ink-soft);margin:0}
+
+.fig{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:24px 0;box-shadow:var(--shadow)}
+.fig svg{display:block;width:100%;height:auto;max-width:760px;margin:0 auto}
+.fig figcaption{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;margin-top:14px;letter-spacing:.02em}
+
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:15.5px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+thead{background:var(--teal);color:#fff;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--paper2)}
+td.mono,th.mono{font-family:var(--mono)}
+td.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+table caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--amber);padding:0 0 10px;font-weight:600}
+.tscroll{overflow-x:auto}
+
+pre{background:var(--code-bg);color:var(--code-text);border-radius:14px;padding:20px 22px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;box-shadow:var(--shadow);border:1px solid var(--code-border);margin:18px 0;position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:9px;right:15px;font-size:10.5px;color:#5f8a84;letter-spacing:.2em}
+code.inl{background:var(--teal-soft);color:var(--teal-deep);padding:2px 7px;border-radius:6px;font-size:14px;overflow-wrap:anywhere}
+.c-kw{color:#F2A0C0}.c-fn{color:#7FD1E8}.c-str{color:#E7E08B}.c-num{color:#F2C879}.c-com{color:#6f9a94}.c-op{color:#E58B5F}
+
+.keybox{background:linear-gradient(180deg,#fff,#FBF7EF);border:1.5px solid var(--gold);border-radius:14px;padding:8px 18px;margin:18px auto;text-align:center;box-shadow:var(--shadow);overflow-x:auto}
+.eqcard{background:var(--paper2);border:1px dashed var(--line);border-radius:12px;padding:6px 18px;margin:18px 0;overflow-x:auto}
+
+/* ===== dark stepped demo ===== */
+.demo{background:linear-gradient(160deg,#0E5C58,#093F3C);border-radius:var(--radius);padding:26px;margin:24px 0;box-shadow:var(--shadow-lg);color:#DCEFEC}
+.demo h4{color:#fff;margin:0 0 4px;font-size:20px}
+.demo .dsub{font-family:var(--mono);font-size:12px;color:#9fc9c3;margin-bottom:18px}
+.demo-board{display:flex;flex-direction:column;gap:14px}
+.brow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.brow .rlab{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7fb4ad;width:110px;flex:none}
+.chip{font-family:var(--mono);font-size:13px;padding:9px 12px;border-radius:10px;min-width:62px;text-align:center;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#bfe0db;opacity:0;transform:translateY(6px);
+  transition:opacity .4s,transform .4s,background .35s,border-color .35s,box-shadow .35s}
+.chip.show{opacity:1;transform:none}
+.chip small{display:block;font-size:9.5px;color:#7fb4ad;margin-top:2px}
+.chip.e.show{background:rgba(127,209,232,.12);border-color:#7FD1E8;color:#cdeaf4}
+.chip.q.show{background:rgba(201,162,75,.16);border-color:var(--gold);color:#f0dca6}
+.chip.k.show{background:rgba(46,158,91,.18);border-color:#59c48a;color:#c8f0d8}
+.chip.v.show{background:rgba(108,92,231,.22);border-color:#a69cf5;color:#e0dcff}
+.chip.a.show{background:rgba(217,102,59,.18);border-color:var(--amber);color:#f6cdba}
+.chip.hot{box-shadow:0 0 0 2px var(--gold),0 6px 20px -6px rgba(201,162,75,.6);transform:translateY(-3px)}
+.demo-cap{min-height:70px;margin:18px 0 6px;font-size:16px;color:#eafaf7;line-height:1.55}
+.demo-cap code{background:rgba(255,255,255,.1);padding:1px 6px;border-radius:5px;font-size:13.5px}
+.demo-ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.demo-ctrl button{font-family:var(--mono);font-size:12px;padding:9px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:transparent;color:#dcefec;cursor:pointer;transition:.2s}
+.demo-ctrl button:hover:not(:disabled){background:rgba(255,255,255,.12)}
+.demo-ctrl button:disabled{opacity:.35;cursor:not-allowed}
+.demo-ctrl button.primary{background:var(--gold);border-color:var(--gold);color:#3a2c08;font-weight:600}
+.dots{display:flex;gap:7px;margin-left:auto}
+.dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.25);transition:.2s}
+.dots i.on{background:var(--gold);transform:scale(1.3)}
+
+/* ===== light explorer ===== */
+.explorer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin:24px 0;box-shadow:var(--shadow)}
+.explorer h4{margin:0 0 4px;font-size:20px}
+.explorer .esub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:16px}
+.ctrls{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:18px}
+.ctl{display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--muted)}
+.ctl .v{color:var(--teal-deep);font-weight:600;font-size:13px}
+.ctl input[type=range]{width:150px;accent-color:var(--amber)}
+.ctl input[type=number]{width:110px;font-family:var(--mono);font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);color:var(--ink)}
+.ctl label{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--ink-soft);font-size:12px}
+.ctl input[type=checkbox]{accent-color:var(--amber)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{font-family:var(--mono);font-size:12px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--paper2);color:var(--ink-soft);cursor:pointer;transition:.2s}
+.tab:hover{border-color:var(--amber)}
+.tab.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.eread{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);margin-top:12px;line-height:1.65}
+.eread b{color:var(--teal-deep)}
+.eread .g{color:#9a7a1e}
+
+/* attention grid */
+.agrid-wrap{overflow-x:auto;padding:4px 0 8px}
+.agrid{display:grid;gap:3px;width:max-content;margin:0 auto}
+.ag-lab{font-family:var(--mono);font-size:11px;color:var(--ink-soft);display:flex;align-items:center;justify-content:flex-end;padding-right:8px;cursor:pointer;white-space:nowrap}
+.ag-lab.sel{color:var(--amber);font-weight:600}
+.ag-top{font-family:var(--mono);font-size:11px;color:var(--ink-soft);writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:flex-start;padding-top:6px;height:84px;white-space:nowrap}
+.ag-cell{width:44px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10.5px;cursor:pointer;transition:background .35s,color .35s,outline-color .2s;outline:2px solid transparent;outline-offset:-1px}
+.ag-cell.masked{background:repeating-linear-gradient(45deg,#EFE7D8,#EFE7D8 4px,#F8F3EA 4px,#F8F3EA 8px)!important;color:#b8ad98!important}
+.ag-cell.rowsel{outline-color:var(--gold)}
+@media(max-width:560px){.ag-cell{width:32px;height:28px;font-size:9px}}
+.minis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:14px}
+.mini{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--paper2);cursor:pointer;transition:.2s}
+.mini:hover,.mini.on{border-color:var(--amber);box-shadow:var(--shadow)}
+.mini .mt{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-bottom:6px;letter-spacing:.04em}
+.mini canvas{width:100%;height:auto;display:block;image-rendering:pixelated;border-radius:4px}
+
+.wtable{width:100%;margin:12px 0 0;font-size:13px}
+.wtable td,.wtable th{padding:6px 10px}
+.bar{height:9px;border-radius:5px;background:var(--amber);display:inline-block;vertical-align:middle}
+
+.calc-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:6px}
+.stat{background:var(--paper2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat .sl{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stat .sv{font-family:var(--disp);font-size:24px;color:var(--teal-deep);margin-top:2px}
+.stat .ss{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+footer{position:relative;z-index:2;background:var(--teal-deep);color:#BFD8D4;padding:48px clamp(16px,5vw,48px);text-align:center;font-family:var(--mono);font-size:13px}
+footer .big{font-family:var(--disp);font-size:24px;color:#fff;margin-bottom:10px}
+footer .links{margin:18px 0 6px;line-height:2}
+footer .links a{color:#9fd9d2}
+footer .sub{opacity:.7;margin-top:10px;font-size:12px}
+
+
+/* ===== 3D stages ===== */
+.stage3d{position:relative;background:linear-gradient(180deg,#FFFFFF,#F3EEE3);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin:24px 0 0}
+.stage3d canvas{display:block;width:100%;height:460px;cursor:grab}
+.stage3d canvas:active{cursor:grabbing}
+@media(max-width:700px){.stage3d canvas{height:360px}}
+.stage3d .labels{position:absolute;inset:0;pointer-events:none}
+.stage3d .hint{position:absolute;right:12px;bottom:10px;font-family:var(--mono);font-size:10.5px;color:var(--muted);background:rgba(255,255,255,.8);padding:4px 8px;border-radius:6px}
+.stage3d .fallback{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:30px;font-family:var(--mono);font-size:13px;color:var(--ink-soft);background:var(--paper2)}
+.l3{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);background:rgba(255,255,255,.86);border:1px solid var(--line);padding:2px 6px;border-radius:6px;white-space:nowrap}
+.l3.t{font-size:11.5px;font-weight:600;color:var(--teal-deep);border-color:var(--teal)}
+.l3.hot{color:#8a3f1e;border-color:var(--amber);background:#FFF4EC}
+.l3.b{color:#6a2fb0;border-color:#a76ee6}
+.panel3d{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:18px 20px;margin:0 0 24px;box-shadow:var(--shadow)}
+.panel3d .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.panel3d .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.stepcap{font-size:16.5px;color:var(--ink-soft);min-height:84px;line-height:1.6}
+.stepcap b{color:var(--ink)}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.stepbar{display:flex;gap:6px;flex-wrap:wrap}
+.sbtn{font-family:var(--mono);font-size:11.5px;padding:7px 11px;border-radius:8px;border:1px solid var(--line);background:var(--paper2);color:var(--ink-soft);cursor:pointer}
+.sbtn.on{background:var(--amber);border-color:var(--amber);color:#fff}
+.sbtn:hover{border-color:var(--amber)}
+.relu-fig svg{max-width:560px}
+.minibtn{font-family:var(--mono);font-size:12px;padding:9px 15px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:.2s}
+.minibtn:hover{background:var(--teal-deep)}
+.hist svg{display:block;width:100%;height:auto}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+  .reveal{opacity:1;transform:none}
+  .chip{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="topbar" id="topbar">
+  <style>
+  .nbar-left{display:flex;align-items:center;gap:10px}
+  .nbtn{font-family:var(--mono,'JetBrains Mono',monospace);font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+    display:inline-flex;align-items:center;padding:7px 13px;border-radius:999px;
+    border:1px solid var(--line,#E4DBCB);background:var(--card,#fff);color:var(--teal,#0E5C58);cursor:pointer;
+    text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s,border-color .2s}
+  .nbtn:hover{transform:translateY(-1px);border-color:var(--amber,#D9663B);background:var(--teal-soft,#E3EEEC);
+    box-shadow:var(--shadow,0 8px 30px -12px rgba(20,40,38,.18))}
+  @media(max-width:560px){.nbtn .lbl{display:none}.nbtn{padding:7px 10px}}
+  </style>
+  <div class="nbar-left">
+  <a class="nbtn" href="javascript:history.back()" title="Go back">←<span class="lbl">&nbsp;Back</span></a>
+  <a class="nbtn" href="../index.html" title="Home">⌂<span class="lbl">&nbsp;Home</span></a>
+  <div class="brand"><span class="dot"></span><span class="bt"> MLP &amp; Facts · Notebook</span></div>
+  </div>
+  <nav class="topnav">
+    <a href="#facts">Facts</a><a href="#mlp3d">3D MLP</a><a href="#relu">ReLU</a>
+    <a href="#vec3d">3D vectors</a><a href="#params">Params</a><a href="#superposition">Superposition</a><a href="#code">Code</a>
+  </nav>
+</div>
+
+<header class="hero">
+  <div>
+    <div class="eyebrow reveal">Transformers · Where facts live</div>
+    <h1 class="reveal">How an MLP <span class="em">remembers</span> Michael Jordan.</h1>
+    <p class="lead reveal">Type "Michael Jordan plays the sport of" and a language model says "basketball". That link has to be stored somewhere in its weights. The evidence points to the MLP blocks, which hold about two-thirds of GPT-3's 175 B parameters. This page builds a fact-storing MLP neuron by neuron and shows it in 3D.</p>
+    <div class="cta reveal">
+      <a class="btn" href="#facts">Start reading</a>
+      <a class="btn ghost" href="#mlp3d">Open the 3D MLP</a>
+    </div>
+    <p class="source reveal">Based on 3Blue1Brown · <a href="https://www.youtube.com/watch?v=9-Jl0dxWQs8" target="_blank" rel="noopener">Deep Learning Chapter 7: How might LLMs store facts</a>. The 3D scenes and widgets on this page are my own.</p>
+  </div>
+  <div class="hero-fig reveal">
+    <svg viewBox="0 0 460 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="An embedding vector goes up into many neurons, one neuron fires, and the basketball direction is added back">
+      <g font-family="JetBrains Mono" font-size="10.5" fill="#4C5658">
+        <text x="40" y="22" text-anchor="middle">E</text><text x="230" y="22" text-anchor="middle">neurons (4×)</text><text x="420" y="22" text-anchor="middle">E′ = E + ΔE</text>
+      </g>
+      <g>
+        <rect x="26" y="40" width="28" height="22" rx="4" fill="#0E5C58"/><rect x="26" y="66" width="28" height="22" rx="4" fill="#0E5C58"/>
+        <rect x="26" y="92" width="28" height="22" rx="4" fill="#EDE6D8"/><rect x="26" y="118" width="28" height="22" rx="4" fill="#EDE6D8"/>
+        <rect x="26" y="144" width="28" height="22" rx="4" fill="#EDE6D8"/><rect x="26" y="170" width="28" height="22" rx="4" fill="#EDE6D8"/>
+        <rect x="26" y="196" width="28" height="22" rx="4" fill="#EDE6D8"/><rect x="26" y="222" width="28" height="22" rx="4" fill="#EDE6D8"/>
+      </g>
+      <g font-family="JetBrains Mono" font-size="9" fill="#fff"><text x="40" y="55" text-anchor="middle">M</text><text x="40" y="81" text-anchor="middle">J</text></g>
+      <g id="heroNeurons"></g>
+      <g stroke-width="2.6">
+        <path class="beam" d="M54 51 C 120 51, 150 70, 172 76" stroke="#0E5C58"/>
+        <path class="beam" d="M54 77 C 120 77, 150 78, 172 78" stroke="#0E5C58" style="animation-delay:.4s"/>
+        <path class="beam" d="M184 78 C 280 70, 330 104, 392 103" stroke="#6C5CE7" style="animation-delay:.9s"/>
+      </g>
+      <g>
+        <rect x="392" y="40" width="28" height="22" rx="4" fill="#0E5C58"/><rect x="392" y="66" width="28" height="22" rx="4" fill="#0E5C58"/>
+        <rect x="392" y="92" width="28" height="22" rx="4" fill="#6C5CE7"/><rect x="392" y="118" width="28" height="22" rx="4" fill="#EDE6D8"/>
+        <rect x="392" y="144" width="28" height="22" rx="4" fill="#EDE6D8"/><rect x="392" y="170" width="28" height="22" rx="4" fill="#EDE6D8"/>
+        <rect x="392" y="196" width="28" height="22" rx="4" fill="#B9A6F0"/><rect x="392" y="222" width="28" height="22" rx="4" fill="#B9A6F0"/>
+      </g>
+      <g font-family="JetBrains Mono" font-size="9" fill="#fff"><text x="406" y="55" text-anchor="middle">M</text><text x="406" y="81" text-anchor="middle">J</text><text x="406" y="107" text-anchor="middle">🏀</text></g>
+      <g font-family="JetBrains Mono" font-size="9" fill="#7E8888"><text x="426" y="211">Bulls</text><text x="426" y="237">23</text></g>
+      <text x="230" y="285" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#7E8888">"Michael" AND "Jordan" → add "basketball"</text>
+    </svg>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <h5>Contents</h5>
+    <a href="#facts">1 · Where do facts live?</a>
+    <a href="#setup">2 · Facts as directions</a>
+    <a href="#mlp3d">3 · The MLP in 3D</a>
+    <a href="#up">4 · Up-projection &amp; bias</a>
+    <a href="#relu">5 · ReLU = an AND gate</a>
+    <a href="#down">6 · Down-projection</a>
+    <a href="#vec3d">7 · The vectors in 3D</a>
+    <a href="#params">8 · Counting parameters</a>
+    <a href="#superposition">9 · Superposition</a>
+    <a href="#sae">10 · Real neurons are messy</a>
+    <a href="#code">11 · Code it</a>
+    <a href="#recap">12 · Recap</a>
+  </aside>
+
+  <main>
+
+    <!-- 01 -->
+    <section id="facts" class="reveal">
+      <div class="sec-no">01</div>
+      <h2>Where do facts live?</h2>
+      <p class="lead-in">If a model completes "Michael Jordan plays the sport of ___" with <em>basketball</em>, then somewhere in its parameters is an association between one particular person and one sport.</p>
+      <p>In December 2023, researchers at Google DeepMind looking at this question found that facts seem to be stored in a particular part of the network: the <strong>multi-layer perceptrons (MLPs)</strong>. Nobody fully understands the mechanism yet. 3b1b's lesson describes it as unsolved. What we <em>can</em> do is build a toy MLP that clearly stores a fact, and check that real MLPs have the right structure to work the same way.</p>
+      <div class="icards">
+        <div class="icard"><div class="emoji">🔁</div><h4>Attention: vectors talk</h4><p>Information moves <em>between</em> positions. For example, "Michael" passes its meaning forward onto "Jordan".</p></div>
+        <div class="icard"><div class="emoji">🧱</div><h4>MLP: vectors think alone</h4><p>Each position is processed <strong>on its own and in parallel</strong>, with no communication. This is where a looked-up fact gets added.</p></div>
+        <div class="icard"><div class="emoji">📦</div><h4>Most of the weights</h4><p>In GPT-3 the MLP blocks hold about 116 B of the 175 B parameters, roughly two-thirds.</p></div>
+      </div>
+      <div class="note">This page follows on from the <a href="multi-head-attention-blog.html">multi-head attention notebook</a>. A transformer layer is attention followed by an MLP, and GPT-3 repeats that 96 times. Both blocks <em>add</em> their output to the residual stream: $\vec E \to \vec E + \text{Attn}(\cdot) \to \cdots + \text{MLP}(\cdot)$.</div>
+    </section>
+
+    <!-- 02 -->
+    <section id="setup" class="reveal">
+      <div class="sec-no">02</div>
+      <h2>Facts as directions</h2>
+      <p class="lead-in">Recall from the embeddings chapter that <em>directions</em> in embedding space can carry meaning. For example, woman − man points along a "gender" direction. We'll assume three such directions exist, nearly perpendicular to one another.</p>
+      <table>
+        <thead><tr><th>Direction</th><th>Meaning</th><th>How to read it</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">$\vec M$</td><td>first name <em>Michael</em></td><td>$\vec E\cdot\vec M = 1$ → "this token's person is called Michael". A value of 0 or below means it isn't.</td></tr>
+          <tr><td class="mono">$\vec J$</td><td>last name <em>Jordan</em></td><td>$\vec E\cdot\vec J = 1$ → "surname Jordan".</td></tr>
+          <tr><td class="mono">$\vec B$</td><td><em>basketball</em></td><td>We want the MLP to <strong>add</strong> this direction whenever the vector encodes the full name.</td></tr>
+        </tbody>
+      </table>
+      <p>So "the vector encodes Michael Jordan" means $\vec E\cdot\vec M=1$ <em>and</em> $\vec E\cdot\vec J=1$. Attention already did part of the work: an earlier attention layer moved "Michael" forward onto the "Jordan" token, so that one vector now holds both names. (We ignore dot products greater than 1, as the video does.)</p>
+    </section>
+
+    <!-- 03 -->
+    <section id="mlp3d" class="reveal">
+      <div class="sec-no">03</div>
+      <h2>The MLP in 3D: watch a fact get looked up</h2>
+      <p class="lead-in">The whole block, as the video puts it, is "two matrix products, each with a bias added, and a simple clipping function in between", followed by a residual add.</p>
+      <div class="keybox">$$ \vec E' \;=\; \vec E \;+\; W_{\downarrow}\,\operatorname{ReLU}\!\big(W_{\uparrow}\vec E + \vec b_{\uparrow}\big) + \vec b_{\downarrow} $$</div>
+      <p>Below is a toy MLP with a 12-dimensional embedding and <strong>48 neurons</strong>, the same 4× expansion GPT-3 uses (12,288 → 49,152). The first 8 embedding dimensions are named features. Neuron 0 is wired by hand to detect "Michael AND Jordan", and neuron 1 to detect "Michael AND Phelps". The other 46 have random small weights, standing in for every other feature the model knows. Drag to orbit, scroll to zoom, and step through the computation.</p>
+
+      <div class="stage3d" id="stageA">
+        <canvas id="cvA" aria-label="3D view of an MLP block: input vector, 48 neurons, output vector"></canvas>
+        <div class="labels" id="lblA"></div>
+        <div class="hint">drag = orbit · scroll = zoom · right-drag = pan</div>
+        <div class="fallback" id="fbA">WebGL isn't available in this browser, so the 3D scene can't render. The step text and numbers below still work.</div>
+      </div>
+      <div class="panel3d">
+        <div class="row"><span class="lbl">input token's vector</span>
+          <div class="tabs" id="who"></div></div>
+        <div class="row"><span class="lbl">step</span><div class="stepbar" id="stepbar"></div>
+          <button class="minibtn" id="playA">▶ Play</button></div>
+        <div class="stepcap" id="capA"></div>
+        <div class="readout" id="roA"></div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="up" class="reveal">
+      <div class="sec-no">04</div>
+      <h2>Step 1: the up-projection asks questions</h2>
+      <p class="lead-in">Multiply $\vec E$ by a very large matrix $W_\uparrow$. Each <strong>row</strong> is a question, and each output entry is the dot product of that row with $\vec E$.</p>
+      <p>If row 0 were just $\vec M$, the output would be "is the first name Michael?". Make row 0 equal to $\vec M+\vec J$ instead. Dot products distribute, so:</p>
+      <div class="eqcard">$$ (\vec M+\vec J)\cdot\vec E \;=\; \vec M\cdot\vec E+\vec J\cdot\vec E \;=\; \begin{cases} 2 & \text{Michael Jordan}\\ 1 & \text{Michael Phelps, or Alexis Jordan}\\ 0 & \text{neither}\end{cases} $$</div>
+      <p>This is a problem: "Michael Phelps" scores 1 here, half as much as Michael Jordan. A purely linear map can't separate "both" from "one of the two". The fix is the <strong>bias</strong> $\vec b_\uparrow$. Set its first entry to $-1$:</p>
+      <div class="keybox">$$ h_0^{\text{pre}} = (\vec M+\vec J)\cdot\vec E - 1 = \begin{cases} +1 & \text{Michael Jordan}\\ \;\;\,0 & \text{only one name}\\ -1 & \text{neither}\end{cases} $$</div>
+      <p>Now the entry is positive <em>if and only if</em> the vector encodes the full name. In GPT-3, $W_\uparrow$ has <strong>49,152 rows</strong> ("just under 50,000"), exactly 4 × 12,288. There's no deep reason for the 4×. It's a design choice that stuck.</p>
+    </section>
+
+    <!-- 05 -->
+    <section id="relu" class="reveal">
+      <div class="sec-no">05</div>
+      <h2>Step 2: ReLU turns it into an AND gate</h2>
+      <p class="lead-in">Next, a non-linear function is applied to every entry. ReLU keeps positive numbers and replaces negative ones with zero.</p>
+      <div class="eqcard">$$ \operatorname{ReLU}(x)=\max(0,x)\qquad \operatorname{GELU}(x)= x\,\Phi(x)\approx \tfrac12 x\Big(1+\tanh\!\big[\sqrt{2/\pi}\,(x+0.044715x^3)\big]\Big) $$</div>
+      <p>After the $-1$ bias, $\operatorname{ReLU}(h_0^{\text{pre}})$ is <strong>1 for Michael Jordan and exactly 0 for everyone else</strong>: an <strong>AND gate</strong> built from a dot product, a bias and a clip. The outputs of the ReLU are the <strong>neurons</strong>. A neuron is <em>active</em> when its value is positive and <em>inactive</em> when it is zero. Real models usually use <strong>GELU</strong>, which has the same shape but is smooth around 0 and lets small negative values through.</p>
+      <div class="fig relu-fig"><div id="reluSvg"></div><figcaption>ReLU (teal) vs GELU (amber). The dots mark h<sub>0</sub><sup>pre</sup> for the three inputs: −1 (neither), 0 (one name) and +1 (Michael Jordan).</figcaption></div>
+      <div class="note amber"><strong>Quick check:</strong> how many parameters does ReLU have? <strong>Zero.</strong> It's a fixed function applied to each entry. Everything the MLP learns is in $W_\uparrow, \vec b_\uparrow, W_\downarrow, \vec b_\downarrow$.</div>
+    </section>
+
+    <!-- 06 -->
+    <section id="down" class="reveal">
+      <div class="sec-no">06</div>
+      <h2>Step 3: the down-projection writes the answer</h2>
+      <p class="lead-in">$W_\downarrow$ maps the 49,152 neurons back to the 12,288 embedding dimensions. Read it <strong>column by column</strong>.</p>
+      <div class="keybox">$$ W_\downarrow\,\vec h \;=\; \sum_{n} h_n\,\vec c_n \qquad(\vec c_n=\text{column } n \text{ of } W_\downarrow) $$</div>
+      <p>Each column is a direction in embedding space that gets added <em>only when its neuron is active</em>, scaled by the neuron's value. Set column 0 to $\vec B$, the basketball direction. When neuron 0 fires (Michael Jordan), "basketball" is added. When it's 0, nothing is. The same column can carry more associations at once, such as <em>Chicago Bulls</em> or <em>the number 23</em>. Then comes the bias $\vec b_\downarrow$, added regardless (it's safe to ignore), and the <strong>residual add</strong>:</p>
+      <div class="eqcard">$$ \vec E' = \vec E + \Delta\vec E,\qquad \Delta\vec E = \underbrace{1}_{h_0}\cdot\vec B + \cdots \;\;\Rightarrow\;\; \vec E'\cdot\vec B \approx 1 $$</div>
+      <p>The output vector now encodes Michael, Jordan <em>and</em> basketball. Every token position runs this <strong>independently and in parallel</strong>, so one block computes 49,152 × (number of tokens) neuron values.</p>
+      <div class="note violet"><strong>Rows read, columns write.</strong> Each row of $W_\uparrow$ is a <em>pattern detector</em> for the input. Each column of $W_\downarrow$ is a <em>message</em> to add to the output. A neuron connects one to the other, so a single neuron can act as one entry in a key → value lookup table.</div>
+    </section>
+
+    <!-- 07 -->
+    <section id="vec3d" class="reveal">
+      <div class="sec-no">07</div>
+      <h2>The same thing as vectors in 3D</h2>
+      <p class="lead-in">Shrink the picture to the three directions we care about: $\vec M$, $\vec J$, $\vec B$. They're drawn nearly perpendicular, about 88–90° apart, rather than exactly.</p>
+      <p>The input $\vec E = \vec M+\vec J$ lies flat in the M–J plane. Its shadow on each axis is its dot product with that direction. Press <strong>Run MLP</strong>: the ΔE arrow is the active neuron's column ($\vec B$) times its value $h_0$. Adding it lifts $\vec E$ out of the plane to $\vec E'$. Switch to Michael Phelps: $h_0 = 0$, so nothing gets lifted.</p>
+      <div class="stage3d" id="stageB">
+        <canvas id="cvB" aria-label="3D vectors: Michael, Jordan and basketball directions and the embedding before and after the MLP"></canvas>
+        <div class="labels" id="lblB"></div>
+        <div class="hint">drag = orbit · scroll = zoom</div>
+        <div class="fallback" id="fbB">WebGL isn't available here, so the 3D vector view can't render.</div>
+      </div>
+      <div class="panel3d">
+        <div class="row"><span class="lbl">input</span><div class="tabs" id="whoB"></div>
+          <button class="minibtn" id="runB">▶ Run MLP</button></div>
+        <div class="readout" id="roB"></div>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section id="params" class="reveal">
+      <div class="sec-no">08</div>
+      <h2>Counting parameters</h2>
+      <p class="lead-in">Two matrices, each $12{,}288\times49{,}152$, in each of 96 layers.</p>
+      <div class="tscroll">
+      <table>
+        <caption>GPT-3 MLP parameters (biases ignored)</caption>
+        <thead><tr><th>Piece</th><th>Shape</th><th style="text-align:right">Parameters</th></tr></thead>
+        <tbody>
+          <tr><td>$W_\uparrow$ (up-projection)</td><td class="mono">49,152 × 12,288</td><td class="num">603,979,776 ≈ 604 M</td></tr>
+          <tr><td>$W_\downarrow$ (down-projection)</td><td class="mono">12,288 × 49,152</td><td class="num">603,979,776 ≈ 604 M</td></tr>
+          <tr><td>One MLP block</td><td class="mono">2 × 604 M</td><td class="num">1,207,959,552 ≈ 1.2 B</td></tr>
+          <tr><td><strong>All 96 MLP blocks</strong></td><td class="mono">96 × 1.2 B</td><td class="num"><strong>115,964,116,992 ≈ 116 B</strong></td></tr>
+        </tbody>
+      </table>
+      <table>
+        <caption>Where GPT-3's 175 B parameters are</caption>
+        <thead><tr><th>Part</th><th>Formula</th><th style="text-align:right">Parameters</th><th style="text-align:right">Share</th></tr></thead>
+        <tbody>
+          <tr><td>MLP blocks (this page)</td><td class="mono">96 · 2 · 4d²</td><td class="num">115.96 B</td><td class="num">66.2 %</td></tr>
+          <tr><td>Attention (<a href="multi-head-attention-blog.html#params">Ch 6</a>)</td><td class="mono">96 · 4d²</td><td class="num">57.98 B</td><td class="num">33.1 %</td></tr>
+          <tr><td>Embedding + unembedding (Ch 5)</td><td class="mono">2 · 50,257 · d</td><td class="num">1.24 B</td><td class="num">0.7 %</td></tr>
+          <tr><td>Normalisation</td><td class="mono">—</td><td class="num">≈ 49 K</td><td class="num">≈ 0</td></tr>
+          <tr><td><strong>Total</strong></td><td></td><td class="num"><strong>≈ 175.2 B</strong></td><td class="num">100 %</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Per layer, attention uses $4d^2$ and the MLP uses $8d^2$. That 1 : 2 ratio is the whole story of "two-thirds". It's also why people say facts live in the MLPs: that's where most of the storage capacity is.</p>
+    </section>
+
+    <!-- 09 -->
+    <section id="superposition" class="reveal">
+      <div class="sec-no">09</div>
+      <h2>Superposition: more facts than neurons</h2>
+      <p class="lead-in">In $n$ dimensions you can fit only $n$ <em>exactly</em> perpendicular directions. "To a mathematician this is the definition of dimension." But if <em>nearly</em> perpendicular is good enough, say 85–95° apart, the count changes dramatically.</p>
+      <div class="keybox">$$ \textbf{Johnson–Lindenstrauss:}\quad \#\{\text{nearly perpendicular directions}\}\ \text{grows exponentially with } n,\qquad N \sim e^{\,c\,\varepsilon^2 n} $$</div>
+      <p>A space with 10× more dimensions can hold <strong>far more</strong> than 10× more independent ideas. So the 49,152 neurons could probe <em>orders of magnitude more</em> features, with each feature spread across a combination of neurons rather than owning one. That is what <strong>superposition</strong> means here.</p>
+      <p>Random directions are already nearly perpendicular in high dimensions. For two random unit vectors in $n$ dimensions, the dot product has mean 0 and standard deviation $1/\sqrt n$, so the angle stays within about $\pm 57.3^\circ/\sqrt n$ of 90°. Run the experiment yourself:</p>
+
+      <div class="explorer">
+        <h4>Superposition lab: cram vectors into a space</h4>
+        <div class="esub">Generate N random unit vectors in D dimensions and look at the histogram of pairwise angles. Then press Optimise to push the vectors apart, which is the video's experiment at a smaller scale.</div>
+        <div class="ctrls">
+          <div class="ctl">vectors N <span class="v" id="nLab">400</span><input type="range" id="nS" min="20" max="600" step="10" value="400"></div>
+          <div class="ctl">dimensions D <span class="v" id="dLab">100</span><input type="range" id="dS" min="2" max="200" step="1" value="100"></div>
+          <button class="minibtn" id="regen">↻ New random</button>
+          <button class="minibtn" id="optim">▶ Optimise</button>
+        </div>
+        <div class="hist" id="hist"></div>
+        <div class="eread" id="histRead"></div>
+      </div>
+
+      <div class="note amber"><strong>A correction 3b1b published.</strong> The video showed 10,000 vectors in 100 dimensions optimised until "all the angles are between 89 and 91". The written lesson later says the code had a bug: a few pairs had dot products near ±1, hidden in the tails of the histogram. The lesson concludes that 100 dimensions aren't enough for JL to "kick in" at the strict (89°, 91°) range. Watch the min/max angle readout above: the bulk of the histogram can look tidy while the worst pair doesn't.</div>
+      <table>
+        <caption>The capacity numbers (Nick Yoder's analysis, quoted in the lesson)</caption>
+        <thead><tr><th>Tolerance</th><th>Dimensions</th><th>Nearly perpendicular vectors</th></tr></thead>
+        <tbody>
+          <tr><td>89–91° (very strict)</td><td class="mono">needs &gt; 250,000</td><td>only then does it get interesting</td></tr>
+          <tr><td>85–95° (|cos| ≤ 0.087)</td><td class="mono">12,288 (GPT-3 d)</td><td>well over 40 billion, likely &gt; 10<sup>17</sup></td></tr>
+          <tr><td>85–95°</td><td class="mono">116,000</td><td>well over a googol (10<sup>100</sup>), likely &gt; 10<sup>160</sup></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 10 -->
+    <section id="sae" class="reveal">
+      <div class="sec-no">10</div>
+      <h2>Real neurons are messy</h2>
+      <p class="lead-in">Our toy neuron 0 is a <em>clean</em> feature: one neuron, one meaning. In real models, single neurons "very rarely" look like that.</p>
+      <p>Superposition explains why. If the model stores far more features than it has neurons, each feature has to be a <em>direction</em> spread across many neurons, and each neuron takes part in many unrelated features. A single neuron may fire for Michael Jordan, Korean poetry <em>and</em> HTML tags. This makes models hard to interpret. It may also be part of why they <strong>scale so well</strong>: each extra dimension adds more than one dimension's worth of capacity.</p>
+      <div class="icards">
+        <div class="icard"><div class="emoji">🧩</div><h4>Polysemantic neurons</h4><p>One neuron, many unrelated meanings. That's what you'd expect if features are overlapping, nearly perpendicular directions.</p></div>
+        <div class="icard"><div class="emoji">🔬</div><h4>Sparse autoencoders</h4><p>Interpretability researchers train an SAE to rewrite the activations as a sparse mix of many more directions, trying to recover the real features.</p></div>
+        <div class="icard"><div class="emoji">📚</div><h4>Further reading</h4><p><a href="https://transformer-circuits.pub/2022/toy_model/index.html" target="_blank" rel="noopener">Toy Models of Superposition</a> and <a href="https://transformer-circuits.pub/2023/monosemantic-features" target="_blank" rel="noopener">Towards Monosemanticity</a> (Anthropic).</p></div>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section id="code" class="reveal">
+      <div class="sec-no">11</div>
+      <h2>Code it</h2>
+      <p class="lead-in">First, the MLP block as it appears in a GPT-style model. Second, the hand-wired Michael Jordan neuron from this page, which you can run.</p>
+<pre data-lang="python"><span class="c-kw">import</span> torch, torch.nn <span class="c-kw">as</span> nn
+
+<span class="c-kw">class</span> <span class="c-fn">MLPBlock</span>(nn.Module):
+    <span class="c-kw">def</span> <span class="c-fn">__init__</span>(self, d=<span class="c-num">12288</span>, mult=<span class="c-num">4</span>):
+        super().__init__()
+        self.norm = nn.LayerNorm(d)
+        self.up   = nn.Linear(d, mult <span class="c-op">*</span> d)     <span class="c-com"># W↑, b↑ : rows = questions</span>
+        self.act  = nn.GELU()                   <span class="c-com"># smooth ReLU, 0 params</span>
+        self.down = nn.Linear(mult <span class="c-op">*</span> d, d)     <span class="c-com"># W↓, b↓ : columns = answers</span>
+
+    <span class="c-kw">def</span> <span class="c-fn">forward</span>(self, x):                   <span class="c-com"># x: (B, n, d); every position independent</span>
+        <span class="c-kw">return</span> x <span class="c-op">+</span> self.down(self.act(self.up(self.norm(x))))   <span class="c-com"># E' = E + ΔE</span>
+
+<span class="c-com"># ---- the toy "Michael Jordan" neuron ----</span>
+M, J, B, P = torch.eye(<span class="c-num">4</span>)                   <span class="c-com"># Michael, Jordan, basketball, Phelps</span>
+W_up   = torch.stack([M <span class="c-op">+</span> J])                <span class="c-com"># 1 neuron: row 0 = M + J</span>
+b_up   = torch.tensor([<span class="c-op">-</span><span class="c-num">1.0</span>])
+W_down = B[:, <span class="c-kw">None</span>]                         <span class="c-com"># column 0 = basketball</span>
+
+<span class="c-kw">for</span> name, E <span class="c-kw">in</span> [(<span class="c-str">"Michael Jordan"</span>, M<span class="c-op">+</span>J), (<span class="c-str">"Michael Phelps"</span>, M<span class="c-op">+</span>P)]:
+    h  = torch.relu(W_up <span class="c-op">@</span> E <span class="c-op">+</span> b_up)         <span class="c-com"># AND gate</span>
+    E2 = E <span class="c-op">+</span> W_down <span class="c-op">@</span> h
+    print(name, <span class="c-str">"h0 ="</span>, h.item(), <span class="c-str">" E'·B ="</span>, (E2 <span class="c-op">@</span> B).item())
+<span class="c-com"># Michael Jordan h0 = 1.0  E'·B = 1.0</span>
+<span class="c-com"># Michael Phelps h0 = 0.0  E'·B = 0.0</span></pre>
+      <div class="note">Parameter check: <code class="inl">sum(p.numel() for p in MLPBlock().parameters())</code> gives 1,208,045,568. That's the 1,207,959,552 weights in the table plus 61,440 biases and 24,576 LayerNorm parameters.</div>
+    </section>
+
+    <!-- 12 -->
+    <section id="recap" class="reveal">
+      <div class="sec-no">12</div>
+      <h2>Recap</h2>
+      <ul class="clean">
+        <li><strong>The MLP</strong> is up-project, then a non-linearity, then down-project, then add: $\vec E' = \vec E + W_\downarrow\,\sigma(W_\uparrow\vec E+\vec b_\uparrow)+\vec b_\downarrow$. Every token is processed independently.</li>
+        <li><strong>Rows of $W_\uparrow$</strong> are questions about the input (dot products). <strong>The bias</strong> sets a threshold. <strong>ReLU</strong> clips at zero, so together they make an AND gate.</li>
+        <li><strong>Columns of $W_\downarrow$</strong> are what gets written: an active "Michael Jordan" neuron adds the basketball direction, and possibly Bulls and 23 too.</li>
+        <li><strong>Size:</strong> 2 × 12,288 × 49,152 ≈ 1.2 B per block, and 116 B over 96 layers, about two-thirds of GPT-3.</li>
+        <li><strong>Superposition:</strong> nearly perpendicular directions grow exponentially with dimension (Johnson–Lindenstrauss). So features outnumber neurons and individual neurons look messy. Sparse autoencoders try to recover the features.</li>
+      </ul>
+      <div class="note violet"><strong>Series:</strong> ← <a href="multi-head-attention-blog.html">Multi-head attention (Ch 6)</a> · this page (Ch 7) · next, training: backpropagation, cross-entropy, RLHF and scaling laws. See the <a href="backpropagation.html">backprop notebook</a>.</div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="big">Rows ask, ReLU decides, columns write.</div>
+  <div>An AND gate on "Michael" + "Jordan" adds "basketball" to the residual stream.</div>
+  <div class="links">
+    <a href="https://www.youtube.com/watch?v=9-Jl0dxWQs8" target="_blank" rel="noopener">3b1b · How might LLMs store facts (Ch 7)</a> ·
+    <a href="https://www.3blue1brown.com/lessons/mlp" target="_blank" rel="noopener">Written lesson</a> ·
+    <a href="https://transformer-circuits.pub/2022/toy_model/index.html" target="_blank" rel="noopener">Toy Models of Superposition</a> ·
+    <a href="multi-head-attention-blog.html">Multi-head attention notebook</a>
+  </div>
+  <div class="sub">An interactive companion to 3Blue1Brown's Deep Learning Chapter 7. The toy MLP's weights are hand-set for teaching; they are not taken from a trained model.</div>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const prog=$('progress'), tb=$('topbar');
+function onScroll(){const h=document.documentElement,m=h.scrollHeight-h.clientHeight;
+  prog.style.width=(m>0?h.scrollTop/m*100:0)+'%'; tb.classList.toggle('solid',h.scrollTop>40);}
+document.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in');}),{threshold:.06});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+const tl=[...document.querySelectorAll('.toc a')];
+const spy=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;
+  tl.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));}}),{rootMargin:'-28% 0px -60% 0px'});
+document.querySelectorAll('main section[id]').forEach(s=>spy.observe(s));
+
+/* hero neuron dots */
+(()=>{let s='';for(let r=0;r<8;r++)for(let c=0;c<6;c++){const on=r===1&&c===0;
+  s+=`<circle cx="${178+c*22}" cy="${50+r*26}" r="${on?8:6}" fill="${on?'#D9663B':'#EDE6D8'}" ${on?'class="pnode"':''}/>`;}
+  document.getElementById('heroNeurons').innerHTML=s;})();
+
+/* ReLU vs GELU plot */
+(()=>{const w=560,h=230,p=34,x0=-3,x1=3,y0=-0.6,y1=3;
+  const X=x=>p+(x-x0)/(x1-x0)*(w-2*p),Y=y=>h-p-(y-y0)/(y1-y0)*(h-2*p);
+  const gelu=x=>0.5*x*(1+Math.tanh(Math.sqrt(2/Math.PI)*(x+0.044715*x*x*x)));
+  let r='',g='';for(let i=0;i<=120;i++){const x=x0+(x1-x0)*i/120;r+=(i?'L':'M')+X(x).toFixed(1)+','+Y(Math.max(0,x)).toFixed(1);g+=(i?'L':'M')+X(x).toFixed(1)+','+Y(gelu(x)).toFixed(1);}
+  const pts=[[-1,'neither'],[0,'one name'],[1,'Michael Jordan']].map(([v,l],k)=>`<circle cx="${X(v)}" cy="${Y(Math.max(0,v))}" r="5" fill="${v>0?'#D9663B':'#0E5C58'}"/><text x="${X(v)}" y="${Y(Math.max(0,v))-12-(k===1?10:0)}" text-anchor="middle" font-family="JetBrains Mono" font-size="10.5" fill="#4C5658">${l} (${v})</text>`).join('');
+  document.getElementById('reluSvg').innerHTML=`<svg viewBox="0 0 ${w} ${h}"><line x1="${p}" y1="${Y(0)}" x2="${w-p}" y2="${Y(0)}" stroke="#E4DBCB"/><line x1="${X(0)}" y1="${p-10}" x2="${X(0)}" y2="${h-p+6}" stroke="#E4DBCB"/>
+   <path d="${g}" fill="none" stroke="#D9663B" stroke-width="2.4" stroke-dasharray="6 4"/><path d="${r}" fill="none" stroke="#0E5C58" stroke-width="2.6"/>${pts}
+   <text x="${w-p}" y="${Y(2.7)}" text-anchor="end" font-family="JetBrains Mono" font-size="11" fill="#0E5C58">ReLU</text><text x="${w-p}" y="${Y(2.3)}" text-anchor="end" font-family="JetBrains Mono" font-size="11" fill="#D9663B">GELU</text>
+   <text x="${X(x0)}" y="${Y(0)+16}" font-family="JetBrains Mono" font-size="10" fill="#7E8888">−3</text><text x="${X(x1)}" y="${Y(0)+16}" text-anchor="end" font-family="JetBrains Mono" font-size="10" fill="#7E8888">3</text></svg>`;})();
+
+/* ===== superposition lab ===== */
+(()=>{
+  let N=400,D=100,V=null,running=false,steps=0;
+  function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  function norm(i){let s=0;for(let k=0;k<D;k++)s+=V[i*D+k]**2;s=Math.sqrt(s)||1;for(let k=0;k<D;k++)V[i*D+k]/=s;}
+  function regen(){V=new Float32Array(N*D);for(let i=0;i<N*D;i++)V[i]=gauss();for(let i=0;i<N;i++)norm(i);steps=0;draw();}
+  function dot(i,j){let s=0;const a=i*D,b=j*D;for(let k=0;k<D;k++)s+=V[a+k]*V[b+k];return s;}
+  function step(){ // gradient of sum dot^4 (punishes the worst pairs most), step size normalised
+    const G=new Float32Array(N*D);
+    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const d=dot(i,j),w=d*d*d;const a=i*D,b=j*D;
+      for(let k=0;k<D;k++){G[a+k]+=w*V[b+k];G[b+k]+=w*V[a+k];}}
+    let mx=0;for(let i=0;i<N;i++){let s=0;for(let k=0;k<D;k++)s+=G[i*D+k]**2;mx=Math.max(mx,Math.sqrt(s));}
+    const lr=mx>0?0.03/mx:0;for(let i=0;i<N*D;i++)V[i]-=lr*G[i];for(let i=0;i<N;i++)norm(i);steps++;}
+  function draw(){
+    const bins=new Array(180).fill(0);let mn=180,mxA=0,inside=0,tot=0;
+    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const a=Math.acos(Math.max(-1,Math.min(1,dot(i,j))))*180/Math.PI;
+      bins[Math.min(179,Math.floor(a))]++;mn=Math.min(mn,a);mxA=Math.max(mxA,a);if(a>=85&&a<=95)inside++;tot++;}
+    const w=700,h=210,p=30,peak=Math.max(...bins);let bars='';
+    for(let b=0;b<180;b++){if(!bins[b])continue;const bh=Math.max(1,(h-2*p)*bins[b]/peak);const x=p+b*(w-2*p)/180;
+      bars+=`<rect x="${x.toFixed(1)}" y="${(h-p-bh).toFixed(1)}" width="${((w-2*p)/180-0.5).toFixed(2)}" height="${bh.toFixed(1)}" fill="${b>=85&&b<95?'#0E5C58':'#D9663B'}"/>`;}
+    const tick=a=>{const x=p+a*(w-2*p)/180;return `<line x1="${x}" y1="${h-p}" x2="${x}" y2="${h-p+5}" stroke="#7E8888"/><text x="${x}" y="${h-p+17}" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#7E8888">${a}°</text>`;};
+    const band=`<rect x="${p+85*(w-2*p)/180}" y="${p-8}" width="${10*(w-2*p)/180}" height="${h-2*p+8}" fill="#E3EEEC"/>`;
+    $('hist').innerHTML=`<svg viewBox="0 0 ${w} ${h}">${band}${bars}<line x1="${p}" y1="${h-p}" x2="${w-p}" y2="${h-p}" stroke="#7E8888"/>${[0,45,85,90,95,135,180].map(tick).join('')}<text x="${p+90*(w-2*p)/180}" y="${p-12}" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#0E5C58">85–95° band</text></svg>`;
+    const sd=57.2958/Math.sqrt(D);
+    $('histRead').innerHTML=`<b>${tot.toLocaleString()}</b> pairs · angles from <b class="g">${mn.toFixed(1)}°</b> to <b class="g">${mxA.toFixed(1)}°</b> · <b>${(100*inside/tot).toFixed(1)}%</b> within 85–95° · optimisation steps: <b>${steps}</b><br>
+      Theory for random vectors: angle ≈ 90° ± ${sd.toFixed(1)}° (1σ = 57.3°/√D). ${N>D?`N = ${N} &gt; D = ${D}, so they <i>can't</i> all be exactly perpendicular, yet most pairs are close.`:`N ≤ D, so a perfectly perpendicular set exists. Optimise will head toward it.`}`;
+  }
+  function loop(){if(!running)return;const t=performance.now();do{step();}while(performance.now()-t<25&&N*N*D<4e6);draw();if(steps>=400){toggle();return;}requestAnimationFrame(loop);}
+  function toggle(){running=!running;$('optim').textContent=running?'⏸ Stop':'▶ Optimise';if(running)loop();}
+  $('nS').oninput=e=>{N=+e.target.value;$('nLab').textContent=N;if(running)toggle();regen();};
+  $('dS').oninput=e=>{D=+e.target.value;$('dLab').textContent=D;if(running)toggle();regen();};
+  $('regen').onclick=()=>{if(running)toggle();regen();};
+  $('optim').onclick=toggle;
+  regen();
+})();
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {CSS2DRenderer, CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
+const $=id=>document.getElementById(id);
+let tq=Promise.resolve();
+const typeset=el=>{if(!(window.MathJax&&MathJax.typesetPromise))return;tq=tq.then(()=>MathJax.typesetPromise([el])).catch(()=>{});};
+const setMath=(el,html)=>{tq=tq.then(()=>{if(window.MathJax&&MathJax.typesetClear)MathJax.typesetClear([el]);el.innerHTML=html;});typeset(el);};
+
+/* ---------- toy MLP (hand-set weights) ---------- */
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+const R=rng(20251107), g=()=>{let u=R()||1e-9,v=R();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);};
+const D=12, H=48;
+const DIM=['Michael','Jordan','basketball','Phelps','Alexis','swimming','Chicago Bulls','number 23','other₁','other₂','other₃','other₄'];
+const e=k=>{const v=new Array(D).fill(0);v[k]=1;return v;};
+const add=(...vs)=>vs.reduce((a,b)=>a.map((x,i)=>x+b[i]));
+const noise=[0.12,-0.08,0.1,-0.12];
+const INPUTS={
+  'Michael Jordan':add(e(0),e(1)),
+  'Michael Phelps':add(e(0),e(3)),
+  'Alexis Jordan':add(e(4),e(1)),
+};
+Object.values(INPUTS).forEach(v=>noise.forEach((n,k)=>v[8+k]=n));
+const Wup=[],bup=[];
+for(let n=0;n<H;n++){Wup.push(Array.from({length:D},()=>g()*0.28));bup.push(-0.85+g()*0.12);}
+Wup[0]=add(e(0),e(1)); bup[0]=-1;
+Wup[1]=add(e(0),e(3)); bup[1]=-1;
+const Wdn=Array.from({length:D},()=>Array.from({length:H},()=>g()*0.06));   // D x H
+for(let d=0;d<D;d++){Wdn[d][0]=0;Wdn[d][1]=0;}
+Wdn[2][0]=1.0; Wdn[6][0]=0.55; Wdn[7][0]=0.45;    // neuron 0 writes basketball, Bulls, 23
+Wdn[5][1]=1.0;                                    // neuron 1 writes swimming
+function forward(E){
+  const pre=Wup.map(r=>r.reduce((s,w,i)=>s+w*E[i],0));
+  const pb=pre.map((x,n)=>x+bup[n]);
+  const h=pb.map(x=>Math.max(0,x));
+  const dE=Wdn.map(r=>r.reduce((s,w,n)=>s+w*h[n],0));
+  const out=E.map((x,i)=>x+dE[i]);
+  return {pre,pb,h,dE,out};
+}
+
+/* ---------- shared 3D helpers ---------- */
+function makeStage(cvId,lblId,fbId,camPos,target){
+  const canvas=$(cvId);let renderer;
+  try{renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setClearColor(0x000000,0);}
+  catch(err){$(fbId).style.display='grid';return null;}
+  renderer.setPixelRatio(Math.min(2,devicePixelRatio));
+  const scene=new THREE.Scene();
+  const cam=new THREE.PerspectiveCamera(40,1,0.1,200);cam.position.set(...camPos);
+  const labels=new CSS2DRenderer({element:$(lblId)});
+  const ctr=new OrbitControls(cam,canvas);ctr.target.set(...target);ctr.enableDamping=true;ctr.update();
+  scene.add(new THREE.HemisphereLight(0xffffff,0xd8cdb8,1.1));
+  const dl=new THREE.DirectionalLight(0xffffff,1.2);dl.position.set(6,12,10);scene.add(dl);
+  function size(){const w=canvas.clientWidth,h=canvas.clientHeight;renderer.setSize(w,h,false);labels.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix();}
+  new ResizeObserver(size).observe(canvas);size();
+  let visible=false;new IntersectionObserver(es=>{visible=es[0].isIntersecting;}).observe(canvas);
+  const st={scene,cam,ctr,renderer,labels,tick:null};
+  (function loop(){requestAnimationFrame(loop);if(!visible)return;st.tick&&st.tick();ctr.update();renderer.render(scene,cam);labels.render(scene,cam);})();
+  return st;
+}
+function label(text,cls,pos,parent){const d=document.createElement('div');d.className='l3 '+(cls||'');d.textContent=text;const o=new CSS2DObject(d);o.position.set(...pos);parent.add(o);return o;}
+const C={teal:new THREE.Color('#0E5C58'),amber:new THREE.Color('#D9663B'),violet:new THREE.Color('#6C5CE7'),idle:new THREE.Color('#E6DECF'),gold:new THREE.Color('#C9A24B')};
+
+/* ---------- Stage A: the MLP ---------- */
+const A=makeStage('cvA','lblA','fbA',[2.5,5.5,23],[2.2,0,0]);
+const STEPS=[
+  {k:'input',t:'1 · input E'},{k:'up',t:'2 · W↑E'},{k:'bias',t:'3 · + b↑'},{k:'relu',t:'4 · ReLU'},{k:'down',t:'5 · W↓h'},{k:'res',t:'6 · E + ΔE'}];
+let who='Michael Jordan', step=0, playT=null;
+const colX={E:-8.5,N:0,dE:7.5,out:11.5}, yOf=i=>(5.5-i)*0.72;
+const nPos=n=>{const q=n===1?47:n===47?1:n;const r=Math.floor(q/8),c=q%8;return [(c-3.5)*0.72,(2.5-r)*1.0,0.4];};
+let cells={},neurons=[],beamsUp=[],beamsDn=[],tgt={},labelsA={};
+if(A){
+  const S=A.scene, geo=new THREE.BoxGeometry(1,0.56,0.56), sg=new THREE.SphereGeometry(0.34,24,16);
+  ['E','dE','out'].forEach(col=>{cells[col]=[];for(let i=0;i<D;i++){
+    const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:C.idle.clone(),roughness:.55}));
+    m.position.set(colX[col],yOf(i),0);S.add(m);cells[col].push(m);}});
+  for(let i=0;i<D;i++) label(DIM[i],i<3?'':'',[colX.E-1.9,yOf(i),0],S);
+  for(let n=0;n<H;n++){const m=new THREE.Mesh(sg,new THREE.MeshStandardMaterial({color:C.idle.clone(),roughness:.4,emissive:new THREE.Color(0),emissiveIntensity:1}));
+    m.position.set(...nPos(n));S.add(m);neurons.push(m);}
+  labelsA.n0=label('neuron 0: Michael AND Jordan','hot',[nPos(0)[0]+0.6,nPos(0)[1]+0.7,nPos(0)[2]],S);
+  labelsA.n1=label('neuron 1: Michael AND Phelps','',[nPos(1)[0]-0.6,nPos(1)[1]-0.7,nPos(1)[2]],S);
+  // slabs
+  const slab=(x,txt)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(0.12,8.6,8.6),new THREE.MeshStandardMaterial({color:C.teal,transparent:true,opacity:.07,depthWrite:false}));m.position.set(x,0,0);S.add(m);
+    const ed=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:C.teal,transparent:true,opacity:.35}));ed.position.copy(m.position);S.add(ed);label(txt,'t',[x,-4.9,0],S);};
+  slab(-4.4,'W↑ · 48×12  (GPT-3: 49,152×12,288)');slab(4.2,'W↓ · 12×48');
+  label('E  (12-d)','t',[colX.E,4.9,0],S);label('48 neurons (4×) — size/colour = value','t',[0,4.0,0.4],S);
+  label('ΔE','t',[colX.dE,4.9,0],S);label("E′ = E + ΔE",'t',[colX.out,4.9,0],S);
+  labelsA.plus=label('+','t',[ (colX.dE+colX.out)/2,0,0],S);
+  // beams: from each E cell to neuron 0; from neuron 0/1 to dE cells
+  const lm=c=>new THREE.LineBasicMaterial({color:c,transparent:true,opacity:0});
+  for(let i=0;i<D;i++){
+    const a=new THREE.Vector3(colX.E+0.5,yOf(i),0),b=new THREE.Vector3(...nPos(0));
+    const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),lm(C.teal));S.add(l);beamsUp.push(l);
+    const a2=new THREE.Vector3(...nPos(0)),b2=new THREE.Vector3(colX.dE-0.5,yOf(i),0);
+    const l2=new THREE.Line(new THREE.BufferGeometry().setFromPoints([a2,b2]),lm(C.violet));S.add(l2);beamsDn.push(l2);
+  }
+  // animated state
+  const cur={E:new Array(D).fill(0),dE:new Array(D).fill(0),out:new Array(D).fill(0),n:new Array(H).fill(0),up:0,dn:0};
+  A.tick=()=>{
+    const k=0.12;
+    ['E','dE','out'].forEach(col=>{for(let i=0;i<D;i++){cur[col][i]+=(tgt[col][i]-cur[col][i])*k;const v=cur[col][i],m=cells[col][i];
+      const w=Math.max(0.06,Math.min(2.4,Math.abs(v)*1.7));m.scale.x=w;m.position.x=colX[col]+(w-1)*0;
+      m.material.color.copy(Math.abs(v)<0.03?C.idle:(v>0?(col==='dE'||(col==='out'&&tgt.dE[i]>0.2)?C.violet:C.teal):C.amber));
+      m.material.opacity=1;}});
+    for(let n=0;n<H;n++){cur.n[n]+=(tgt.n[n]-cur.n[n])*k;const v=cur.n[n],m=neurons[n];
+      const s=0.75+Math.min(1.1,Math.abs(v))*0.8;m.scale.setScalar(s);
+      if(Math.abs(v)<0.02){m.material.color.copy(C.idle);m.material.emissive.setRGB(0,0,0);}
+      else if(v>0){m.material.color.copy(C.amber);m.material.emissive.copy(C.amber).multiplyScalar(Math.min(.55,v*.5));}
+      else{m.material.color.copy(C.teal).lerp(C.idle,0.45);m.material.emissive.setRGB(0,0,0);}}
+    cur.up+=(tgt.up-cur.up)*k;cur.dn+=(tgt.dn-cur.dn)*k;
+    beamsUp.forEach((l,i)=>l.material.opacity=cur.up*(Math.abs(Wup[0][i])>0.5?0.9:0.12));
+    beamsDn.forEach((l,i)=>l.material.opacity=cur.dn*(Math.abs(Wdn[i][0])>0.3?0.9:0.08));
+  };
+}
+function stateFor(){
+  const f=forward(INPUTS[who]), Z=new Array(D).fill(0), s=STEPS[step].k;
+  const t={E:INPUTS[who],dE:Z,out:Z,n:new Array(H).fill(0),up:0,dn:0};
+  if(s==='up'){t.n=f.pre;t.up=1;}
+  if(s==='bias'){t.n=f.pb;t.up=1;}
+  if(s==='relu'){t.n=f.h;}
+  if(s==='down'){t.n=f.h;t.dE=f.dE;t.dn=f.h[0]>0.01?1:0.25;}
+  if(s==='res'){t.n=f.h;t.dE=f.dE;t.out=f.out;t.dn=f.h[0]>0.01?0.6:0.15;}
+  return {t,f};
+}
+const n3=x=>(x>=0?'+':'−')+Math.abs(x).toFixed(2);
+function renderA(){
+  const {t,f}=stateFor();tgt=t;
+  const s=STEPS[step].k, act=f.h.filter(x=>x>0.01).length, isMJ=who==='Michael Jordan';
+  const E=INPUTS[who];
+  const cap={
+    input:`The token's vector after attention. For <b>${who}</b> the named dimensions are ${DIM.map((d,i)=>E[i]?`<b>${d}</b> = ${E[i]}`:'').filter((x,i)=>x&&i<8).join(', ')}, plus small values in the "other" dimensions. Nothing in it says <i>basketball</i> yet: $\\vec E\\cdot\\vec B = ${E[2].toFixed(2)}$.`,
+    up:`Each of the 48 rows of $W_\\uparrow$ takes a dot product with $\\vec E$. Row 0 is $\\vec M+\\vec J$, so neuron 0's raw value is $\\vec M\\cdot\\vec E+\\vec J\\cdot\\vec E = ${f.pre[0].toFixed(2)}$. The teal beams show which input dimensions row 0 reads. Amber neurons are positive and grey ones negative.`,
+    bias:`Add the bias $\\vec b_\\uparrow$. Neuron 0 gets $-1$: $${f.pre[0].toFixed(2)} - 1 = ${f.pb[0].toFixed(2)}$. Now it is positive <i>only</i> for the full name Michael Jordan. Neuron 1 (Michael AND Phelps) is at ${f.pb[1].toFixed(2)}.`,
+    relu:`ReLU clips every negative value to 0. <b>${act}</b> of 48 neurons stay active. Neuron 0 = <b>${f.h[0].toFixed(2)}</b> and neuron 1 = <b>${f.h[1].toFixed(2)}</b>. ${isMJ?'The AND gate fired.':'The Michael-Jordan gate stays shut.'} ${act>(f.h[0]>0?1:0)+(f.h[1]>0?1:0)?'A few random neurons are slightly active too, like real neurons that respond to features we didn\'t name.':''}`,
+    down:`$W_\\downarrow\\vec h=\\sum_n h_n\\vec c_n$. Each active neuron adds its column. Neuron 0's column is <b>basketball</b> (1.0) + <b>Chicago Bulls</b> (0.55) + <b>23</b> (0.45). Violet beams show where it writes. ΔE·basketball = <b>${f.dE[2].toFixed(2)}</b>, ΔE·swimming = <b>${f.dE[5].toFixed(2)}</b>.`,
+    res:`Residual add: $\\vec E' = \\vec E+\\Delta\\vec E$. The output now has $\\vec E'\\cdot\\vec B = ${f.out[2].toFixed(2)}$. ${isMJ?'The fact "plays basketball" was added to the vector, while Michael and Jordan stay intact.':who==='Michael Phelps'?'Phelps got <b>swimming</b> from neuron 1 instead, and no basketball.':'Alexis Jordan gets no sport at all, because no neuron stores a fact about her.'}`,
+  }[s];
+  setMath($('capA'),cap);
+  const stat=(a,b,c)=>`<div class="stat"><div class="sl">${a}</div><div class="sv">${b}</div><div class="ss">${c}</div></div>`;
+  $('roA').innerHTML=stat('neuron 0 (MJ)',f.h[0].toFixed(2),'pre '+n3(f.pre[0])+', bias −1')+stat('neuron 1 (MP)',f.h[1].toFixed(2),'pre '+n3(f.pre[1])+', bias −1')+
+    stat('active neurons',act+' / 48','after ReLU')+stat("E′ · basketball",f.out[2].toFixed(2),'was '+E[2].toFixed(2))+stat("E′ · swimming",f.out[5].toFixed(2),'was '+E[5].toFixed(2));
+  document.querySelectorAll('#stepbar .sbtn').forEach((b,i)=>b.classList.toggle('on',i===step));
+  document.querySelectorAll('#who .tab').forEach(b=>b.classList.toggle('on',b.dataset.w===who));
+  if(A&&labelsA.n0){labelsA.n0.element.className='l3 '+(f.h[0]>0.01&&step>=3?'hot':'');labelsA.n1.element.className='l3 '+(f.h[1]>0.01&&step>=3?'hot':'');}
+}
+$('who').innerHTML=Object.keys(INPUTS).map(w=>`<button class="tab" data-w="${w}">${w}</button>`).join('');
+$('who').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{who=b.dataset.w;renderA();});
+$('stepbar').innerHTML=STEPS.map((s,i)=>`<button class="sbtn" data-i="${i}">${s.t}</button>`).join('');
+$('stepbar').querySelectorAll('.sbtn').forEach(b=>b.onclick=()=>{stopA();step=+b.dataset.i;renderA();});
+function stopA(){if(playT){clearInterval(playT);playT=null;$('playA').textContent='▶ Play';}}
+$('playA').onclick=()=>{if(playT){stopA();return;}if(step===STEPS.length-1)step=0;else step++;renderA();$('playA').textContent='⏸ Pause';
+  playT=setInterval(()=>{if(step>=STEPS.length-1){stopA();return;}step++;renderA();},2600);};
+renderA();
+
+/* ---------- Stage B: vectors ---------- */
+const B=makeStage('cvB','lblB','fbB',[5.2,3.6,6.4],[0.6,0.7,0.5]);
+let whoB='Michael Jordan', runB=0, runTgt=0;
+const dirM=new THREE.Vector3(1,0,0), dirJ=new THREE.Vector3(0.03,0,1).normalize(), dirB=new THREE.Vector3(0.02,1,0.035).normalize(), dirP=new THREE.Vector3(0.7,-0.05,-0.72).normalize();
+// three.js is y-up: draw basketball as "up", M and J in the floor plane
+const angle=(a,b)=>(Math.acos(a.dot(b))*180/Math.PI).toFixed(1);
+let arrE,arrOut,arrD,proj=[];
+if(B){
+  const S=B.scene;
+  const grid=new THREE.GridHelper(4,8,0xC9BFA8,0xE4DBCB);grid.position.y=0;S.add(grid);
+  const axis=(d,c,t,cls)=>{S.add(new THREE.ArrowHelper(d,new THREE.Vector3(),1.6,c,0.16,0.09));label(t,cls,d.clone().multiplyScalar(1.85).toArray(),S);};
+  axis(dirM,0x0E5C58,'M · Michael','t');axis(dirJ,0x0E5C58,'J · Jordan','t');axis(dirB,0x6C5CE7,'B · basketball','b');axis(dirP,0x9aa3a3,'P · Phelps','');
+  arrE=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(),1,0xD9663B,0.2,0.12);S.add(arrE);
+  arrOut=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(),1,0xC9A24B,0.2,0.12);S.add(arrOut);
+  arrD=new THREE.ArrowHelper(new THREE.Vector3(0,1,0),new THREE.Vector3(),1,0x6C5CE7,0.18,0.1);S.add(arrD);
+  for(let k=0;k<3;k++){const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineDashedMaterial({color:0x7E8888,dashSize:.06,gapSize:.05}));S.add(l);proj.push(l);}
+  B.lE=label('E','hot',[0,0,0],S);B.lO=label("E′",'',[0,0,0],S);
+  B.tick=()=>{runB+=(runTgt-runB)*0.07;drawB();};
+}
+function vecB(){const E=whoB==='Michael Jordan'?dirM.clone().add(dirJ):dirM.clone().add(dirP);
+  const h0=Math.max(0,E.dot(dirM)+E.dot(dirJ)-1); // neuron 0 on the 3D picture
+  return {E,h0};}
+function setArrow(a,from,v){const len=v.length();if(len<1e-3){a.visible=false;return;}a.visible=true;a.position.copy(from);a.setDirection(v.clone().normalize());a.setLength(len,Math.min(.2,len*.3),Math.min(.12,len*.2));}
+function drawB(){
+  const {E,h0}=vecB(), dE=dirB.clone().multiplyScalar(h0*runB), out=E.clone().add(dE);
+  if(!B)return;
+  setArrow(arrE,new THREE.Vector3(),E);setArrow(arrD,E,dE);setArrow(arrOut,new THREE.Vector3(),out);arrOut.visible=runB>0.05&&h0>0;
+  B.lE.position.copy(E.clone().multiplyScalar(1.08));B.lO.position.copy(out.clone().add(new THREE.Vector3(0,.15,0)));B.lO.visible=arrOut.visible;B.lO.element.style.display=arrOut.visible?'':'none';
+  const P=out;[dirM,dirJ,dirB].forEach((d,k)=>{const foot=d.clone().multiplyScalar(P.dot(d));proj[k].geometry.setFromPoints([P.clone(),foot]);proj[k].computeLineDistances();});
+}
+function renderB(){
+  const {E,h0}=vecB();
+  const out=E.clone().add(dirB.clone().multiplyScalar(h0*runTgt));
+  const stat=(a,b,c)=>`<div class="stat"><div class="sl">${a}</div><div class="sv">${b}</div><div class="ss">${c}</div></div>`;
+  $('roB').innerHTML=stat('E·M',E.dot(dirM).toFixed(2),'Michael?')+stat('E·J',E.dot(dirJ).toFixed(2),'Jordan?')+
+    stat('h₀ = ReLU(E·(M+J) − 1)',h0.toFixed(2),h0>0?'fires (≠ 1: small cross-talk, axes not exactly ⟂)':'gate shut')+stat("E′·B",out.dot(dirB).toFixed(2),runTgt?'after MLP':'before MLP (press Run)')+
+    stat('angle M∠J',angle(dirM,dirJ)+'°','nearly ⟂')+stat('angle J∠B',angle(dirJ,dirB)+'°','nearly ⟂');
+  document.querySelectorAll('#whoB .tab').forEach(b=>b.classList.toggle('on',b.dataset.w===whoB));
+  $('runB').textContent=runTgt?'↺ Reset':'▶ Run MLP';
+}
+$('whoB').innerHTML=['Michael Jordan','Michael Phelps'].map(w=>`<button class="tab" data-w="${w}">${w}</button>`).join('');
+$('whoB').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{whoB=b.dataset.w;runTgt=0;runB=0;renderB();});
+$('runB').onclick=()=>{runTgt=runTgt?0:1;renderB();};
+renderB();
+window.__mlp={setStep:k=>{step=k;renderA();},setWho:w=>{who=w;renderA();},runB:()=>{runTgt=1;renderB();}};
+</script>
+</body>
+</html>

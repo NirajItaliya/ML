@@ -430,7 +430,7 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       <a href="encoder/neural_networks_zero_to_expert.html" class="btn ghost">Begin at 01 →</a>
     </div>
     <div class="scroll-hint">
-      <span class="arrow">↓</span> scroll to explore all 24 pages
+      <span class="arrow">↓</span> scroll to explore all 26 pages
     </div>
   </div>
 
@@ -677,7 +677,7 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
           <div class="task-body">
             <div class="task-top"><span class="task-no">11</span><a class="task-name" href="encoder/self_attention.html">Self-attention</a><span class="task-time">22 min</span></div>
             <p class="task-done"><b>Done when</b> you can compute softmax(QKᵀ/√d_k)·V for a 3-token toy example and explain the √d_k.</p>
-            <div class="task-links"><a class="task-link" href="encoder/self_attention.html">Open →</a></div>
+            <div class="task-links"><a class="task-link" href="encoder/self_attention.html">Open →</a> <a class="task-link ghost" href="encoder/multi-head-attention-blog.html">Multi-head deep dive →</a></div>
           </div>
         </li>
         <li class="task" data-task="t11" data-stage="3">
@@ -685,7 +685,7 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
           <div class="task-body">
             <div class="task-top"><span class="task-no">12</span><a class="task-name" href="encoder/transformer-encoder-animated.html">Transformer encoder</a><span class="task-time">25 min</span></div>
             <p class="task-done"><b>Done when</b> you can trace the tensor shapes through one encoder layer and count its parameters roughly.</p>
-            <div class="task-links"><a class="task-link" href="encoder/transformer-encoder-animated.html">Open →</a> <a class="task-link ghost" href="encoder/encoder-architecture-A4.html">Encoder A4 sheet →</a></div>
+            <div class="task-links"><a class="task-link" href="encoder/transformer-encoder-animated.html">Open →</a> <a class="task-link ghost" href="encoder/encoder-architecture-A4.html">Encoder A4 sheet →</a> <a class="task-link ghost" href="encoder/mlp-facts-blog.html">MLP (FFN) in 3D →</a></div>
           </div>
         </li>
         <li class="task" data-task="t12" data-stage="3">
@@ -972,6 +972,28 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       <div class="card-foot">
         <div class="card-meta"><span>📖 23 steps · ∑ maths</span><span>⚡ 3D interactive</span></div>
         <span class="card-read">Explore <span>→</span></span>
+      </div>
+    </a>
+
+    <a href="encoder/multi-head-attention-blog.html" class="blog-card" style="--cc:var(--violet)">
+      <div class="card-eyebrow"><span class="card-no">17</span><span class="card-sep">·</span>ATTENTION · DEEP DIVE</div>
+      <span class="card-emoji">🧠</span>
+      <h3 class="card-title">Multi-Head Attention: How Context Changes Meaning</h3>
+      <p class="card-desc">A companion to 3Blue1Brown's Chapter 6. Covers queries, keys and values on "a fluffy blue creature", softmax and √d_k, causal masking and the n² cost, value-down/up (low-rank values), why many heads beat one, W_O, GPT-3's 58 B attention parameters, and cross-attention. Includes a 3D view of all heads (information-flow arcs and the stacked (H, n, n) attention tensor), a head explorer, a shape walkthrough, a parameter calculator and PyTorch code.</p>
+      <div class="card-foot">
+        <div class="card-meta"><span>📖 ~25 min</span><span>⚡ 3D + ∑ maths</span></div>
+        <span class="card-read">Read <span>→</span></span>
+      </div>
+    </a>
+
+    <a href="encoder/mlp-facts-blog.html" class="blog-card" style="--cc:var(--amber)">
+      <div class="card-eyebrow"><span class="card-no">18</span><span class="card-sep">·</span>TRANSFORMERS · 3D</div>
+      <span class="card-emoji">🏀</span>
+      <h3 class="card-title">How MLPs Store Facts (Michael Jordan → basketball)</h3>
+      <p class="card-desc">A companion to 3Blue1Brown's Chapter 7. A 3D MLP you can orbit and step through: W↑ rows ask questions, the bias and ReLU form an AND gate, and W↓ columns write "basketball" into the residual stream. Also a 3D vector view, the 116 B-parameter count (two-thirds of GPT-3), and a live superposition / Johnson–Lindenstrauss lab.</p>
+      <div class="card-foot">
+        <div class="card-meta"><span>📖 ~25 min</span><span>⚡ 3D + interactive</span></div>
+        <span class="card-read">Read <span>→</span></span>
       </div>
     </a>
 
@@ -1732,6 +1754,8 @@ table.aq-t td{padding:8px 10px;border-bottom:1px solid var(--line)}
       <a href="encoder/model-evaluation-metrics-blog.html"><span class="fno">22</span>Precision, Recall &amp; F1 Deep Dive</a>
       <a href="encoder/whisper-architecture-A4.html"><span class="fno">23</span>Whisper A4 Sheet</a>
       <a href="encoder/stt-3d-explorer.html"><span class="fno">24</span>Speech-to-Text in 3D</a>
+      <a href="encoder/multi-head-attention-blog.html"><span class="fno">25</span>Multi-Head Attention</a>
+      <a href="encoder/mlp-facts-blog.html"><span class="fno">26</span>How MLPs Store Facts</a>
     </div>
   </div>
   <p class="footer-copy">ML Universe · Eleven blogs + interview prep + nine A4 references · Deep learning, visualized · 2025</p>

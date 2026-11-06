@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Head Attention — How Context Changes Meaning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  window.MathJax = {
+    tex:{inlineMath:[['$','$'],['\\(','\\)']], displayMath:[['$$','$$'],['\\[','\\]']]},
+    svg:{fontCache:'global'}
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<style>
+:root{
+  --paper:#F6F1E7; --paper2:#FBF7EF; --card:#FFFFFF;
+  --ink:#22282A; --ink-soft:#4C5658; --muted:#7E8888; --line:#E4DBCB;
+  --teal:#0E5C58; --teal-deep:#093F3C; --teal-soft:#E3EEEC;
+  --amber:#D9663B; --amber-soft:#F7E4D8; --gold:#C9A24B;
+  --violet:#6C5CE7; --blue:#2E86DE; --green:#2E9E5B; --neg:#D9663B;
+  --shadow:0 1px 2px rgba(20,40,38,.04),0 8px 30px -12px rgba(20,40,38,.18);
+  --shadow-lg:0 30px 60px -24px rgba(14,92,88,.30);
+  --radius:18px; --maxw:1180px;
+  --mono:'JetBrains Mono',monospace; --disp:'Fraunces',serif; --body:'Spectral',Georgia,serif;
+  --code-bg:#0E2A28; --code-border:#15403c; --code-text:#CFE9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 12% -10%, #FCEBDD55, transparent 40%),radial-gradient(circle at 100% 0%, #DCEBE955, transparent 45%);
+  background-attachment:fixed;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;line-height:1.12;color:var(--teal-deep);letter-spacing:-.01em}
+a{color:var(--teal);text-decoration:none}
+code,kbd,.mono{font-family:var(--mono)}
+
+.layout{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;padding:20px clamp(16px,5vw,48px) 80px;display:grid;grid-template-columns:240px 1fr;gap:48px;align-items:start}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.toc{display:none}}
+main{min-width:0}
+section{margin-bottom:60px;scroll-margin-top:90px}
+section h2{font-size:clamp(28px,4vw,40px);margin:6px 0 20px}
+section h3{font-size:23px;margin:34px 0 12px;color:var(--teal)}
+p{margin:0 0 18px;color:var(--ink-soft)}
+.lead-in{font-size:20px;color:var(--ink-soft)}
+strong{color:var(--ink)}
+ul.clean{padding-left:22px;color:var(--ink-soft);margin:0 0 18px}
+ul.clean li{margin-bottom:8px}
+
+/* progress + topbar */
+#progress{position:fixed;top:0;left:0;height:4px;width:0%;z-index:60;background:linear-gradient(90deg,var(--teal),var(--gold),var(--amber))}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;
+  padding:14px clamp(16px,4vw,40px);backdrop-filter:blur(8px);
+  background:linear-gradient(var(--paper),rgba(246,241,231,0));transition:background .3s,box-shadow .3s}
+.topbar.solid{background:rgba(246,241,231,.9);box-shadow:0 1px 0 var(--line)}
+.brand{font-family:var(--disp);font-weight:600;font-size:18px;color:var(--teal-deep);display:flex;align-items:center;gap:10px}
+.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-soft)}
+.topnav a{margin-left:22px;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.topnav a:hover{color:var(--amber)}
+@media(max-width:1100px){.topnav{display:none}}
+@media(max-width:560px){.brand .bt{display:none}}
+
+/* hero */
+.hero{max-width:var(--maxw);margin:0 auto;padding:140px clamp(16px,5vw,48px) 30px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;position:relative;z-index:2}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:120px}}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:18px}
+.hero h1{font-size:clamp(38px,6vw,68px);font-weight:600;margin:0 0 18px}
+.hero h1 .em{font-style:italic;color:var(--amber)}
+.hero p.lead{font-size:20px;color:var(--ink-soft);max-width:42ch;margin:0 0 26px}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:13px 22px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.btn.ghost{background:transparent;color:var(--teal)}
+.btn.ghost:hover{background:var(--teal-soft)}
+.hero-fig{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.hero-fig svg{display:block;width:100%;height:auto}
+.source{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:18px}
+.source a{color:var(--amber)}
+
+.beam{stroke-linecap:round;fill:none;stroke-dasharray:10 200;animation:flow 2.8s linear infinite}
+@keyframes flow{from{stroke-dashoffset:210}to{stroke-dashoffset:0}}
+.pnode{animation:breathe 3.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+
+/* toc */
+.toc{position:sticky;top:96px;font-family:var(--mono);font-size:12.5px}
+.toc h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.toc a{display:block;color:var(--ink-soft);padding:6px 0 6px 14px;border-left:2px solid var(--line);transition:.2s;line-height:1.4}
+.toc a:hover{color:var(--teal)}
+.toc a.active{color:var(--teal-deep);border-left-color:var(--amber);font-weight:600}
+
+.sec-no{font-family:var(--mono);font-size:13px;color:var(--amber);letter-spacing:.1em}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* callouts */
+.note{background:var(--teal-soft);border-left:4px solid var(--teal);border-radius:10px;padding:16px 20px;margin:22px 0;font-size:17px;color:var(--teal-deep)}
+.note.amber{background:var(--amber-soft);border-left-color:var(--amber);color:#8a3f1e}
+.note.violet{background:#ECEAFB;border-left-color:var(--violet);color:#3d3380}
+.note strong{color:inherit}
+
+.icards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin:22px 0}
+.icard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s,border-color .25s}
+.icard:hover{transform:translateY(-4px);border-color:var(--amber);box-shadow:var(--shadow-lg)}
+.icard .emoji{font-size:26px;margin-bottom:10px}
+.icard h4{font-size:19px;color:var(--teal-deep);margin:0 0 6px}
+.icard p{font-size:15.5px;color:var(--ink-soft);margin:0}
+
+.fig{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:24px 0;box-shadow:var(--shadow)}
+.fig svg{display:block;width:100%;height:auto;max-width:760px;margin:0 auto}
+.fig figcaption{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;margin-top:14px;letter-spacing:.02em}
+
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:15.5px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+thead{background:var(--teal);color:#fff;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--paper2)}
+td.mono,th.mono{font-family:var(--mono)}
+td.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+table caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--amber);padding:0 0 10px;font-weight:600}
+.tscroll{overflow-x:auto}
+
+pre{background:var(--code-bg);color:var(--code-text);border-radius:14px;padding:20px 22px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;box-shadow:var(--shadow);border:1px solid var(--code-border);margin:18px 0;position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:9px;right:15px;font-size:10.5px;color:#5f8a84;letter-spacing:.2em}
+code.inl{background:var(--teal-soft);color:var(--teal-deep);padding:2px 7px;border-radius:6px;font-size:14px;overflow-wrap:anywhere}
+.c-kw{color:#F2A0C0}.c-fn{color:#7FD1E8}.c-str{color:#E7E08B}.c-num{color:#F2C879}.c-com{color:#6f9a94}.c-op{color:#E58B5F}
+
+.keybox{background:linear-gradient(180deg,#fff,#FBF7EF);border:1.5px solid var(--gold);border-radius:14px;padding:8px 18px;margin:18px auto;text-align:center;box-shadow:var(--shadow);overflow-x:auto}
+.eqcard{background:var(--paper2);border:1px dashed var(--line);border-radius:12px;padding:6px 18px;margin:18px 0;overflow-x:auto}
+
+/* ===== dark stepped demo ===== */
+.demo{background:linear-gradient(160deg,#0E5C58,#093F3C);border-radius:var(--radius);padding:26px;margin:24px 0;box-shadow:var(--shadow-lg);color:#DCEFEC}
+.demo h4{color:#fff;margin:0 0 4px;font-size:20px}
+.demo .dsub{font-family:var(--mono);font-size:12px;color:#9fc9c3;margin-bottom:18px}
+.demo-board{display:flex;flex-direction:column;gap:14px}
+.brow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.brow .rlab{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7fb4ad;width:110px;flex:none}
+.chip{font-family:var(--mono);font-size:13px;padding:9px 12px;border-radius:10px;min-width:62px;text-align:center;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#bfe0db;opacity:0;transform:translateY(6px);
+  transition:opacity .4s,transform .4s,background .35s,border-color .35s,box-shadow .35s}
+.chip.show{opacity:1;transform:none}
+.chip small{display:block;font-size:9.5px;color:#7fb4ad;margin-top:2px}
+.chip.e.show{background:rgba(127,209,232,.12);border-color:#7FD1E8;color:#cdeaf4}
+.chip.q.show{background:rgba(201,162,75,.16);border-color:var(--gold);color:#f0dca6}
+.chip.k.show{background:rgba(46,158,91,.18);border-color:#59c48a;color:#c8f0d8}
+.chip.v.show{background:rgba(108,92,231,.22);border-color:#a69cf5;color:#e0dcff}
+.chip.a.show{background:rgba(217,102,59,.18);border-color:var(--amber);color:#f6cdba}
+.chip.hot{box-shadow:0 0 0 2px var(--gold),0 6px 20px -6px rgba(201,162,75,.6);transform:translateY(-3px)}
+.demo-cap{min-height:70px;margin:18px 0 6px;font-size:16px;color:#eafaf7;line-height:1.55}
+.demo-cap code{background:rgba(255,255,255,.1);padding:1px 6px;border-radius:5px;font-size:13.5px}
+.demo-ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.demo-ctrl button{font-family:var(--mono);font-size:12px;padding:9px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:transparent;color:#dcefec;cursor:pointer;transition:.2s}
+.demo-ctrl button:hover:not(:disabled){background:rgba(255,255,255,.12)}
+.demo-ctrl button:disabled{opacity:.35;cursor:not-allowed}
+.demo-ctrl button.primary{background:var(--gold);border-color:var(--gold);color:#3a2c08;font-weight:600}
+.dots{display:flex;gap:7px;margin-left:auto}
+.dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.25);transition:.2s}
+.dots i.on{background:var(--gold);transform:scale(1.3)}
+
+/* ===== light explorer ===== */
+.explorer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin:24px 0;box-shadow:var(--shadow)}
+.explorer h4{margin:0 0 4px;font-size:20px}
+.explorer .esub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:16px}
+.ctrls{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:18px}
+.ctl{display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--muted)}
+.ctl .v{color:var(--teal-deep);font-weight:600;font-size:13px}
+.ctl input[type=range]{width:150px;accent-color:var(--amber)}
+.ctl input[type=number]{width:110px;font-family:var(--mono);font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);color:var(--ink)}
+.ctl label{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--ink-soft);font-size:12px}
+.ctl input[type=checkbox]{accent-color:var(--amber)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{font-family:var(--mono);font-size:12px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--paper2);color:var(--ink-soft);cursor:pointer;transition:.2s}
+.tab:hover{border-color:var(--amber)}
+.tab.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.eread{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);margin-top:12px;line-height:1.65}
+.eread b{color:var(--teal-deep)}
+.eread .g{color:#9a7a1e}
+
+/* attention grid */
+.agrid-wrap{overflow-x:auto;padding:4px 0 8px}
+.agrid{display:grid;gap:3px;width:max-content;margin:0 auto}
+.ag-lab{font-family:var(--mono);font-size:11px;color:var(--ink-soft);display:flex;align-items:center;justify-content:flex-end;padding-right:8px;cursor:pointer;white-space:nowrap}
+.ag-lab.sel{color:var(--amber);font-weight:600}
+.ag-top{font-family:var(--mono);font-size:11px;color:var(--ink-soft);writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:flex-start;padding-top:6px;height:84px;white-space:nowrap}
+.ag-cell{width:44px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10.5px;cursor:pointer;transition:background .35s,color .35s,outline-color .2s;outline:2px solid transparent;outline-offset:-1px}
+.ag-cell.masked{background:repeating-linear-gradient(45deg,#EFE7D8,#EFE7D8 4px,#F8F3EA 4px,#F8F3EA 8px)!important;color:#b8ad98!important}
+.ag-cell.rowsel{outline-color:var(--gold)}
+@media(max-width:560px){.ag-cell{width:32px;height:28px;font-size:9px}}
+.minis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:14px}
+.mini{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--paper2);cursor:pointer;transition:.2s}
+.mini:hover,.mini.on{border-color:var(--amber);box-shadow:var(--shadow)}
+.mini .mt{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-bottom:6px;letter-spacing:.04em}
+.mini canvas{width:100%;height:auto;display:block;image-rendering:pixelated;border-radius:4px}
+
+.wtable{width:100%;margin:12px 0 0;font-size:13px}
+.wtable td,.wtable th{padding:6px 10px}
+.bar{height:9px;border-radius:5px;background:var(--amber);display:inline-block;vertical-align:middle}
+
+.calc-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:6px}
+.stat{background:var(--paper2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat .sl{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stat .sv{font-family:var(--disp);font-size:24px;color:var(--teal-deep);margin-top:2px}
+.stat .ss{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+footer{position:relative;z-index:2;background:var(--teal-deep);color:#BFD8D4;padding:48px clamp(16px,5vw,48px);text-align:center;font-family:var(--mono);font-size:13px}
+footer .big{font-family:var(--disp);font-size:24px;color:#fff;margin-bottom:10px}
+footer .links{margin:18px 0 6px;line-height:2}
+footer .links a{color:#9fd9d2}
+footer .sub{opacity:.7;margin-top:10px;font-size:12px}
+
+
+/* ===== 3D stages ===== */
+.stage3d{position:relative;background:linear-gradient(180deg,#FFFFFF,#F3EEE3);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin:24px 0 0}
+.stage3d canvas{display:block;width:100%;height:460px;cursor:grab}
+.stage3d canvas:active{cursor:grabbing}
+@media(max-width:700px){.stage3d canvas{height:360px}}
+.stage3d .labels{position:absolute;inset:0;pointer-events:none}
+.stage3d .hint{position:absolute;right:12px;bottom:10px;font-family:var(--mono);font-size:10.5px;color:var(--muted);background:rgba(255,255,255,.8);padding:4px 8px;border-radius:6px}
+.stage3d .fallback{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:30px;font-family:var(--mono);font-size:13px;color:var(--ink-soft);background:var(--paper2)}
+.l3{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);background:rgba(255,255,255,.86);border:1px solid var(--line);padding:2px 6px;border-radius:6px;white-space:nowrap}
+.l3.t{font-size:11.5px;font-weight:600;color:var(--teal-deep);border-color:var(--teal)}
+.l3.hot{color:#8a3f1e;border-color:var(--amber);background:#FFF4EC}
+.l3.b{color:#6a2fb0;border-color:#a76ee6}
+.panel3d{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:18px 20px;margin:0 0 24px;box-shadow:var(--shadow)}
+.panel3d .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.panel3d .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.minibtn{font-family:var(--mono);font-size:12px;padding:9px 15px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer}
+#stage3 canvas{height:520px}
+@media(max-width:700px){#stage3 canvas{height:380px}}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+  .reveal{opacity:1;transform:none}
+  .chip{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="topbar" id="topbar">
+  <style>
+  .nbar-left{display:flex;align-items:center;gap:10px}
+  .nbtn{font-family:var(--mono,'JetBrains Mono',monospace);font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+    display:inline-flex;align-items:center;padding:7px 13px;border-radius:999px;
+    border:1px solid var(--line,#E4DBCB);background:var(--card,#fff);color:var(--teal,#0E5C58);cursor:pointer;
+    text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s,border-color .2s}
+  .nbtn:hover{transform:translateY(-1px);border-color:var(--amber,#D9663B);background:var(--teal-soft,#E3EEEC);
+    box-shadow:var(--shadow,0 8px 30px -12px rgba(20,40,38,.18))}
+  @media(max-width:560px){.nbtn .lbl{display:none}.nbtn{padding:7px 10px}}
+  </style>
+  <div class="nbar-left">
+  <a class="nbtn" href="javascript:history.back()" title="Go back">←<span class="lbl">&nbsp;Back</span></a>
+  <a class="nbtn" href="../index.html" title="Home">⌂<span class="lbl">&nbsp;Home</span></a>
+  <div class="brand"><span class="dot"></span><span class="bt"> Multi-Head Attention · Notebook</span></div>
+  </div>
+  <nav class="topnav">
+    <a href="#context">Context</a><a href="#qk">Query·Key</a><a href="#pattern">Pattern</a>
+    <a href="#values">Values</a><a href="#multi">Multi-head</a><a href="#heads3d">3D</a><a href="#params">Params</a><a href="#code">Code</a>
+  </nav>
+</div>
+
+<header class="hero">
+  <div>
+    <div class="eyebrow reveal">Transformers · Attention, step by step</div>
+    <h1 class="reveal">Many heads, <span class="em">one meaning.</span></h1>
+    <p class="lead reveal">The word "mole" gets the same vector whether it's an animal, a unit of chemistry or a spot on your skin. Attention is the step that fixes that. One attention head learns one way that context changes meaning. A multi-head block runs dozens of them side by side and adds up what they find.</p>
+    <div class="cta reveal">
+      <a class="btn" href="#context">Start reading</a>
+      <a class="btn ghost" href="#multi">Play with the heads</a>
+      <a class="btn ghost" href="#heads3d">Open the 3D view</a>
+    </div>
+    <p class="source reveal">Based on 3Blue1Brown · <a href="https://www.youtube.com/watch?v=eMlx5fFNoYc" target="_blank" rel="noopener">Deep Learning Chapter 6: Attention in transformers</a>. The diagrams and widgets on this page are my own.</p>
+  </div>
+  <div class="hero-fig reveal">
+    <svg viewBox="0 0 460 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three attention heads each sending information from adjectives to the word creature">
+      <g font-family="JetBrains Mono" font-size="12">
+        <rect x="12" y="236" width="70" height="32" rx="8" fill="#fff" stroke="#2E86DE" stroke-width="1.5"/><text x="47" y="256" text-anchor="middle" fill="#22282A">fluffy</text>
+        <rect x="96" y="236" width="60" height="32" rx="8" fill="#fff" stroke="#2E86DE" stroke-width="1.5"/><text x="126" y="256" text-anchor="middle" fill="#22282A">blue</text>
+        <rect x="170" y="236" width="86" height="32" rx="8" fill="#FBF7EF" stroke="#C9A24B" stroke-width="2"/><text x="213" y="256" text-anchor="middle" fill="#7a5f12">creature</text>
+        <rect x="270" y="236" width="80" height="32" rx="8" fill="#fff" stroke="#2E86DE" stroke-width="1.5"/><text x="310" y="256" text-anchor="middle" fill="#22282A">roamed</text>
+        <rect x="364" y="236" width="84" height="32" rx="8" fill="#fff" stroke="#2E86DE" stroke-width="1.5"/><text x="406" y="256" text-anchor="middle" fill="#22282A">forest</text>
+      </g>
+      <!-- heads -->
+      <g font-family="JetBrains Mono" font-size="10">
+        <circle class="pnode" cx="110" cy="70" r="20" fill="#F7E4D8" stroke="#D9663B"/><text x="110" y="74" text-anchor="middle" fill="#8a3f1e">h1</text>
+        <circle class="pnode" cx="230" cy="52" r="20" fill="#E3EEEC" stroke="#0E5C58" style="animation-delay:.6s"/><text x="230" y="56" text-anchor="middle" fill="#093F3C">h2</text>
+        <circle class="pnode" cx="350" cy="70" r="20" fill="#ECEAFB" stroke="#6C5CE7" style="animation-delay:1.2s"/><text x="350" y="74" text-anchor="middle" fill="#3d3380">h3</text>
+        <text x="110" y="34" text-anchor="middle" fill="#7E8888">adjective→noun</text>
+        <text x="230" y="20" text-anchor="middle" fill="#7E8888">previous word</text>
+        <text x="350" y="34" text-anchor="middle" fill="#7E8888">verb→subject</text>
+      </g>
+      <g stroke-width="2.6">
+        <path class="beam" d="M47 236 C 60 150, 100 110, 110 90" stroke="#D9663B"/>
+        <path class="beam" d="M126 236 C 120 170, 112 120, 110 90" stroke="#D9663B" style="animation-delay:.4s"/>
+        <path class="beam" d="M110 90 C 140 150, 190 200, 205 236" stroke="#D9663B" style="animation-delay:.8s"/>
+        <path class="beam" d="M126 236 C 160 160, 215 110, 230 72" stroke="#0E5C58" style="animation-delay:.3s"/>
+        <path class="beam" d="M230 72 C 228 130, 222 190, 215 236" stroke="#0E5C58" style="animation-delay:.9s"/>
+        <path class="beam" d="M213 236 C 260 170, 330 120, 350 90" stroke="#6C5CE7" style="animation-delay:.5s"/>
+        <path class="beam" d="M350 90 C 345 150, 325 200, 312 236" stroke="#6C5CE7" style="animation-delay:1.1s"/>
+      </g>
+      <text x="230" y="292" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#7E8888">each head reads (Q·K), moves (V), and all heads add into E′</text>
+    </svg>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <h5>Contents</h5>
+    <a href="#context">1 · Why context matters</a>
+    <a href="#onehead">2 · One head, one job</a>
+    <a href="#qk">3 · Queries &amp; keys</a>
+    <a href="#pattern">4 · Softmax &amp; the pattern</a>
+    <a href="#mask">5 · Masking &amp; context size</a>
+    <a href="#values">6 · Values: moving meaning</a>
+    <a href="#multi">7 · Multi-head attention</a>
+    <a href="#heads3d">8 · All heads in 3D</a>
+    <a href="#shapes">9 · Tensor shapes</a>
+    <a href="#params">10 · Counting parameters</a>
+    <a href="#cross">11 · Self vs cross</a>
+    <a href="#code">12 · Code it</a>
+    <a href="#recap">13 · Recap</a>
+  </aside>
+
+  <main>
+
+    <!-- 01 -->
+    <section id="context" class="reveal">
+      <div class="sec-no">01</div>
+      <h2>Why context matters</h2>
+      <p class="lead-in">The first step of a transformer is a lookup. Each token gets an embedding: a long vector whose directions carry meaning. But a lookup has no idea which other words are around it.</p>
+      <p>Take three phrases: <em>"American shrew <strong>mole</strong>"</em>, <em>"One <strong>mole</strong> of carbon dioxide"</em> and <em>"Take a biopsy of the <strong>mole</strong>"</em>. Each gives "mole" the <strong>same</strong> starting vector. A trained model can link different directions in embedding space to the different meanings. Something still has to <em>look at the neighbours</em> and push the vector toward the right one. That is the attention block's job.</p>
+
+      <div class="icards">
+        <div class="icard"><div class="emoji">🗼</div><h4>"Eiffel tower"</h4><p>"tower" alone is generic. With "Eiffel" before it, the vector should move toward Paris, France and things made of iron.</p></div>
+        <div class="icard"><div class="emoji">🧸</div><h4>"miniature Eiffel tower"</h4><p>Add "miniature" and the vector should move again, away from "large, tall things".</p></div>
+        <div class="icard"><div class="emoji">🔎</div><h4>"…the murderer was"</h4><p>Feed in most of a mystery novel. The last vector, which started as plain "was", must soak up the whole plot, because only it predicts the next word.</p></div>
+      </div>
+
+      <p>So the goal is to take the initial embeddings $\vec E_1,\dots,\vec E_n$ and turn them into refined embeddings $\vec E'_1,\dots,\vec E'_n$. Each refined vector should carry what its word means <em>here</em>, not what the word means in the dictionary. Information may have to travel across long distances, not just from the word next door.</p>
+      <div class="note"><strong>Mental model:</strong> attention <em>moves information between token positions</em>. The MLP block that follows it, the subject of 3b1b's Chapter 7 "How might LLMs store facts", works on each position separately and is where much of the stored knowledge lives. A transformer alternates the two, many times over.</div>
+    </section>
+
+    <!-- 02 -->
+    <section id="onehead" class="reveal">
+      <div class="sec-no">02</div>
+      <h2>One head, one job</h2>
+      <p class="lead-in">The running example is <em>"a fluffy blue creature roamed the verdant forest"</em>. We'll pretend one head has a single job: let <strong>adjectives update their nouns</strong>.</p>
+      <p>After this head runs, "creature" should end up as something like <em>fluffy, blue creature</em>, and "forest" as <em>verdant forest</em>. Each starting embedding encodes the word and its position. Nothing else is known yet.</p>
+      <div class="note amber"><strong>Honesty clause (from the video):</strong> "adjective → noun" is an <em>illustration</em>. Real heads learn whatever reduces the loss, and their behaviour is "much harder to parse." The example is useful because it makes every matrix easy to name.</div>
+      <p>One head uses three learned matrices, and each one asks a different question:</p>
+      <table>
+        <thead><tr><th>Matrix</th><th>Makes</th><th>Plain-English role</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">W<sub>Q</sub></td><td>query $\vec q_i = W_Q\vec E_i$</td><td>"What am I looking for?" A noun asks: <em>are there adjectives in front of me?</em></td></tr>
+          <tr><td class="mono">W<sub>K</sub></td><td>key $\vec k_j = W_K\vec E_j$</td><td>"What do I offer?" An adjective answers: <em>yes, I'm one.</em></td></tr>
+          <tr><td class="mono">W<sub>V</sub></td><td>value $\vec v_j = W_V\vec E_j$</td><td>"If I'm relevant, what should I add to you?" For example, the "fluffy" direction.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 03 -->
+    <section id="qk" class="reveal">
+      <div class="sec-no">03</div>
+      <h2>Queries &amp; keys: who is relevant to whom?</h2>
+      <p class="lead-in">The query and key vectors live in a <strong>much smaller</strong> space than the embedding. In GPT-3 that is 128 dimensions, against 12,288 for the embedding.</p>
+      <p>$W_Q$ is a $128\times 12{,}288$ matrix. It maps a noun's embedding to a direction in query space that, in our story, means "looking for adjectives in earlier positions." $W_K$ has the same shape. It maps "fluffy" and "blue" to keys that point the <em>same way</em>. To measure how well a key matches a query, take the <strong>dot product</strong>:</p>
+      <div class="keybox">$$ \text{score}(i \leftarrow j) \;=\; \vec q_i\cdot\vec k_j \;=\; (W_Q\vec E_i)^\top (W_K\vec E_j) $$</div>
+      <p>Do this for every pair and you get an $n\times n$ grid of scores. Where the query of "creature" meets the keys of "fluffy" and "blue", the dot products are large and positive: in the video's language, "fluffy" and "blue" <strong>attend to</strong> "creature". Where it meets "the", the score is small or negative. The raw scores can be any real number, from $-\infty$ to $+\infty$.</p>
+      <div class="note violet"><strong>Notation flip.</strong> 3b1b draws queries as columns and keys as rows, so the grid is $K^\top Q$. The paper, and the widgets on this page, put tokens in <em>rows</em>: the grid is $QK^\top$, where row $i$ is query $i$. It's the same numbers, mirrored along the diagonal.</div>
+    </section>
+
+    <!-- 04 -->
+    <section id="pattern" class="reveal">
+      <div class="sec-no">04</div>
+      <h2>Softmax, $\sqrt{d_k}$, and the attention pattern</h2>
+      <p class="lead-in">Raw scores aren't weights yet. We want each query's weights to be between 0 and 1 and to add up to 1, so we pass each query's scores through <strong>softmax</strong>.</p>
+      <div class="keybox">$$ \alpha_{ij} \;=\; \frac{\exp\!\big(\vec q_i\cdot\vec k_j/\sqrt{d_k}\big)}{\sum_{j'}\exp\!\big(\vec q_i\cdot\vec k_{j'}/\sqrt{d_k}\big)} \qquad\Longrightarrow\qquad \text{Attention}(Q,K,V)=\operatorname{softmax}\!\Big(\frac{QK^\top}{\sqrt{d_k}}\Big)V $$</div>
+      <p>The resulting grid $\alpha$ is called the <strong>attention pattern</strong>. Why divide by $\sqrt{d_k}$? If the entries of $\vec q$ and $\vec k$ are roughly independent with variance 1, their dot product is a sum of $d_k$ terms and has variance about $d_k$. With $d_k=128$ the scores would typically be around $\pm 11$. Softmax would then put almost all the weight on a single key, and its gradients would vanish. Dividing by $\sqrt{d_k}$ brings the variance back to about 1. The video describes this as being "for numerical stability".</p>
+
+      <div class="explorer" id="patternExplorer">
+        <h4>Attention-pattern explorer</h4>
+        <div class="esub">Hand-designed scores for one sentence. Click a row (a query word) to see its softmax worked out. Drag the sharpness slider to see what scaling does.</div>
+        <div class="ctrls">
+          <div class="ctl">head
+            <div class="tabs" id="headTabs"></div>
+          </div>
+          <div class="ctl">sharpness (≈ 1/√d_k effect) <span class="v" id="tLab">1.00</span><input type="range" id="tSlider" min="0.1" max="3" step="0.05" value="1"></div>
+          <div class="ctl">options
+            <label><input type="checkbox" id="maskBox" checked> causal mask</label>
+            <label><input type="checkbox" id="numBox" checked> show numbers</label>
+          </div>
+        </div>
+        <div class="agrid-wrap"><div class="agrid" id="agrid"></div></div>
+        <div class="eread" id="aRead"></div>
+        <div class="tscroll"><table class="wtable" id="wTable"></table></div>
+      </div>
+      <p>Try the sharpness slider. Near 0, every visible word gets almost the same weight, which is too blurry to be useful. At 3, each query puts nearly all its weight on its top-scoring key, which is brittle and hard to train. Scaling by $1/\sqrt{d_k}$ keeps a real model between those two extremes.</p>
+    </section>
+
+    <!-- 05 -->
+    <section id="mask" class="reveal">
+      <div class="sec-no">05</div>
+      <h2>Masking, and why context size is expensive</h2>
+      <p class="lead-in">A GPT model is trained to predict the <em>next</em> token at <strong>every</strong> position at once. One sentence therefore gives many training examples: predict "fluffy" from "a", "blue" from "a fluffy", and so on.</p>
+      <p>For that to be fair, a word must never see the words after it. Otherwise it could just read the answer. So before the softmax, every score where a <strong>later</strong> token would influence an <strong>earlier</strong> one is set to $-\infty$. After the softmax these become exactly 0, and each row still sums to 1. This is <strong>masking</strong>. In the explorer above, the hatched cells are the masked ones. Untick "causal mask" and the pattern can look ahead.</p>
+      <div class="eqcard">$$ M_{ij}=\begin{cases}0 & j\le i\\ -\infty & j>i\end{cases}\qquad \alpha=\operatorname{softmax}\!\Big(\frac{QK^\top}{\sqrt{d_k}}+M\Big) $$</div>
+      <p>The pattern has one row and one column per token, so its size is the <strong>square of the context length</strong>. GPT-3's context is 2,048 tokens, so each head in each layer builds a $2048\times2048 = 4{,}194{,}304$-entry pattern. GPT-3 has 96 heads × 96 layers = 9,216 heads, so one forward pass computes about <strong>38.7 billion</strong> attention weights. This quadratic cost is why making context windows longer is hard. Variants such as chunked or limited-context attention, like the streaming Conformer in the 3D STT explorer, exist mainly to cut that $n^2$.</p>
+    </section>
+
+    <!-- 06 -->
+    <section id="values" class="reveal">
+      <div class="sec-no">06</div>
+      <h2>Values: actually moving meaning</h2>
+      <p class="lead-in">The pattern says <em>who</em> is relevant. The value matrix says <em>what to add</em>.</p>
+      <p>Multiply each word's embedding by the value matrix to get its value vector, $\vec v_j$. For "fluffy", that is the nudge that turns "creature" into "fluffy creature". Then, for each query $i$, weight every value vector by the attention pattern, add them up, and add the result to the original embedding:</p>
+      <div class="keybox">$$ \Delta\vec E_i=\sum_{j}\alpha_{ij}\,\vec v_j,\qquad \vec E'_i=\vec E_i+\Delta\vec E_i $$</div>
+      <p>For "creature", the weights on "fluffy" and "blue" are large and every other weight is close to 0. So "creature" receives mostly the "fluffy" and "blue" value vectors.</p>
+
+      <h3>The low-rank trick: value-down, then value-up</h3>
+      <p>The value vector has to live in the 12,288-dimensional embedding space, because it is added to an embedding. A full square $W_V$ would have $12{,}288^2 = 150{,}994{,}944$ parameters, about <strong>96 times</strong> more than $W_Q$ or $W_K$. Instead the value map is split into two pieces:</p>
+      <div class="eqcard">$$ W_V \;=\; \underbrace{W_{V\uparrow}}_{12{,}288\times128}\;\underbrace{W_{V\downarrow}}_{128\times12{,}288} \qquad\text{(a rank-128 map)}$$</div>
+      <p><strong>Value-down</strong> squeezes the embedding into the same 128-dimensional space as the queries and keys. <strong>Value-up</strong> maps the result back out to the embedding space. Each piece has 1,572,864 parameters, the same as $W_Q$ and $W_K$. So one head has <strong>four</strong> equally sized matrices, about <strong>6.3 million</strong> parameters in total.</p>
+      <div class="note"><strong>Naming in papers:</strong> "value-down / value-up" is 3b1b's own wording. In the paper and in code, the <em>value matrix</em> of a head means only the value-down part. The value-up matrices of all the heads are stacked into a single <strong>output matrix</strong> $W_O$, which belongs to the whole block. The next section explains why that stacking is exact.</div>
+    </section>
+
+    <!-- 07 -->
+    <section id="multi" class="reveal">
+      <div class="sec-no">07</div>
+      <h2>Multi-head attention</h2>
+      <p class="lead-in">Adjectives updating nouns is <em>one</em> way context changes meaning. There are many others, so the block runs many heads <strong>in parallel</strong>, each with its own $W_Q, W_K, W_{V\downarrow}, W_{V\uparrow}$.</p>
+      <p>More examples from the video: "they crashed the" before "car" should change the car's shape and condition. "Harry" near "wizard" points to Harry Potter, while "Harry" near "Queen", "Sussex" and "William" points to Prince Harry. Each kind of update needs <em>its own</em> pattern, so different query and key matrices, and <em>its own</em> nudge, so different value matrices. GPT-3 uses <strong>96 heads in every block</strong>. Every head proposes its own change for every position, and the block <strong>adds them all</strong> to the embedding:</p>
+      <div class="keybox">$$ \vec E'_i \;=\; \vec E_i+\sum_{h=1}^{H}\Delta\vec E_i^{(h)} \;=\; \vec E_i+\sum_{h=1}^{H} W_{V\uparrow}^{(h)}\sum_j \alpha^{(h)}_{ij}\,W_{V\downarrow}^{(h)}\vec E_j $$</div>
+      <p>The paper writes the same thing as <em>concatenate, then project</em>:</p>
+      <div class="eqcard">$$ \operatorname{MultiHead}(X)=\big[\,\text{head}_1\;\|\;\cdots\;\|\;\text{head}_H\,\big]\,W_O $$ $$ \text{head}_h=\operatorname{softmax}\!\Big(\tfrac{XW_Q^{(h)}(XW_K^{(h)})^\top}{\sqrt{d_k}}+M\Big)XW_{V}^{(h)} $$</div>
+      <p>These two forms are equal. Cut $W_O$ (size $Hd_k\times d$) into $H$ horizontal slices of $d_k$ rows each. Multiplying the concatenated head outputs by $W_O$ is the same as multiplying each head's output by its own slice and adding the results. Each slice is exactly that head's value-up matrix.</p>
+
+      <div class="explorer">
+        <h4>Four heads, one sentence</h4>
+        <div class="esub">Each thumbnail is one head's attention pattern on the same sentence. Click a thumbnail to load it into the explorer in §04. The table shows what each head adds to the selected word.</div>
+        <div class="minis" id="minis"></div>
+        <div class="eread" id="contribRead"></div>
+      </div>
+      <div class="note amber"><strong>Why not one huge head?</strong> One softmax gives each word <em>one</em> set of weights, a single way of deciding what matters. If one head had to track adjectives, the previous word and the subject of a verb all at once, it would have to blur them together. With $H$ heads, each one picks its own pattern, and it costs nothing extra: $H$ heads of size $d_k = d/H$ have exactly as many parameters as one head of size $d$.</div>
+    </section>
+
+    <!-- 08 · 3D -->
+    <section id="heads3d" class="reveal">
+      <div class="sec-no">08</div>
+      <h2>All heads in 3D</h2>
+      <p class="lead-in">The same four heads, seen from two angles. <strong>Flow</strong> shows information moving from source words to the query word. <strong>Patterns</strong> shows the attention tensor itself: H × n × n numbers, one grid per head.</p>
+      <p>In <strong>Flow</strong>, every arc carries value vectors from a key word to the chosen query word. Each head has its own colour and its own height, and thicker arcs mean bigger weights $\alpha^{(h)}_{ij}$. The loops above a word are self-attention. The ΔE stack on the right shows what each head adds to the query word, scaled by how much it took from <em>other</em> words ($1-\alpha^{(h)}_{ii}$). Together they make $\Delta\vec E$. <strong>Patterns</strong> stacks the four grids from §04 in 3D, like the <code class="inl">(H, n, n)</code> tensor inside the code. Bar height is the weight, the highlighted row is the query, and flat grey tiles are masked. Both views use the head, mask and sharpness settings from the §04 explorer.</p>
+      <div class="stage3d" id="stage3">
+        <canvas id="cv3" aria-label="3D view of four attention heads: arcs between words and stacked attention patterns"></canvas>
+        <div class="labels" id="lbl3"></div>
+        <div class="hint">drag = orbit · scroll = zoom · right-drag = pan</div>
+        <div class="fallback" id="fb3">WebGL isn't available in this browser, so the 3D scene can't render. The 2D explorers above show the same numbers.</div>
+      </div>
+      <div class="panel3d">
+        <div class="row"><span class="lbl">view</span><div class="tabs" id="v3mode"></div></div>
+        <div class="row"><span class="lbl">query word</span><div class="tabs" id="v3q"></div></div>
+        <div class="row"><span class="lbl">heads</span><div class="tabs" id="v3h"></div></div>
+        <div class="readout calc-out" id="v3ro"></div>
+      </div>
+    </section>
+
+    <!-- 09 · shapes -->
+    <section id="shapes" class="reveal">
+      <div class="sec-no">09</div>
+      <h2>Tensor shapes, step by step (GPT-3 sizes)</h2>
+      <p class="lead-in">Follow one block from input to output. Here $n$ is the number of tokens, $d=12{,}288$, $H=96$ and $d_k=d/H=128$.</p>
+      <div class="demo">
+        <h4>One multi-head attention block</h4>
+        <div class="dsub">E → (Q, K, V↓ for each of 96 heads) → patterns → head outputs → concat · W_O → E′</div>
+        <div class="demo-board" id="shpBoard">
+          <div class="brow"><span class="rlab">Input</span>
+            <div class="chip e" id="c_e">E<small>n × 12,288</small></div></div>
+          <div class="brow"><span class="rlab">Per head ×96</span>
+            <div class="chip q" id="c_q">Q = E·W_Q<small>n × 128</small></div>
+            <div class="chip k" id="c_k">K = E·W_K<small>n × 128</small></div>
+            <div class="chip v" id="c_v">V = E·W_V↓<small>n × 128</small></div></div>
+          <div class="brow"><span class="rlab">Pattern</span>
+            <div class="chip a" id="c_s">QKᵀ / √128<small>n × n</small></div>
+            <div class="chip a" id="c_m">+ mask, softmax<small>n × n, rows sum to 1</small></div></div>
+          <div class="brow"><span class="rlab">Head output</span>
+            <div class="chip v" id="c_h">α · V<small>n × 128</small></div></div>
+          <div class="brow"><span class="rlab">Combine</span>
+            <div class="chip e" id="c_c">concat 96 heads<small>n × 12,288</small></div>
+            <div class="chip e" id="c_o">· W_O = ΔE<small>n × 12,288</small></div>
+            <div class="chip q" id="c_r">E′ = E + ΔE<small>n × 12,288</small></div></div>
+        </div>
+        <div class="demo-cap" id="shpCap"></div>
+        <div class="demo-ctrl">
+          <button id="shpPrev">‹ Prev</button>
+          <button id="shpPlay" class="primary">▶ Play</button>
+          <button id="shpNext">Next ›</button>
+          <div class="dots" id="shpDots"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="params" class="reveal">
+      <div class="sec-no">10</div>
+      <h2>Counting parameters</h2>
+      <p class="lead-in">Every attention matrix is $d_k\times d$, and each head has four of them. That gives a simple formula.</p>
+      <div class="keybox">$$ \underbrace{4\,d\,d_k}_{\text{per head}}\;\times\;H\;=\;4\,d\,(H d_k)\;=\;\boxed{4d^2}\ \text{per layer}\qquad(\text{when }Hd_k=d) $$</div>
+      <div class="tscroll">
+      <table>
+        <caption>GPT-3, using the numbers from the video</caption>
+        <thead><tr><th>Piece</th><th>Shape / count</th><th style="text-align:right">Parameters</th></tr></thead>
+        <tbody>
+          <tr><td>One $W_Q$ (or $W_K$, $W_{V\downarrow}$, $W_{V\uparrow}$)</td><td class="mono">128 × 12,288</td><td class="num">1,572,864</td></tr>
+          <tr><td>A full square $W_V$ (not used)</td><td class="mono">12,288 × 12,288</td><td class="num">150,994,944</td></tr>
+          <tr><td>One head (4 matrices)</td><td class="mono">4 × 1,572,864</td><td class="num">6,291,456 ≈ 6.3 M</td></tr>
+          <tr><td>One block (96 heads)</td><td class="mono">96 × 6.3 M</td><td class="num">603,979,776 ≈ 600 M</td></tr>
+          <tr><td><strong>All attention (96 layers)</strong></td><td class="mono">96 × 604 M</td><td class="num"><strong>57,982,058,496 ≈ 58 B</strong></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>That is roughly <strong>one third</strong> of GPT-3's 175 B parameters. Most of the rest are in the MLP blocks between the attention layers, which is where 3b1b's Chapter 7 picks up. (These counts ignore biases.)</p>
+
+      <div class="explorer">
+        <h4>Attention parameter calculator</h4>
+        <div class="esub">Pick a preset or type your own sizes.</div>
+        <div class="ctrls">
+          <div class="tabs" id="presets"></div>
+        </div>
+        <div class="ctrls" style="border-top:none;padding-top:0">
+          <div class="ctl">d_model <input type="number" id="pD" value="12288" min="1"></div>
+          <div class="ctl">heads H <input type="number" id="pH" value="96" min="1"></div>
+          <div class="ctl">d_k per head <input type="number" id="pK" value="128" min="1"></div>
+          <div class="ctl">layers L <input type="number" id="pL" value="96" min="1"></div>
+          <div class="ctl">context n <input type="number" id="pN" value="2048" min="1"></div>
+        </div>
+        <div class="calc-out" id="calcOut"></div>
+        <div class="eread" id="calcRead"></div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="cross" class="reveal">
+      <div class="sec-no">11</div>
+      <h2>Self-attention vs cross-attention</h2>
+      <p class="lead-in">Everything above is <strong>self</strong>-attention: the queries, keys and values all come from the same sequence. <strong>Cross</strong>-attention is almost identical. The one difference is that queries come from one sequence and keys and values from another.</p>
+      <table>
+        <thead><tr><th></th><th>Self-attention</th><th>Cross-attention</th></tr></thead>
+        <tbody>
+          <tr><td>Q comes from</td><td>sequence X</td><td>sequence X (e.g. the target language, or the text decoder)</td></tr>
+          <tr><td>K, V come from</td><td>sequence X</td><td>sequence Y (e.g. the source language, or audio encoder frames)</td></tr>
+          <tr><td>Pattern shape</td><td>$n_X\times n_X$</td><td>$n_X\times n_Y$</td></tr>
+          <tr><td>Masking</td><td>causal in GPT-style decoders</td><td>usually none: there is no "later" token to hide</td></tr>
+          <tr><td>Where you've seen it</td><td>GPT, BERT, Conformer encoders</td><td>machine translation, Whisper's decoder looking at the audio</td></tr>
+        </tbody>
+      </table>
+      <p>The Whisper A4 sheet in this collection shows this bridge: every decoder layer cross-attends to the 1,500 encoder frames.</p>
+    </section>
+
+    <!-- 11 -->
+    <section id="code" class="reveal">
+      <div class="sec-no">12</div>
+      <h2>Code it: multi-head attention from scratch</h2>
+      <p class="lead-in">This is the "concatenate, then project" form in PyTorch. Each of $W_Q, W_K, W_V$ holds all $H$ heads in one $d\times d$ matrix, and a reshape separates them.</p>
+<pre data-lang="python"><span class="c-kw">import</span> math, torch, torch.nn <span class="c-kw">as</span> nn
+
+<span class="c-kw">class</span> <span class="c-fn">MultiHeadAttention</span>(nn.Module):
+    <span class="c-kw">def</span> <span class="c-fn">__init__</span>(self, d_model=<span class="c-num">512</span>, n_heads=<span class="c-num">8</span>, causal=<span class="c-kw">True</span>):
+        super().__init__()
+        <span class="c-kw">assert</span> d_model <span class="c-op">%</span> n_heads <span class="c-op">==</span> <span class="c-num">0</span>
+        self.h, self.dk, self.causal = n_heads, d_model <span class="c-op">//</span> n_heads, causal
+        self.W_q = nn.Linear(d_model, d_model, bias=<span class="c-kw">False</span>)  <span class="c-com"># all heads' W_Q stacked</span>
+        self.W_k = nn.Linear(d_model, d_model, bias=<span class="c-kw">False</span>)
+        self.W_v = nn.Linear(d_model, d_model, bias=<span class="c-kw">False</span>)  <span class="c-com"># all heads' "value-down"</span>
+        self.W_o = nn.Linear(d_model, d_model, bias=<span class="c-kw">False</span>)  <span class="c-com"># all heads' "value-up", stacked</span>
+
+    <span class="c-kw">def</span> <span class="c-fn">forward</span>(self, x, kv=<span class="c-kw">None</span>):            <span class="c-com"># x: (B, n, d); kv given → cross-attention</span>
+        B, n, d = x.shape
+        src = x <span class="c-kw">if</span> kv <span class="c-kw">is</span> <span class="c-kw">None</span> <span class="c-kw">else</span> kv
+        split = <span class="c-kw">lambda</span> t: t.view(B, <span class="c-op">-</span><span class="c-num">1</span>, self.h, self.dk).transpose(<span class="c-num">1</span>, <span class="c-num">2</span>)  <span class="c-com"># (B, H, n, dk)</span>
+        q, k, v = split(self.W_q(x)), split(self.W_k(src)), split(self.W_v(src))
+
+        scores = q <span class="c-op">@</span> k.transpose(<span class="c-op">-</span><span class="c-num">2</span>, <span class="c-op">-</span><span class="c-num">1</span>) <span class="c-op">/</span> math.sqrt(self.dk)   <span class="c-com"># (B, H, n, m)</span>
+        <span class="c-kw">if</span> self.causal <span class="c-kw">and</span> kv <span class="c-kw">is</span> <span class="c-kw">None</span>:
+            mask = torch.triu(torch.ones(n, n, dtype=torch.bool, device=x.device), <span class="c-num">1</span>)
+            scores = scores.masked_fill(mask, float(<span class="c-str">'-inf'</span>))  <span class="c-com"># later → earlier blocked</span>
+        attn = scores.softmax(dim=<span class="c-op">-</span><span class="c-num">1</span>)                    <span class="c-com"># the attention pattern</span>
+
+        heads = attn <span class="c-op">@</span> v                                <span class="c-com"># (B, H, n, dk)</span>
+        concat = heads.transpose(<span class="c-num">1</span>, <span class="c-num">2</span>).reshape(B, n, d)   <span class="c-com"># [head_1 ‖ … ‖ head_H]</span>
+        <span class="c-kw">return</span> x <span class="c-op">+</span> self.W_o(concat)                      <span class="c-com"># E' = E + ΔE</span>
+
+mha = MultiHeadAttention(<span class="c-num">512</span>, <span class="c-num">8</span>)
+print(sum(p.numel() <span class="c-kw">for</span> p <span class="c-kw">in</span> mha.parameters()))     <span class="c-com"># 1,048,576 = 4 · 512²</span></pre>
+      <div class="note">In practice you'd call <code class="inl">torch.nn.functional.scaled_dot_product_attention(q, k, v, is_causal=True)</code>. It computes the same result with fused, memory-efficient kernels such as FlashAttention, which never store the full $n\times n$ pattern. Real blocks also put a LayerNorm in front, and the residual add usually sits outside the attention module.</div>
+    </section>
+
+    <!-- 12 -->
+    <section id="recap" class="reveal">
+      <div class="sec-no">13</div>
+      <h2>Recap</h2>
+      <ul class="clean">
+        <li><strong>Goal:</strong> turn context-free embeddings $\vec E$ into context-aware ones, $\vec E'=\vec E+\Delta\vec E$.</li>
+        <li><strong>Query · key</strong> dot products, divided by $\sqrt{d_k}$, give scores. A causal mask hides future tokens, and <strong>softmax</strong> turns each row into weights: the attention pattern.</li>
+        <li><strong>Values</strong> (value-down, then value-up) say <em>what</em> to add. Each position adds the weighted sum of the value vectors.</li>
+        <li><strong>Multi-head:</strong> $H$ heads run in parallel, each with its own pattern, and their outputs are added. That's the same as concatenating them and multiplying by $W_O$.</li>
+        <li><strong>Cost:</strong> $4d^2$ parameters per layer (about 58 B over GPT-3's 96 layers), and $n^2$ pattern entries per head. Context length is the expensive part.</li>
+        <li><strong>Why it won:</strong> every head and every position can be computed at the same time. That parallelism is what lets attention scale on GPUs.</li>
+      </ul>
+      <div class="note violet"><strong>Next:</strong> attention moves information between positions. Where are facts like "Michael Jordan plays basketball" stored? Mostly in the MLP blocks. Watch <a href="https://www.youtube.com/watch?v=9-Jl0dxWQs8" target="_blank" rel="noopener">3b1b Chapter 7: How might LLMs store facts</a>.</div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="big">One head learns one way context matters. Many heads learn many.</div>
+  <div>Query asks · Key answers · Value moves · W_O combines.</div>
+  <div class="links">
+    <a href="https://www.youtube.com/watch?v=eMlx5fFNoYc" target="_blank" rel="noopener">3b1b · Attention in transformers (Ch 6)</a> ·
+    <a href="https://www.3blue1brown.com/lessons/attention" target="_blank" rel="noopener">Written lesson</a> ·
+    <a href="https://www.youtube.com/watch?v=9-Jl0dxWQs8" target="_blank" rel="noopener">Ch 7 · How LLMs store facts</a> ·
+    <a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener">Attention Is All You Need</a> ·
+    <a href="self_attention.html">Self-attention notebook</a>
+  </div>
+  <div class="sub">An interactive companion to 3Blue1Brown's Deep Learning Chapter 6. The attention patterns are hand-designed illustrations, not weights from a trained model.</div>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* progress + sticky */
+const prog=$('progress'), tb=$('topbar');
+function onScroll(){const h=document.documentElement,m=h.scrollHeight-h.clientHeight;
+  prog.style.width=(m>0?h.scrollTop/m*100:0)+'%'; tb.classList.toggle('solid',h.scrollTop>40);}
+document.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+/* reveal */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in');}),{threshold:.08});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* scrollspy */
+const tl=[...document.querySelectorAll('.toc a')];
+const spy=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;
+  tl.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));}}),
+  {rootMargin:'-28% 0px -60% 0px'});
+document.querySelectorAll('main section[id]').forEach(s=>spy.observe(s));
+
+/* ===== attention heads (hand-designed scores) ===== */
+const TOK=['a','fluffy','blue','creature','roamed','the','verdant','forest'];
+const N=TOK.length;
+const ADJ=new Set([1,2,6]), NOUN=new Set([3,7]);
+const HEADS=[
+  {name:'adjective → noun', col:[217,102,59], desc:'Nouns query for earlier adjectives. "creature" picks up "fluffy" and "blue", and "forest" picks up "verdant". Other words have nothing to fetch, so they mostly attend to themselves.',
+   s:(i,j)=> (NOUN.has(i)&&ADJ.has(j)&&j<i&&(i===3?j<3:j>3)) ? 4.2 : (i===j?1.6:0)},
+  {name:'previous word', col:[14,92,88], desc:'Every word attends to the word just before it. Heads like this help build bigrams and phrase structure, and are often seen in real models.',
+   s:(i,j)=> j===i-1 ? 4.0 : (i===j?1.2:0)},
+  {name:'verb → subject', col:[108,92,231], desc:'"roamed" asks who did the roaming and finds "creature". Later words like "the", "verdant" and "forest" also look back at the verb, so the event can spread through the clause.',
+   s:(i,j)=> (i===4&&j===3)?4.4 : (i>4&&j===4)?2.6 : (i===j?1.4:0)},
+  {name:'broad context', col:[46,134,222], desc:'A soft, spread-out head that roughly averages everything visible, with a slight lean toward content words. It works as a "summary so far" channel.',
+   s:(i,j)=> (j===0||j===5)?0.2:0.8},
+];
+let cur=0, sharp=1, masked=true, shownum=true, selRow=3;
+
+function pattern(h,sh=sharp,mk=masked){
+  const A=[],S=[];
+  for(let i=0;i<N;i++){
+    const row=[],srow=[];let mx=-Infinity;
+    for(let j=0;j<N;j++){const v=(mk&&j>i)?-Infinity:HEADS[h].s(i,j)*sh;srow.push(HEADS[h].s(i,j));row.push(v);if(v>mx)mx=v;}
+    let z=0;const e=row.map(v=>{const t=v===-Infinity?0:Math.exp(v-mx);z+=t;return t;});
+    A.push(e.map(t=>t/z));S.push(srow);
+  }
+  return {A,S};
+}
+function cellColor(w,col){const p=[251,247,239];return `rgb(${p.map((c,k)=>Math.round(c+(col[k]-c)*Math.min(1,w))).join(',')})`;}
+
+function drawGrid(){
+  const g=$('agrid'), {A,S}=pattern(cur), col=HEADS[cur].col;
+  g.style.gridTemplateColumns=`auto repeat(${N}, auto)`;
+  let html='<div></div>'+TOK.map(t=>`<div class="ag-top">${t}</div>`).join('');
+  for(let i=0;i<N;i++){
+    html+=`<div class="ag-lab ${i===selRow?'sel':''}" data-r="${i}">${TOK[i]} ▸</div>`;
+    for(let j=0;j<N;j++){
+      const isM=masked&&j>i, w=A[i][j];
+      html+=`<div class="ag-cell ${isM?'masked':''} ${i===selRow?'rowsel':''}" data-r="${i}" title="${TOK[i]} ← ${TOK[j]}: ${isM?'masked':w.toFixed(3)}" style="background:${cellColor(w,col)};color:${w>.55?'#fff':'#4C5658'}">${isM?'':(shownum?w.toFixed(2):'')}</div>`;
+    }
+  }
+  g.innerHTML=html;
+  g.querySelectorAll('[data-r]').forEach(c=>c.onclick=()=>{selRow=+c.dataset.r;refresh();});
+  // readout
+  const sh=sharp, row=S[selRow];
+  const vis=[...Array(N).keys()].filter(j=>!(masked&&j>selRow));
+  const ex=vis.map(j=>Math.exp(row[j]*sh)), Z=ex.reduce((a,b)=>a+b,0);
+  $('aRead').innerHTML=`<b>Head: ${HEADS[cur].name}.</b> ${HEADS[cur].desc}<br>Query row <span class="g">"${TOK[selRow]}"</span> can see ${vis.length} word${vis.length>1?'s':''}${masked&&selRow<N-1?` (the ${N-1-selRow} after it are masked to −∞ → weight 0)`:''}. Softmax: α<sub>j</sub> = e<sup>s·${sh.toFixed(2)}</sup> / Σ = e<sup>…</sup> / <b>${Z.toFixed(3)}</b>.`;
+  let t='<thead><tr><th>key word j</th><th>raw score s</th><th>scaled s×'+sh.toFixed(2)+'</th><th>e^(scaled)</th><th>weight α</th><th></th></tr></thead><tbody>';
+  vis.forEach((j,k)=>{const a=ex[k]/Z;
+    t+=`<tr><td class="mono">${TOK[j]}</td><td class="num">${row[j].toFixed(2)}</td><td class="num">${(row[j]*sh).toFixed(2)}</td><td class="num">${ex[k].toFixed(3)}</td><td class="num"><b>${a.toFixed(3)}</b></td><td><span class="bar" style="width:${Math.max(2,a*120)}px;background:rgb(${col.join(',')})"></span></td></tr>`;});
+  t+=`<tr><td class="mono"><b>Σ</b></td><td></td><td></td><td class="num">${Z.toFixed(3)}</td><td class="num"><b>1.000</b></td><td></td></tr></tbody>`;
+  $('wTable').innerHTML=t;
+}
+function drawTabs(){
+  $('headTabs').innerHTML=HEADS.map((h,k)=>`<button class="tab ${k===cur?'on':''}" data-h="${k}">h${k+1} · ${h.name}</button>`).join('');
+  $('headTabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{cur=+b.dataset.h;refresh();});
+}
+function drawMinis(){
+  const box=$('minis');
+  if(!box.children.length){
+    box.innerHTML=HEADS.map((h,k)=>`<div class="mini" data-h="${k}"><div class="mt">h${k+1} · ${h.name}</div><canvas width="${N}" height="${N}"></canvas></div>`).join('');
+    box.querySelectorAll('.mini').forEach(m=>m.onclick=()=>{cur=+m.dataset.h;refresh();$('patternExplorer').scrollIntoView({behavior:'smooth',block:'start'});});
+  }
+  box.querySelectorAll('.mini').forEach((m,k)=>{
+    m.classList.toggle('on',k===cur);
+    const c=m.querySelector('canvas').getContext('2d'), {A}=pattern(k), col=HEADS[k].col;
+    for(let i=0;i<N;i++)for(let j=0;j<N;j++){c.fillStyle=(masked&&j>i)?'#EFE7D8':cellColor(A[i][j],col);c.fillRect(j,i,1,1);}
+  });
+  // per-head contributions to the selected word
+  let html=`What each head sends to <span class="g">"${TOK[selRow]}"</span> (the top source word and its weight). The block <b>adds all four</b> ΔE's:<br>`;
+  HEADS.forEach((h,k)=>{const {A}=pattern(k);const r=A[selRow];let bj=0;r.forEach((w,j)=>{if(w>r[bj])bj=j;});
+    html+=`&nbsp;&nbsp;h${k+1} <b>${h.name}</b>: mostly from "${TOK[bj]}" (α=${r[bj].toFixed(2)})<br>`;});
+  html+=`&nbsp;&nbsp;⇒ E′(${TOK[selRow]}) = E(${TOK[selRow]}) + ΔE<sup>(1)</sup> + ΔE<sup>(2)</sup> + ΔE<sup>(3)</sup> + ΔE<sup>(4)</sup>. Click a row in §04 to change the word.`;
+  $('contribRead').innerHTML=html;
+}
+function refresh(){drawTabs();drawGrid();drawMinis();window.dispatchEvent(new Event('mha-change'));}
+window.__mha={TOK,HEADS,pattern:h=>pattern(h),get:()=>({cur,sharp,masked,selRow}),set:o=>{if('row' in o)selRow=o.row;if('head' in o)cur=o.head;refresh();}};
+$('tSlider').oninput=e=>{sharp=+e.target.value;$('tLab').textContent=sharp.toFixed(2);refresh();};
+$('maskBox').onchange=e=>{masked=e.target.checked;refresh();};
+$('numBox').onchange=e=>{shownum=e.target.checked;refresh();};
+refresh();
+
+/* ===== stepped walkthrough engine ===== */
+function makeWalkthrough({steps, clearAll, render, els}){
+  let i=0, timer=null; const dots=els.dots, n=steps.length;
+  for(let k=0;k<n;k++) dots.appendChild(document.createElement('i'));
+  function apply(){ clearAll(); render(steps[i], i);
+    [...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));
+    els.prev.disabled=i===0; els.next.disabled=i===n-1; }
+  function stop(){ if(timer){clearInterval(timer);timer=null;els.play.textContent='▶ Play';} }
+  function go(k){ i=Math.max(0,Math.min(n-1,k)); apply(); }
+  els.next.onclick=()=>{stop();go(i+1);};
+  els.prev.onclick=()=>{stop();go(i-1);};
+  els.play.onclick=()=>{ if(timer){stop();return;} if(i===n-1)go(0);
+    els.play.textContent='⏸ Pause'; timer=setInterval(()=>{ i>=n-1?stop():go(i+1); },2400); };
+  apply();
+}
+const ALL=['c_e','c_q','c_k','c_v','c_s','c_m','c_h','c_c','c_o','c_r'];
+const SHP=[
+  {show:['c_e'],hot:['c_e'],cap:'Start with $n$ token embeddings, one row each: a matrix of shape <code>n × 12,288</code>. These already include position information.'},
+  {show:['c_e','c_q','c_k','c_v'],hot:['c_q','c_k','c_v'],cap:'Each of the 96 heads projects <b>down</b> to 128 dimensions three times: queries, keys and value-down. Each projection matrix is <code>12,288 × 128</code>, with 1,572,864 parameters.'},
+  {show:['c_e','c_q','c_k','c_v','c_s'],hot:['c_s'],cap:'Dot every query with every key and divide by √128 ≈ 11.3. That gives an <code>n × n</code> score grid for each head, which is where the n² cost comes from.'},
+  {show:['c_e','c_q','c_k','c_v','c_s','c_m'],hot:['c_m'],cap:'Set the future positions to −∞, then softmax each row. Every row is now a set of weights that sum to 1: this head\'s <b>attention pattern</b>.'},
+  {show:['c_e','c_q','c_k','c_v','c_s','c_m','c_h'],hot:['c_h'],cap:'Weight the value vectors by the pattern: <code>α · V</code> gives <code>n × 128</code> for each head. Each head has now gathered its own kind of context.'},
+  {show:ALL.slice(0,8),hot:['c_c'],cap:'Place the 96 head outputs side by side: 96 × 128 = 12,288. Concatenating brings us back to the embedding width.'},
+  {show:ALL.slice(0,9),hot:['c_o'],cap:'Multiply by <code>W_O</code> (12,288 × 12,288). This is the 96 value-up matrices stacked. It\'s the same as each head projecting up on its own and adding the results.'},
+  {show:ALL,hot:['c_r'],cap:'Residual add: <code>E′ = E + ΔE</code>. The shape is unchanged, so the output can go straight into the MLP block and then the next of the 96 layers.'},
+];
+makeWalkthrough({
+  steps:SHP,
+  clearAll(){document.querySelectorAll('#shpBoard .chip').forEach(c=>c.classList.remove('show','hot'));},
+  render(s){s.show.forEach(id=>$(id).classList.add('show'));s.hot.forEach(id=>$(id).classList.add('hot'));
+    $('shpCap').innerHTML=s.cap; if(window.MathJax&&MathJax.typesetPromise)MathJax.typesetPromise([$('shpCap')]).catch(()=>{});},
+  els:{dots:$('shpDots'),prev:$('shpPrev'),next:$('shpNext'),play:$('shpPlay')}
+});
+
+/* ===== parameter calculator ===== */
+const PRESETS=[
+  {n:'GPT-3 175B',d:12288,h:96,k:128,l:96,c:2048},
+  {n:'GPT-2 small',d:768,h:12,k:64,l:12,c:1024},
+  {n:'BERT-base',d:768,h:12,k:64,l:12,c:512},
+  {n:'s1_hi_en Conformer',d:1024,h:8,k:128,l:24,c:60},
+];
+const fmt=x=>x>=1e9?(x/1e9).toFixed(2)+' B':x>=1e6?(x/1e6).toFixed(2)+' M':x>=1e3?(x/1e3).toFixed(1)+' K':String(x);
+function calc(){
+  const d=+$('pD').value||1,h=+$('pH').value||1,k=+$('pK').value||1,l=+$('pL').value||1,n=+$('pN').value||1;
+  const mat=d*k, head=4*mat, block=head*h, total=block*l, pat=n*n, pats=pat*h*l;
+  $('calcOut').innerHTML=[
+    ['one matrix',fmt(mat),`${d.toLocaleString()} × ${k}`],
+    ['one head',fmt(head),'4 matrices'],
+    ['one block',fmt(block),`${h} heads`],
+    ['all layers',fmt(total),`${l} layers`],
+    ['pattern / head',fmt(pat),`${n.toLocaleString()}² entries`],
+    ['patterns / pass',fmt(pats),`${(h*l).toLocaleString()} heads total`],
+  ].map(([a,b,c])=>`<div class="stat"><div class="sl">${a}</div><div class="sv">${b}</div><div class="ss">${c}</div></div>`).join('');
+  const eq=h*k===d;
+  $('calcRead').innerHTML=eq?`H·d_k = ${h}·${k} = <b>${d.toLocaleString()}</b> = d_model, so each block is exactly 4d² = <b>${(4*d*d).toLocaleString()}</b> parameters.`
+    :`H·d_k = ${(h*k).toLocaleString()} ≠ d_model (${d.toLocaleString()}). That's allowed, but most models choose d_k = d/H, so the concatenated heads match the embedding width.`;
+  if(d===1024&&h===8&&l===24) $('calcRead').innerHTML+=`<br>For your streaming model: n = 60 is roughly what one chunk sees, a 56-frame left context plus the chunk. Its relative-position attention also adds a positional projection and per-head biases, which this count leaves out.`;
+}
+$('presets').innerHTML=PRESETS.map((p,i)=>`<button class="tab ${i===0?'on':''}" data-p="${i}">${p.n}</button>`).join('');
+$('presets').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{const p=PRESETS[+b.dataset.p];
+  $('pD').value=p.d;$('pH').value=p.h;$('pK').value=p.k;$('pL').value=p.l;$('pN').value=p.c;
+  $('presets').querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t===b));calc();});
+['pD','pH','pK','pL','pN'].forEach(id=>$(id).oninput=()=>{$('presets').querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));calc();});
+calc();
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {CSS2DRenderer, CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
+const $=id=>document.getElementById(id);
+const M=window.__mha, TOK=M.TOK, HEADS=M.HEADS, N=TOK.length, NH=HEADS.length;
+let mode='flow', showAll=true;
+
+const canvas=$('cv3'); let renderer;
+try{renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setClearColor(0x000000,0);}
+catch(err){$('fb3').style.display='grid';}
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(40,1,0.1,200);
+const labels=new CSS2DRenderer({element:$('lbl3')});
+const ctr=renderer?new OrbitControls(cam,canvas):null;
+if(ctr) ctr.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0xd8cdb8,1.15));
+const dl=new THREE.DirectionalLight(0xffffff,1.1);dl.position.set(5,12,9);scene.add(dl);
+const IDLE=new THREE.Color('#E6DECF'), MASK=new THREE.Color('#D9D0BE');
+const HC=HEADS.map(h=>new THREE.Color(`rgb(${h.col.join(',')})`));
+function label(text,cls,pos,parent){const d=document.createElement('div');d.className='l3 '+(cls||'');d.textContent=text;const o=new CSS2DObject(d);o.position.set(...pos);parent.add(o);return o;}
+
+/* ---------- flow view ---------- */
+const flow=new THREE.Group(), pats=new THREE.Group(); scene.add(flow,pats);
+const tx=j=>(j-3.5)*1.7;
+const tokMesh=[];
+for(let j=0;j<N;j++){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(1.25,0.32,0.8),new THREE.MeshStandardMaterial({color:'#FFFFFF',roughness:.6}));
+  m.position.set(tx(j),0,0);flow.add(m);tokMesh.push(m);
+  const ed=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:0x2E86DE}));ed.position.copy(m.position);flow.add(ed);
+  label(TOK[j],'',[tx(j),-0.45,0.35],flow);
+}
+const floorG=new THREE.Mesh(new THREE.PlaneGeometry(19,6),new THREE.MeshBasicMaterial({color:'#EFE8DA',transparent:true,opacity:.55}));
+floorG.rotation.x=-Math.PI/2;floorG.position.set(1.0,-0.17,0.6);flow.add(floorG);
+const arcG=new THREE.Group();flow.add(arcG);
+const towerG=new THREE.Group();flow.add(towerG);
+const qLabel=label('','hot',[0,0,0],flow);
+let pulses=[];
+function clearGroup(g){while(g.children.length){const c=g.children.pop();c.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();if(o.element)o.element.remove();});}}
+const headLabels=[];
+function buildFlow(){
+  clearGroup(arcG);clearGroup(towerG);pulses=[];headLabels.length=0;
+  const st=M.get(), i=st.selRow;
+  qLabel.position.set(tx(i),-0.95,0.35);qLabel.element.textContent='query: '+TOK[i];
+  tokMesh.forEach((m,j)=>m.material.color.set(j===i?'#FBEFD9':'#FFFFFF'));
+  let towerY=0.18; const TX=tx(N-1)+1.9;
+  const base=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.1,0.9),new THREE.MeshStandardMaterial({color:'#FBEFD9'}));base.position.set(TX,0.1,0);towerG.add(base);
+  for(let h=0;h<NH;h++){
+    const on=showAll||h===st.cur; if(!on)continue;
+    const A=M.pattern(h).A[i], col=HC[h], zH=(h-1.5)*0.42;
+    for(let j=0;j<N;j++){
+      const a=A[j]; if(a<0.02)continue;
+      const mat=new THREE.MeshStandardMaterial({color:col,transparent:true,opacity:0.35+0.65*a,roughness:.4,emissive:col,emissiveIntensity:.15});
+      if(j===i){
+        const t=new THREE.Mesh(new THREE.TorusGeometry(0.28+0.07*h,0.012+0.07*a,10,40),mat);
+        t.position.set(tx(i),0.75+0.32*h,zH);arcG.add(t);continue;
+      }
+      const s=new THREE.Vector3(tx(j),0.17,zH), e=new THREE.Vector3(tx(i),0.17,zH);
+      const hgt=0.9+0.38*Math.abs(i-j)+0.45*h;
+      const c=new THREE.QuadraticBezierCurve3(s,new THREE.Vector3((s.x+e.x)/2,hgt*1.6,zH),e);
+      arcG.add(new THREE.Mesh(new THREE.TubeGeometry(c,48,0.012+0.085*a,8,false),mat));
+      const p=new THREE.Mesh(new THREE.SphereGeometry(0.06+0.08*a,12,8),new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:.6}));
+      arcG.add(p);pulses.push({p,c,off:Math.random(),sp:0.25+0.25*a});
+    }
+    // ΔE tower segment: context pulled from other words
+    const other=1-A[i], hh=0.12+0.9*other;
+    const seg=new THREE.Mesh(new THREE.BoxGeometry(0.55,hh,0.55),new THREE.MeshStandardMaterial({color:col,roughness:.5}));
+    seg.position.set(TX,towerY+hh/2,0);towerG.add(seg);
+    const lb=label(`ΔE⁽${h+1}⁾ ${(other*100).toFixed(0)}%`,'',[TX+1.05,towerY+hh/2,0],towerG);
+    towerY+=hh+0.04;
+  }
+  label(`ΔE for "${TOK[i]}" = Σ heads`,'t',[TX,towerY+0.4,0],towerG);
+}
+
+/* ---------- pattern-stack view ---------- */
+const px=j=>(j-3.5)*0.9, pz=i=>(i-3.5)*0.9, py=h=>h*1.75;
+const bars=[];  // [h][i][j]
+const tgtH=[], curH=[];
+for(let h=0;h<NH;h++){
+  bars.push([]);tgtH.push([]);curH.push([]);
+  const plate=new THREE.Mesh(new THREE.BoxGeometry(7.6,0.06,7.6),new THREE.MeshStandardMaterial({color:'#FBF7EF',transparent:true,opacity:.85}));
+  plate.position.set(0,py(h)-0.04,0);pats.add(plate);
+  const ed=new THREE.LineSegments(new THREE.EdgesGeometry(plate.geometry),new THREE.LineBasicMaterial({color:HC[h]}));ed.position.copy(plate.position);pats.add(ed);
+  label(`h${h+1} · ${HEADS[h].name}`,'t',[4.6,py(h)+0.2,-3.2],pats);
+  for(let i=0;i<N;i++){bars[h].push([]);tgtH[h].push([]);curH[h].push([]);
+    for(let j=0;j<N;j++){
+      const m=new THREE.Mesh(new THREE.BoxGeometry(0.72,1,0.72),new THREE.MeshStandardMaterial({color:IDLE.clone(),roughness:.5}));
+      m.position.set(px(j),py(h),pz(i));pats.add(m);bars[h][i].push(m);tgtH[h][i].push(0.02);curH[h][i].push(0.02);}}
+}
+for(let j=0;j<N;j++)label(TOK[j],'',[px(j),-0.35,4.25],pats);
+for(let i=0;i<N;i++)label(TOK[i]+' ▸','',[-4.55,-0.2,pz(i)],pats);
+label('keys j →','t',[0,-0.9,4.6],pats);label('queries i ↓','t',[-5.4,-0.2,-4.7],pats);
+function buildPats(){
+  const st=M.get();
+  for(let h=0;h<NH;h++){const {A}=M.pattern(h), on=showAll||h===st.cur;
+    for(let i=0;i<N;i++)for(let j=0;j<N;j++){
+      const m=bars[h][i][j], masked=st.masked&&j>i;
+      tgtH[h][i][j]=masked?0.02:(on?0.04+A[i][j]*1.5:0.02);
+      const base=masked?MASK:HC[h];
+      m.material.color.copy(IDLE).lerp(base,masked?1:(on?(i===st.selRow?1:0.38):0.1));
+    }}
+}
+
+/* ---------- camera presets, controls, loop ---------- */
+const PRE={flow:{p:[1.6,8.2,15.5],t:[1.4,1.3,0]},patterns:{p:[4.5,10.5,14],t:[0,2.6,0]}};
+function setMode(m){mode=m;flow.visible=m==='flow';pats.visible=m==='patterns';
+  if(ctr){cam.position.set(...PRE[m].p);ctr.target.set(...PRE[m].t);ctr.update();}
+  update();}
+function update(){
+  const st=M.get();
+  if(mode==='flow')buildFlow();else buildPats();
+  // CSS2DRenderer only checks each label's own .visible, so mirror the group's visibility onto its labels
+  [flow,pats].forEach(g=>g.traverse(o=>{if(o.isCSS2DObject)o.visible=g.visible;}));
+  $('v3mode').querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
+  $('v3q').querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',+b.dataset.q===st.selRow));
+  $('v3h').querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.h==='all'?showAll:(!showAll&&+b.dataset.h===st.cur)));
+  const i=st.selRow;
+  $('v3ro').innerHTML=HEADS.map((h,k)=>{const A=M.pattern(k).A[i];let bj=0;A.forEach((w,j)=>{if(w>A[bj])bj=j;});
+    return `<div class="stat" style="border-left:4px solid rgb(${h.col.join(',')})"><div class="sl">h${k+1} · ${h.name}</div><div class="sv">${TOK[bj]} · ${A[bj].toFixed(2)}</div><div class="ss">pulls ${((1-A[i])*100).toFixed(0)}% from other words</div></div>`;}).join('');
+}
+$('v3mode').innerHTML=[['flow','Flow: arcs between words'],['patterns','Patterns: (H, n, n) tensor']].map(([m,t])=>`<button class="tab" data-m="${m}">${t}</button>`).join('');
+$('v3mode').querySelectorAll('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+$('v3q').innerHTML=TOK.map((t,k)=>`<button class="tab" data-q="${k}">${t}</button>`).join('');
+$('v3q').querySelectorAll('.tab').forEach(b=>b.onclick=()=>M.set({row:+b.dataset.q}));
+$('v3h').innerHTML=`<button class="tab" data-h="all">all 4 heads</button>`+HEADS.map((h,k)=>`<button class="tab" data-h="${k}">h${k+1}</button>`).join('');
+$('v3h').querySelectorAll('.tab').forEach(b=>b.onclick=()=>{if(b.dataset.h==='all'){showAll=true;update();}else{showAll=false;M.set({head:+b.dataset.h});}});
+window.addEventListener('mha-change',update);
+
+if(renderer){
+  renderer.setPixelRatio(Math.min(2,devicePixelRatio));
+  const size=()=>{const w=canvas.clientWidth,h=canvas.clientHeight;renderer.setSize(w,h,false);labels.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix();};
+  new ResizeObserver(size).observe(canvas);size();
+  let visible=false;new IntersectionObserver(es=>{visible=es[0].isIntersecting;}).observe(canvas);
+  const clock=new THREE.Clock();
+  (function loop(){requestAnimationFrame(loop);if(!visible)return;const t=clock.getElapsedTime();
+    pulses.forEach(q=>q.p.position.copy(q.c.getPoint(((t*q.sp+q.off)%1))));
+    if(pats.visible)for(let h=0;h<NH;h++)for(let i=0;i<N;i++)for(let j=0;j<N;j++){
+      const c=curH[h][i][j]+=(tgtH[h][i][j]-curH[h][i][j])*0.12;const m=bars[h][i][j];m.scale.y=c;m.position.y=py(h)+c/2;}
+    ctr.update();renderer.render(scene,cam);labels.render(scene,cam);})();
+}
+setMode('flow');
+window.__mha3d={setMode};
+</script>
+</body>
+</html>
