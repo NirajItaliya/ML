@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Speculative Decoding — Guess Fast, Check Once</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+  window.MathJax = {
+    tex:{inlineMath:[['$','$'],['\\(','\\)']], displayMath:[['$$','$$'],['\\[','\\]']]},
+    svg:{fontCache:'global'}
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<style>
+:root{
+  --paper:#F6F1E7; --paper2:#FBF7EF; --card:#FFFFFF;
+  --ink:#22282A; --ink-soft:#4C5658; --muted:#7E8888; --line:#E4DBCB;
+  --teal:#0E5C58; --teal-deep:#093F3C; --teal-soft:#E3EEEC;
+  --amber:#D9663B; --amber-soft:#F7E4D8; --gold:#C9A24B;
+  --violet:#6C5CE7; --blue:#2E86DE; --green:#2E9E5B; --neg:#D9663B;
+  --shadow:0 1px 2px rgba(20,40,38,.04),0 8px 30px -12px rgba(20,40,38,.18);
+  --shadow-lg:0 30px 60px -24px rgba(14,92,88,.30);
+  --radius:18px; --maxw:1180px;
+  --mono:'JetBrains Mono',monospace; --disp:'Fraunces',serif; --body:'Spectral',Georgia,serif;
+  --code-bg:#0E2A28; --code-border:#15403c; --code-text:#CFE9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 12% -10%, #FCEBDD55, transparent 40%),radial-gradient(circle at 100% 0%, #DCEBE955, transparent 45%);
+  background-attachment:fixed;}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:1;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");}
+h1,h2,h3,h4{font-family:var(--disp);font-weight:600;line-height:1.12;color:var(--teal-deep);letter-spacing:-.01em}
+a{color:var(--teal);text-decoration:none}
+code,kbd,.mono{font-family:var(--mono)}
+
+.layout{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;padding:20px clamp(16px,5vw,48px) 80px;display:grid;grid-template-columns:240px 1fr;gap:48px;align-items:start}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.toc{display:none}}
+main{min-width:0}
+section{margin-bottom:60px;scroll-margin-top:90px}
+section h2{font-size:clamp(28px,4vw,40px);margin:6px 0 20px}
+section h3{font-size:23px;margin:34px 0 12px;color:var(--teal)}
+p{margin:0 0 18px;color:var(--ink-soft)}
+.lead-in{font-size:20px;color:var(--ink-soft)}
+strong{color:var(--ink)}
+ul.clean{padding-left:22px;color:var(--ink-soft);margin:0 0 18px}
+ul.clean li{margin-bottom:8px}
+
+/* progress + topbar */
+#progress{position:fixed;top:0;left:0;height:4px;width:0%;z-index:60;background:linear-gradient(90deg,var(--teal),var(--gold),var(--amber))}
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;
+  padding:14px clamp(16px,4vw,40px);backdrop-filter:blur(8px);
+  background:linear-gradient(var(--paper),rgba(246,241,231,0));transition:background .3s,box-shadow .3s}
+.topbar.solid{background:rgba(246,241,231,.9);box-shadow:0 1px 0 var(--line)}
+.brand{font-family:var(--disp);font-weight:600;font-size:18px;color:var(--teal-deep);display:flex;align-items:center;gap:10px}
+.brand .dot{width:11px;height:11px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-soft)}
+.topnav a{margin-left:22px;font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.topnav a:hover{color:var(--amber)}
+@media(max-width:1100px){.topnav{display:none}}
+@media(max-width:560px){.brand .bt{display:none}}
+
+/* hero */
+.hero{max-width:var(--maxw);margin:0 auto;padding:140px clamp(16px,5vw,48px) 30px;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;position:relative;z-index:2}
+@media(max-width:900px){.hero{grid-template-columns:1fr;padding-top:120px}}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--amber);margin-bottom:18px}
+.hero h1{font-size:clamp(38px,6vw,68px);font-weight:600;margin:0 0 18px}
+.hero h1 .em{font-style:italic;color:var(--amber)}
+.hero p.lead{font-size:20px;color:var(--ink-soft);max-width:42ch;margin:0 0 26px}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:13px;letter-spacing:.04em;padding:13px 22px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.btn.ghost{background:transparent;color:var(--teal)}
+.btn.ghost:hover{background:var(--teal-soft)}
+.hero-fig{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.hero-fig svg{display:block;width:100%;height:auto}
+.source{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:18px}
+.source a{color:var(--amber)}
+
+.beam{stroke-linecap:round;fill:none;stroke-dasharray:10 200;animation:flow 2.8s linear infinite}
+@keyframes flow{from{stroke-dashoffset:210}to{stroke-dashoffset:0}}
+.pnode{animation:breathe 3.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+
+/* toc */
+.toc{position:sticky;top:96px;font-family:var(--mono);font-size:12.5px}
+.toc h5{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.toc a{display:block;color:var(--ink-soft);padding:6px 0 6px 14px;border-left:2px solid var(--line);transition:.2s;line-height:1.4}
+.toc a:hover{color:var(--teal)}
+.toc a.active{color:var(--teal-deep);border-left-color:var(--amber);font-weight:600}
+
+.sec-no{font-family:var(--mono);font-size:13px;color:var(--amber);letter-spacing:.1em}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* callouts */
+.note{background:var(--teal-soft);border-left:4px solid var(--teal);border-radius:10px;padding:16px 20px;margin:22px 0;font-size:17px;color:var(--teal-deep)}
+.note.amber{background:var(--amber-soft);border-left-color:var(--amber);color:#8a3f1e}
+.note.violet{background:#ECEAFB;border-left-color:var(--violet);color:#3d3380}
+.note strong{color:inherit}
+
+.icards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin:22px 0}
+.icard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s,border-color .25s}
+.icard:hover{transform:translateY(-4px);border-color:var(--amber);box-shadow:var(--shadow-lg)}
+.icard .emoji{font-size:26px;margin-bottom:10px}
+.icard h4{font-size:19px;color:var(--teal-deep);margin:0 0 6px}
+.icard p{font-size:15.5px;color:var(--ink-soft);margin:0}
+
+.fig{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin:24px 0;box-shadow:var(--shadow)}
+.fig svg{display:block;width:100%;height:auto;max-width:760px;margin:0 auto}
+.fig figcaption{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;margin-top:14px;letter-spacing:.02em}
+
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:15.5px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+thead{background:var(--teal);color:#fff;font-family:var(--mono);font-size:12px;letter-spacing:.04em}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--paper2)}
+td.mono,th.mono{font-family:var(--mono)}
+td.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+table caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--amber);padding:0 0 10px;font-weight:600}
+.tscroll{overflow-x:auto}
+
+pre{background:var(--code-bg);color:var(--code-text);border-radius:14px;padding:20px 22px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;box-shadow:var(--shadow);border:1px solid var(--code-border);margin:18px 0;position:relative}
+pre::before{content:attr(data-lang);position:absolute;top:9px;right:15px;font-size:10.5px;color:#5f8a84;letter-spacing:.2em}
+code.inl{background:var(--teal-soft);color:var(--teal-deep);padding:2px 7px;border-radius:6px;font-size:14px;overflow-wrap:anywhere}
+.c-kw{color:#F2A0C0}.c-fn{color:#7FD1E8}.c-str{color:#E7E08B}.c-num{color:#F2C879}.c-com{color:#6f9a94}.c-op{color:#E58B5F}
+
+.keybox{background:linear-gradient(180deg,#fff,#FBF7EF);border:1.5px solid var(--gold);border-radius:14px;padding:8px 18px;margin:18px auto;text-align:center;box-shadow:var(--shadow);overflow-x:auto}
+.eqcard{background:var(--paper2);border:1px dashed var(--line);border-radius:12px;padding:6px 18px;margin:18px 0;overflow-x:auto}
+
+/* ===== dark stepped demo ===== */
+.demo{background:linear-gradient(160deg,#0E5C58,#093F3C);border-radius:var(--radius);padding:26px;margin:24px 0;box-shadow:var(--shadow-lg);color:#DCEFEC}
+.demo h4{color:#fff;margin:0 0 4px;font-size:20px}
+.demo .dsub{font-family:var(--mono);font-size:12px;color:#9fc9c3;margin-bottom:18px}
+.demo-board{display:flex;flex-direction:column;gap:14px}
+.brow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.brow .rlab{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7fb4ad;width:110px;flex:none}
+.chip{font-family:var(--mono);font-size:13px;padding:9px 12px;border-radius:10px;min-width:62px;text-align:center;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#bfe0db;opacity:0;transform:translateY(6px);
+  transition:opacity .4s,transform .4s,background .35s,border-color .35s,box-shadow .35s}
+.chip.show{opacity:1;transform:none}
+.chip small{display:block;font-size:9.5px;color:#7fb4ad;margin-top:2px}
+.chip.e.show{background:rgba(127,209,232,.12);border-color:#7FD1E8;color:#cdeaf4}
+.chip.q.show{background:rgba(201,162,75,.16);border-color:var(--gold);color:#f0dca6}
+.chip.k.show{background:rgba(46,158,91,.18);border-color:#59c48a;color:#c8f0d8}
+.chip.v.show{background:rgba(108,92,231,.22);border-color:#a69cf5;color:#e0dcff}
+.chip.a.show{background:rgba(217,102,59,.18);border-color:var(--amber);color:#f6cdba}
+.chip.hot{box-shadow:0 0 0 2px var(--gold),0 6px 20px -6px rgba(201,162,75,.6);transform:translateY(-3px)}
+.demo-cap{min-height:70px;margin:18px 0 6px;font-size:16px;color:#eafaf7;line-height:1.55}
+.demo-cap code{background:rgba(255,255,255,.1);padding:1px 6px;border-radius:5px;font-size:13.5px}
+.demo-ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.demo-ctrl button{font-family:var(--mono);font-size:12px;padding:9px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:transparent;color:#dcefec;cursor:pointer;transition:.2s}
+.demo-ctrl button:hover:not(:disabled){background:rgba(255,255,255,.12)}
+.demo-ctrl button:disabled{opacity:.35;cursor:not-allowed}
+.demo-ctrl button.primary{background:var(--gold);border-color:var(--gold);color:#3a2c08;font-weight:600}
+.dots{display:flex;gap:7px;margin-left:auto}
+.dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.25);transition:.2s}
+.dots i.on{background:var(--gold);transform:scale(1.3)}
+
+/* ===== light explorer ===== */
+.explorer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin:24px 0;box-shadow:var(--shadow)}
+.explorer h4{margin:0 0 4px;font-size:20px}
+.explorer .esub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:16px}
+.ctrls{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-bottom:18px}
+.ctl{display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--muted)}
+.ctl .v{color:var(--teal-deep);font-weight:600;font-size:13px}
+.ctl input[type=range]{width:150px;accent-color:var(--amber)}
+.ctl input[type=number]{width:110px;font-family:var(--mono);font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);color:var(--ink)}
+.ctl label{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--ink-soft);font-size:12px}
+.ctl input[type=checkbox]{accent-color:var(--amber)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{font-family:var(--mono);font-size:12px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--paper2);color:var(--ink-soft);cursor:pointer;transition:.2s}
+.tab:hover{border-color:var(--amber)}
+.tab.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.eread{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);margin-top:12px;line-height:1.65}
+.eread b{color:var(--teal-deep)}
+.eread .g{color:#9a7a1e}
+
+/* attention grid */
+.agrid-wrap{overflow-x:auto;padding:4px 0 8px}
+.agrid{display:grid;gap:3px;width:max-content;margin:0 auto}
+.ag-lab{font-family:var(--mono);font-size:11px;color:var(--ink-soft);display:flex;align-items:center;justify-content:flex-end;padding-right:8px;cursor:pointer;white-space:nowrap}
+.ag-lab.sel{color:var(--amber);font-weight:600}
+.ag-top{font-family:var(--mono);font-size:11px;color:var(--ink-soft);writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:flex-start;padding-top:6px;height:84px;white-space:nowrap}
+.ag-cell{width:44px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10.5px;cursor:pointer;transition:background .35s,color .35s,outline-color .2s;outline:2px solid transparent;outline-offset:-1px}
+.ag-cell.masked{background:repeating-linear-gradient(45deg,#EFE7D8,#EFE7D8 4px,#F8F3EA 4px,#F8F3EA 8px)!important;color:#b8ad98!important}
+.ag-cell.rowsel{outline-color:var(--gold)}
+@media(max-width:560px){.ag-cell{width:32px;height:28px;font-size:9px}}
+.minis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:14px}
+.mini{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--paper2);cursor:pointer;transition:.2s}
+.mini:hover,.mini.on{border-color:var(--amber);box-shadow:var(--shadow)}
+.mini .mt{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-bottom:6px;letter-spacing:.04em}
+.mini canvas{width:100%;height:auto;display:block;image-rendering:pixelated;border-radius:4px}
+
+.wtable{width:100%;margin:12px 0 0;font-size:13px}
+.wtable td,.wtable th{padding:6px 10px}
+.bar{height:9px;border-radius:5px;background:var(--amber);display:inline-block;vertical-align:middle}
+
+.calc-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:6px}
+.stat{background:var(--paper2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat .sl{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stat .sv{font-family:var(--disp);font-size:24px;color:var(--teal-deep);margin-top:2px}
+.stat .ss{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+footer{position:relative;z-index:2;background:var(--teal-deep);color:#BFD8D4;padding:48px clamp(16px,5vw,48px);text-align:center;font-family:var(--mono);font-size:13px}
+footer .big{font-family:var(--disp);font-size:24px;color:#fff;margin-bottom:10px}
+footer .links{margin:18px 0 6px;line-height:2}
+footer .links a{color:#9fd9d2}
+footer .sub{opacity:.7;margin-top:10px;font-size:12px}
+
+
+/* ===== 3D stages ===== */
+.stage3d{position:relative;background:linear-gradient(180deg,#FFFFFF,#F3EEE3);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin:24px 0 0}
+.stage3d canvas{display:block;width:100%;height:460px;cursor:grab}
+.stage3d canvas:active{cursor:grabbing}
+@media(max-width:700px){.stage3d canvas{height:360px}}
+.stage3d .labels{position:absolute;inset:0;pointer-events:none}
+.stage3d .hint{position:absolute;right:12px;bottom:10px;font-family:var(--mono);font-size:10.5px;color:var(--muted);background:rgba(255,255,255,.8);padding:4px 8px;border-radius:6px}
+.stage3d .fallback{position:absolute;inset:0;display:none;place-items:center;text-align:center;padding:30px;font-family:var(--mono);font-size:13px;color:var(--ink-soft);background:var(--paper2)}
+.l3{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);background:rgba(255,255,255,.86);border:1px solid var(--line);padding:2px 6px;border-radius:6px;white-space:nowrap}
+.l3.t{font-size:11.5px;font-weight:600;color:var(--teal-deep);border-color:var(--teal)}
+.l3.hot{color:#8a3f1e;border-color:var(--amber);background:#FFF4EC}
+.l3.b{color:#6a2fb0;border-color:#a76ee6}
+.panel3d{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:18px 20px;margin:0 0 24px;box-shadow:var(--shadow)}
+.panel3d .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.panel3d .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.minibtn{font-family:var(--mono);font-size:12px;padding:9px 15px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer}
+#stage3 canvas{height:520px}
+@media(max-width:700px){#stage3 canvas{height:380px}}
+
+
+/* ===== speculative decoding page extras ===== */
+.toks{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.tk{font-family:var(--mono);font-size:13px;padding:6px 10px;border-radius:8px;border:1.5px solid var(--line);background:var(--paper2);min-width:64px;text-align:center;transition:.3s}
+.tk small{display:block;font-size:10px;color:var(--muted);margin-top:2px}
+.tk.draft{border-color:var(--violet);background:#F3F1FD}
+.tk.ok{border-color:var(--green);background:#E4F3EA}
+.tk.bad{border-color:#C8433A;background:#FBE6E3;text-decoration:line-through}
+.tk.fix{border-color:var(--amber);background:var(--amber-soft)}
+.tk.bonus{border-color:var(--gold);background:#FBF3E2}
+.tk.ghost{opacity:.35}
+.vrow{display:grid;grid-template-columns:90px 1fr 1fr 80px 80px 110px;gap:8px;align-items:center;font-family:var(--mono);font-size:12.5px;padding:6px 8px;border-bottom:1px solid var(--line)}
+.vrow.h{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:2px solid var(--line)}
+.vrow .acc{color:var(--green);font-weight:700}.vrow .rej{color:#C8433A;font-weight:700}.vrow .skip{color:var(--muted)}
+.minibar{height:8px;border-radius:4px;display:inline-block;vertical-align:middle;margin-right:6px}
+.outbox{font-family:var(--mono);font-size:14px;background:var(--teal-soft);border-radius:12px;padding:12px 14px;margin-top:12px;color:var(--teal-deep)}
+.outbox b{color:var(--amber)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
+.minibtn{font-family:var(--mono);font-size:12px;padding:9px 15px;border-radius:999px;border:1px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;transition:.2s}
+.minibtn:hover{background:var(--teal-deep)}
+.minibtn.ghost{background:transparent;color:var(--teal)}
+.minibtn:disabled{opacity:.4;cursor:not-allowed}
+.figsvg svg{display:block;width:100%;height:auto}
+.proof{background:var(--paper2);border:1px dashed var(--line);border-radius:14px;padding:6px 20px;margin:18px 0;overflow-x:auto}
+.proof h4{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--amber);margin:14px 0 2px}
+.note{overflow-x:auto}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:16px 0}
+.stat{background:var(--paper2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat .sl{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stat .sv{font-family:var(--disp);font-size:24px;color:var(--teal-deep);margin-top:2px}
+.stat .ss{font-family:var(--mono);font-size:11px;color:var(--muted)}
+@media(max-width:700px){.vrow{grid-template-columns:70px 1fr 1fr 60px;font-size:11px}.vrow > :nth-child(5),.vrow > :nth-child(6){display:none}}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+  .reveal{opacity:1;transform:none}
+  .chip{opacity:1;transform:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="topbar" id="topbar">
+  <style>
+  .nbar-left{display:flex;align-items:center;gap:10px}
+  .nbtn{font-family:var(--mono,'JetBrains Mono',monospace);font-size:12px;letter-spacing:.04em;text-transform:uppercase;
+    display:inline-flex;align-items:center;padding:7px 13px;border-radius:999px;
+    border:1px solid var(--line,#E4DBCB);background:var(--card,#fff);color:var(--teal,#0E5C58);cursor:pointer;
+    text-decoration:none;transition:transform .2s,box-shadow .2s,background .2s,border-color .2s}
+  .nbtn:hover{transform:translateY(-1px);border-color:var(--amber,#D9663B);background:var(--teal-soft,#E3EEEC);
+    box-shadow:var(--shadow,0 8px 30px -12px rgba(20,40,38,.18))}
+  @media(max-width:560px){.nbtn .lbl{display:none}.nbtn{padding:7px 10px}}
+  </style>
+  <div class="nbar-left">
+  <a class="nbtn" href="javascript:history.back()" title="Go back">←<span class="lbl">&nbsp;Back</span></a>
+  <a class="nbtn" href="../index.html" title="Home">⌂<span class="lbl">&nbsp;Home</span></a>
+  <div class="brand"><span class="dot"></span><span class="bt"> Speculative Decoding · Notebook</span></div>
+  </div>
+  <nav class="topnav">
+    <a href="#why">Memory-bound</a><a href="#idea">Idea</a><a href="#algo">Algorithm</a>
+    <a href="#proof">Proof</a><a href="#speed">Speedup</a><a href="#drafts">EAGLE</a>
+  </nav>
+</div>
+
+<header class="hero">
+  <div>
+    <div class="eyebrow reveal">LLM inference · lossless acceleration</div>
+    <h1 class="reveal">Guess fast, <span class="em">check once.</span></h1>
+    <p class="lead reveal">An LLM writes one token per forward pass, and each pass spends most of its time waiting for memory. Speculative decoding lets a small model draft several tokens and the big model verify them all in one pass. The trick is a rejection-sampling rule, which keeps the output distribution exactly the same as the big model alone. This page covers the hardware reason, the algorithm, the full proof, and the speedup maths.</p>
+    <div class="cta reveal">
+      <a class="btn" href="#why">Start reading</a>
+      <a class="btn ghost" href="#algo">Try the simulator</a>
+    </div>
+    <p class="source reveal">Built from my study notes (a long Q&amp;A on speculative decoding), checked against Leviathan et al. 2023 and Chen et al. 2023.</p>
+  </div>
+  <div class="hero-fig reveal">
+    <svg viewBox="0 0 460 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A small draft model proposes four tokens and a large model verifies them in one pass">
+      <g font-family="JetBrains Mono" font-size="11">
+        <rect x="14" y="40" width="110" height="52" rx="12" fill="#ECEAFB" stroke="#6C5CE7" stroke-width="1.5"/>
+        <text x="69" y="62" text-anchor="middle" fill="#6C5CE7" font-weight="700">draft q</text><text x="69" y="80" text-anchor="middle" fill="#6C5CE7" font-size="10">small · fast</text>
+        <rect x="14" y="196" width="110" height="52" rx="12" fill="#E3EEEC" stroke="#0E5C58" stroke-width="1.5"/>
+        <text x="69" y="218" text-anchor="middle" fill="#0E5C58" font-weight="700">target p</text><text x="69" y="236" text-anchor="middle" fill="#0E5C58" font-size="10">large · 1 pass</text>
+      </g>
+      <g font-family="JetBrains Mono" font-size="11">
+        <rect x="150" y="54" width="62" height="26" rx="7" fill="#fff" stroke="#6C5CE7"/><text x="181" y="71" text-anchor="middle">likely</text>
+        <rect x="218" y="54" width="44" height="26" rx="7" fill="#fff" stroke="#6C5CE7"/><text x="240" y="71" text-anchor="middle">to</text>
+        <rect x="268" y="54" width="44" height="26" rx="7" fill="#fff" stroke="#6C5CE7"/><text x="290" y="71" text-anchor="middle">be</text>
+        <rect x="318" y="54" width="54" height="26" rx="7" fill="#fff" stroke="#6C5CE7"/><text x="345" y="71" text-anchor="middle">more</text>
+        <rect x="150" y="210" width="62" height="26" rx="7" fill="#E4F3EA" stroke="#2E9E5B"/><text x="181" y="227" text-anchor="middle">likely</text>
+        <rect x="218" y="210" width="44" height="26" rx="7" fill="#E4F3EA" stroke="#2E9E5B"/><text x="240" y="227" text-anchor="middle">to</text>
+        <rect x="268" y="210" width="44" height="26" rx="7" fill="#E4F3EA" stroke="#2E9E5B"/><text x="290" y="227" text-anchor="middle">be</text>
+        <rect x="318" y="210" width="54" height="26" rx="7" fill="#F7E4D8" stroke="#D9663B"/><text x="345" y="227" text-anchor="middle">bright</text>
+        <text x="181" y="254" text-anchor="middle" fill="#2E9E5B">✓</text><text x="240" y="254" text-anchor="middle" fill="#2E9E5B">✓</text><text x="290" y="254" text-anchor="middle" fill="#2E9E5B">✓</text><text x="345" y="254" text-anchor="middle" fill="#D9663B">fix</text>
+      </g>
+      <g stroke-width="2.4">
+        <path class="beam" d="M181 82 C 181 140, 181 160, 181 208" stroke="#6C5CE7"/>
+        <path class="beam" d="M240 82 C 240 140, 240 160, 240 208" stroke="#6C5CE7" style="animation-delay:.3s"/>
+        <path class="beam" d="M290 82 C 290 140, 290 160, 290 208" stroke="#6C5CE7" style="animation-delay:.6s"/>
+        <path class="beam" d="M345 82 C 345 140, 345 160, 345 208" stroke="#6C5CE7" style="animation-delay:.9s"/>
+      </g>
+      <text x="390" y="140" font-family="JetBrains Mono" font-size="11" fill="#7E8888">verify all</text>
+      <text x="390" y="156" font-family="JetBrains Mono" font-size="11" fill="#7E8888">in ONE pass</text>
+      <text x="230" y="290" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#7E8888">4 tokens for the price of 1 big forward pass</text>
+    </svg>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="toc">
+    <h5>Contents</h5>
+    <a href="#why">1 · Why decoding is slow</a>
+    <a href="#kv">2 · The KV-cache tax</a>
+    <a href="#idea">3 · The idea: draft &amp; verify</a>
+    <a href="#formal">4 · Formal definition</a>
+    <a href="#algo">5 · The algorithm (simulator)</a>
+    <a href="#proof">6 · Proof: it's lossless</a>
+    <a href="#speed">7 · How much faster?</a>
+    <a href="#drafts">8 · Where drafts come from</a>
+    <a href="#deploy">9 · Deploying it</a>
+    <a href="#recap">10 · Recap</a>
+  </aside>
+
+  <main>
+
+    <!-- 01 -->
+    <section id="why" class="reveal">
+      <div class="sec-no">01</div>
+      <h2>Why decoding is slow: prefill is compute-bound, decode is memory-bound</h2>
+      <p class="lead-in">What matters is <strong>arithmetic intensity</strong>: how many FLOPs you do per byte you load from HBM. GPUs compute far faster than they can load data, so a kernel with low intensity spends its time waiting.</p>
+      <p>Take one weight matrix $W\in\mathbb{R}^{H\times H}$ in 16-bit (2 bytes per number). The GPU must load it from HBM before it can use it. What changes between the two phases is <em>how many tokens share that one load</em>.</p>
+      <div class="proof">
+        <h4>Prefill: the whole prompt at once (GEMM)</h4>
+        $$\underbrace{2PH^2}_{\text{FLOPs}}\ \Big/\ \underbrace{2H^2}_{\text{bytes}}\ \approx\ P\ \ \text{FLOP/byte}\qquad(P=\text{prompt tokens})$$
+        <h4>Decode: one new token (GEMV)</h4>
+        $$2\cdot1\cdot H^2\ \Big/\ 2H^2\ \approx\ 1\ \ \text{FLOP/byte}\qquad(\times B\ \text{with batch size}\ B)$$
+        <h4>H100's balance point (dense BF16)</h4>
+        $$\frac{989\ \text{TFLOP/s}}{3.35\ \text{TB/s}}\approx 295\ \text{FLOP/byte}$$
+      </div>
+      <p>Prefill with $P=2048$ is well above 295, so the Tensor Cores are the bottleneck: it is <strong>compute-bound</strong>. Decode at batch 1 sits at about 1 FLOP/byte, roughly 300× below the balance point. The maths finishes almost instantly, then the cores wait for the next layer's weights to arrive. Decode is <strong>memory-bound</strong>.</p>
+      <div class="fig figsvg"><div id="roof"></div><figcaption>Roofline for an H100: performance = min(compute peak, bandwidth × intensity). Decode at batch 1 uses ~0.3% of the compute.</figcaption></div>
+      <div class="note"><strong>The loophole speculative decoding exploits:</strong> checking $k+1$ tokens in one pass loads the weights <em>once</em> and moves intensity from 1 to about $k+1$. It is still far below 295, so it costs about the same wall-clock time as generating 1 token.</div>
+      <p>Even the final logits step works the same way: $h\in\mathbb{R}^{1\times H}$ times $W_U\in\mathbb{R}^{H\times V}$ with $V$ = 32 K–128 K is another GEMV. The maths takes microseconds; loading $W_U$ is what costs time.</p>
+    </section>
+
+    <!-- 02 -->
+    <section id="kv" class="reveal">
+      <div class="sec-no">02</div>
+      <h2>The KV-cache tax, and why it can't live in SRAM</h2>
+      <p class="lead-in">Every decode step also reads the <strong>whole KV cache</strong>, the stored keys and values of every past token in every layer. That data grows linearly with context, while the work done on it stays tiny.</p>
+      <div class="keybox">$$\text{KV bytes / token}=2\cdot L\cdot H_{kv}\cdot d_h\cdot b=2\cdot80\cdot8\cdot128\cdot2=327{,}680\ \text{B}\approx320\ \text{KiB}\quad(\text{Llama-2-70B})$$</div>
+      <div class="kv">
+        <div class="stat"><div class="sl">1 token</div><div class="sv">320 KiB</div><div class="ss">80 layers · 8 KV heads (GQA)</div></div>
+        <div class="stat"><div class="sl">8 K-token chat</div><div class="sv">≈ 2.5 GiB</div><div class="ss">one conversation</div></div>
+        <div class="stat"><div class="sl">32 such users</div><div class="sv">≈ 80 GB</div><div class="ss">a whole H100's HBM</div></div>
+        <div class="stat"><div class="sl">H100 on-chip L2</div><div class="sv">50 MB</div><div class="ss">≈ 1,600× too small</div></div>
+      </div>
+      <p>SRAM sits on the die next to the cores and is extremely fast. But each bit takes 6 transistors, so there is very little of it. HBM is DRAM stacked on the package: 80–192 GB, but much slower to reach. So the cache has to live in HBM, and every new token pays to stream it through.</p>
+      <div class="note amber"><strong>Batching helps, up to a point.</strong> Serving $B$ requests together (continuous batching, as in vLLM) turns a GEMV into a GEMM and multiplies intensity by $B$. But each request brings its own KV cache, so HBM <em>capacity</em> caps $B$. Memory sets the limit again.</div>
+    </section>
+
+    <!-- 03 -->
+    <section id="idea" class="reveal">
+      <div class="sec-no">03</div>
+      <h2>The idea: draft cheaply, verify in parallel</h2>
+      <p class="lead-in">The work is split into two phases that repeat until <code class="inl">&lt;eos&gt;</code>.</p>
+      <div class="icards">
+        <div class="icard"><div class="emoji">✏️</div><h4>Draft</h4><p>A small model $q$ (say 1 B parameters) generates $k$ candidate tokens one by one. Each step is cheap, and it records $q(\tilde x_i)$ for each token.</p></div>
+        <div class="icard"><div class="emoji">🔍</div><h4>Verify</h4><p>The large model $p$ (say 70 B) runs <strong>one</strong> forward pass over prefix + $k$ drafts and gets $k+1$ next-token distributions at once.</p></div>
+        <div class="icard"><div class="emoji">⚖️</div><h4>Accept / correct</h4><p>Rejection sampling keeps the longest acceptable prefix, then adds one corrected or bonus token from $p$. There is <em>always</em> at least one new token.</p></div>
+      </div>
+      <div class="fig figsvg"><div id="flow"></div><figcaption>One round of speculative decoding. The loop repeats with the extended prefix.</figcaption></div>
+    </section>
+
+    <!-- 04 -->
+    <section id="formal" class="reveal">
+      <div class="sec-no">04</div>
+      <h2>Formal definition</h2>
+      <p class="lead-in">Let the <strong>target</strong> model define $p(x_i\mid x_{\lt i})$, and the <strong>draft</strong> model $q(x_i\mid x_{\lt i})$.</p>
+      <p>Standard autoregressive decoding needs $N$ sequential target passes to produce $N$ tokens, each a memory-bound GEMV. The goal is to produce $\hat x_1,\dots,\hat x_N$ such that</p>
+      <div class="keybox">$$P\left(\hat x_i\mid\hat x_{\lt i}\right)=p\left(\hat x_i\mid\hat x_{\lt i}\right)\quad\text{for every } i,$$</div>
+      <p>so the output is <strong>identically distributed</strong> to the target model's own samples, while using as few target forward passes as possible. That is what "lossless" means here: not "close to", but <em>exactly</em> the same distribution.</p>
+      <div class="note violet"><strong>Notation alert.</strong> This page uses Leviathan et al. (2023): $p$ = target, $q$ = draft, accept with $\min(1,p/q)$. DeepMind's paper (Chen et al., 2023) <em>swaps the letters</em>: there $q$ is the target and $p$ the draft, so the rule reads $\min(1,q/p)$. It is the same algorithm. Always check which letter is the big model.</div>
+    </section>
+
+    <!-- 05 -->
+    <section id="algo" class="reveal">
+      <div class="sec-no">05</div>
+      <h2>The algorithm, step by step</h2>
+      <p class="lead-in">One round, given the prefix $x_{\lt t}$ and draft length $k$:</p>
+      <div class="proof">
+        <h4>Step 1 · Autoregressive drafting</h4>
+        $$\tilde x_{t},\dots,\tilde x_{t+k-1}\sim q(\cdot\mid\cdot)\quad\text{(store each }q(\tilde x_i\mid x_{\lt i})\text{)}$$
+        <h4>Step 2 · Parallel verification (one target pass)</h4>
+        $$p(\tilde x_i\mid x_{\lt i})\ \ \text{for}\ i=t..t{+}k{-}1,\qquad \text{plus}\ \ p(\cdot\mid x_{\lt t+k})$$
+        <h4>Step 3 · Modified rejection sampling, left to right</h4>
+        $$r_i\sim U(0,1),\qquad \text{accept }\tilde x_i\ \text{ if }\ r_i\lt\min\!\left(1,\ \frac{p(\tilde x_i)}{q(\tilde x_i)}\right)$$
+        $$\text{first rejection at } i:\ \ x_i\sim p'(x)=\frac{\max\left(0,\ p(x)-q(x)\right)}{\sum_{x'}\max\left(0,\ p(x')-q(x')\right)},\ \ \text{discard the rest}$$
+        <h4>Step 4 · Bonus token</h4>
+        $$\text{all }k\text{ accepted}\ \Rightarrow\ x_{t+k}\sim p(\cdot\mid x_{\lt t+k})\quad(\text{already computed in step 2})$$
+      </div>
+      <p>If $p\ge q$ for the drafted token, it is <strong>always</strong> accepted: the draft was not overconfident. If $p\lt q$, it is accepted with probability $p/q$. Each round therefore yields between 1 and $k+1$ tokens.</p>
+
+      <div class="explorer">
+        <h4>Simulator: one speculative round</h4>
+        <div class="esub">Context: "The future of AI is" · k = 4 · toy distributions (each position has fixed p and q). Draft, then verify with real random draws.</div>
+        <div class="btnrow">
+          <button class="minibtn" id="bDraft">① Draft 4 tokens (sample q)</button>
+          <button class="minibtn" id="bVerify" disabled>② Verify (one target pass)</button>
+          <button class="minibtn ghost" id="bReset">↺ Reset</button>
+        </div>
+        <div class="toks" id="draftToks"></div>
+        <div id="vtable"></div>
+        <div id="resid"></div>
+        <div class="outbox" id="outbox">Output so far: "The future of AI is"</div>
+        <div class="eread" id="simStats"></div>
+      </div>
+<pre data-lang="python"><span class="c-kw">def</span> <span class="c-fn">speculative_round</span>(prefix, draft, target, k=<span class="c-num">4</span>):
+    xs, qs = [], []
+    <span class="c-kw">for</span> _ <span class="c-kw">in</span> range(k):                               <span class="c-com"># ① cheap, sequential</span>
+        q = draft(prefix + xs); x = sample(q); xs.append(x); qs.append(q)
+    ps = target(prefix, xs)                              <span class="c-com"># ② ONE pass → k+1 distributions</span>
+    out = []
+    <span class="c-kw">for</span> i, x <span class="c-kw">in</span> enumerate(xs):                          <span class="c-com"># ③ left to right</span>
+        <span class="c-kw">if</span> random() <span class="c-op">&lt;</span> min(<span class="c-num">1</span>, ps[i][x] <span class="c-op">/</span> qs[i][x]):
+            out.append(x)                                <span class="c-com">#    accepted</span>
+        <span class="c-kw">else</span>:
+            resid = (ps[i] <span class="c-op">-</span> qs[i]).clamp(min=<span class="c-num">0</span>)
+            out.append(sample(resid <span class="c-op">/</span> resid.sum()))       <span class="c-com">#    corrected token</span>
+            <span class="c-kw">return</span> out
+    out.append(sample(ps[k]))                            <span class="c-com"># ④ bonus token</span>
+    <span class="c-kw">return</span> out</pre>
+    </section>
+
+    <!-- 06 -->
+    <section id="proof" class="reveal">
+      <div class="sec-no">06</div>
+      <h2>Proof: the output is exactly $p$</h2>
+      <p class="lead-in">Fix a prefix and drop it from the notation. There are exactly two disjoint ways the algorithm can output token $x$.</p>
+      <div class="proof">
+        <h4>Event A · the draft proposes x and it is accepted</h4>
+        $$P(A)=q(x)\cdot\min\!\left(1,\frac{p(x)}{q(x)}\right)=\min\left(p(x),\,q(x)\right)$$
+        <h4>Total rejection probability</h4>
+        $$P(\text{reject})=\sum_w q(w)\left(1-\min\!\left(1,\tfrac{p(w)}{q(w)}\right)\right)$$
+        $$=\sum_w\left(q(w)-\min(p(w),q(w))\right)=\sum_w\max\left(0,\,q(w)-p(w)\right)$$
+        <h4>Both distributions sum to 1, so the two "excess masses" are equal</h4>
+        $$\sum_w\max(0,\,q(w)-p(w))=\sum_w\max(0,\,p(w)-q(w))\ \equiv\ Z$$
+        <h4>Event B · a rejection, then x is drawn from the residual</h4>
+        $$P(B)=P(\text{reject})\cdot p'(x)=Z\cdot\frac{\max(0,\,p(x)-q(x))}{Z}=\max\left(0,\,p(x)-q(x)\right)$$
+        <h4>Add them</h4>
+        $$P(\text{output}=x)=\min(p(x),q(x))+\max(0,\,p(x)-q(x))=p(x)\qquad\blacksquare$$
+      </div>
+      <p>Check both cases: if $p(x)\ge q(x)$ the sum is $q(x)+(p(x)-q(x))=p(x)$. If $p(x)\lt q(x)$ it is $p(x)+0=p(x)$. Rejection <em>removes</em> the draft's overconfident mass, and the residual <em>adds back</em> exactly what the draft under-predicted.</p>
+      <div class="note amber"><strong>A probability subtlety from my notes.</strong> Event A is a <em>joint</em> event, "draft = x <strong>and</strong> accepted", not the marginal "draft = x". In general $$P(X=Y,\,Y=a)=P(X=a,\,Y=a)\le P(X=a),$$ with equality only if $X=a$ forces $Y=a$. That's why the proof needs Event B too: the joint term alone is never the whole story.</div>
+
+      <div class="explorer">
+        <h4>Monte-Carlo check: does the scheme really reproduce p?</h4>
+        <div class="esub">Draft q is deliberately wrong. Run the accept/resample rule many times and compare the empirical histogram with the target p.</div>
+        <div class="btnrow"><button class="minibtn" id="bMC">▶ Run 20,000 trials</button><button class="minibtn ghost" id="bMC2">▶ Run 200,000 trials</button></div>
+        <div class="figsvg" id="mcSvg"></div>
+        <div class="eread" id="mcRead"></div>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section id="speed" class="reveal">
+      <div class="sec-no">07</div>
+      <h2>How much faster?</h2>
+      <p class="lead-in">Let $\alpha$ be the acceptance rate (the probability a drafted token survives). Each round yields the accepted prefix plus one token, so</p>
+      <div class="keybox">$$\mathbb{E}[\text{tokens per target pass}]=1+\alpha+\alpha^2+\dots+\alpha^{k}=\frac{1-\alpha^{k+1}}{1-\alpha}$$</div>
+      <p>Drafting costs $k$ small-model steps. If one draft step costs $c$ times a target step, the round takes $(1+kc)$ target-step equivalents, and the expected wall-clock speedup is</p>
+      <div class="eqcard">$$\text{speedup}\approx\frac{1-\alpha^{k+1}}{(1-\alpha)(1+kc)},\qquad \alpha=\sum_x\min(p(x),q(x))=1-\tfrac{1}{2}\|p-q\|_1$$</div>
+      <p>So α is literally the <strong>overlap</strong> between the two distributions: one minus half their total-variation distance. A draft that thinks like the target gives a high α.</p>
+      <div class="explorer">
+        <h4>Speedup calculator</h4>
+        <div class="esub">Move the sliders. The curve shows speedup against k; the dot marks the best k.</div>
+        <div class="ctrls">
+          <div class="ctl">acceptance α <span class="v" id="aLab">0.80</span><input type="range" id="aS" min="0.3" max="0.95" step="0.01" value="0.8"></div>
+          <div class="ctl">draft length k <span class="v" id="kLab">4</span><input type="range" id="kS" min="1" max="12" step="1" value="4"></div>
+          <div class="ctl">draft cost c <span class="v" id="cLab">0.05</span><input type="range" id="cS" min="0" max="0.3" step="0.01" value="0.05"></div>
+        </div>
+        <div class="kv" id="spOut"></div>
+        <div class="figsvg" id="spSvg"></div>
+      </div>
+      <div class="note"><strong>Reading the curve:</strong> long drafts pay off only when α is high. With α = 0.6 the extra tokens are almost always rejected, so the best k is small. A cheap draft (small c) also pushes the optimum to larger k.</div>
+    </section>
+
+    <!-- 08 -->
+    <section id="drafts" class="reveal">
+      <div class="sec-no">08</div>
+      <h2>Where do the drafts come from?</h2>
+      <p class="lead-in">A separate draft model is the classic version, but it adds deployment friction. Several methods avoid a second model.</p>
+      <div class="fig figsvg"><div id="arch"></div><figcaption>Three ways to draft: a separate model, extra heads (Medusa), or feature-level extrapolation (EAGLE).</figcaption></div>
+      <table>
+        <thead><tr><th>Method</th><th>How it drafts</th><th>Extra training?</th></tr></thead>
+        <tbody>
+          <tr><td>Separate draft model</td><td>A smaller LLM from the same family and tokenizer (e.g. ~1 B for a ~70 B target)</td><td>None (or distil it for a higher α)</td></tr>
+          <tr><td>Medusa</td><td>Several extra decoding heads on the target's last hidden state, each predicting token t+1, t+2, …</td><td>Train the heads</td></tr>
+          <tr><td>EAGLE</td><td>A ~1-layer module predicts the target's <em>next hidden states</em> autoregressively; the frozen LM head turns them into tokens</td><td>Train the small module</td></tr>
+          <tr><td>Prompt lookup</td><td>Copy n-grams that already appear in the prompt or output (great for RAG, code edits, summaries)</td><td>None</td></tr>
+          <tr><td>Lookahead decoding</td><td>Jacobi iteration guesses and verifies several trajectories at once</td><td>None</td></tr>
+        </tbody>
+      </table>
+      <h3>EAGLE in more detail</h3>
+      <p>EAGLE works at the <strong>feature level</strong>. The target's top-layer hidden state for the latest token goes, together with the token's embedding, into a lightweight draft module (about one Transformer layer). The module predicts the <em>next</em> hidden state, the target's frozen LM head maps it to a token, and the process repeats. Because it conditions on the target's own rich features, its drafts match the target closely: <strong>high α</strong>.</p>
+      <div class="eqcard">$$\hat f_{t+1}=g_\phi\left(f_t,\ e(x_{t+1})\right),\qquad \tilde x_{t+2}\sim\mathrm{softmax}\left(W_U\,\hat f_{t+1}\right)\qquad(W_U\ \text{frozen, shared with the target})$$</div>
+      <p><strong>Yes, the module must be trained</strong>, but cheaply. Three points matter:</p>
+      <ul class="clean">
+        <li><strong>Train on the target's own outputs</strong>, not human text. Run prompts (e.g. ShareGPT, UltraChat) through the frozen target, and record its responses and hidden states.</li>
+        <li><strong>Freeze the target</strong>. Only the small module $g_\phi$ gets gradients, with a feature-regression loss plus a token-level loss (cross-entropy / KL against the target's distribution).</li>
+        <li><strong>Fight drift.</strong> At inference the module feeds on its <em>own</em> previous predictions. EAGLE-3's <em>training-time test</em> unrolls several draft steps during training, so the module learns to recover from its own errors.</li>
+      </ul>
+    </section>
+
+    <!-- 09 -->
+    <section id="deploy" class="reveal">
+      <div class="sec-no">09</div>
+      <h2>Deploying it: keep the models together</h2>
+      <p class="lead-in">Every round trades sub-millisecond messages between drafter and verifier, so <strong>communication latency kills the gain</strong>. Never put them on different servers.</p>
+      <div class="icards">
+        <div class="icard"><div class="emoji">🧩</div><h4>Same GPU</h4><p>Small pairs (e.g. 7 B target + 1 B draft) share one GPU's HBM, so hand-off is essentially free.</p></div>
+        <div class="icard"><div class="emoji">🔗</div><h4>Same node</h4><p>A 70 B target is tensor-parallel over 4–8 GPUs. The draft is replicated or squeezed alongside, and NVLink (≈ 900 GB/s on H100) carries the traffic.</p></div>
+        <div class="icard"><div class="emoji">🎯</div><h4>One model</h4><p>Medusa / EAGLE heads live inside the target process: no second weights, no second KV cache, no transfer. This is why serving stacks like vLLM favour them.</p></div>
+      </div>
+      <div class="note amber"><strong>When it helps less:</strong> at large batch sizes decode is already closer to compute-bound, so the "free" verification capacity shrinks. Speculative decoding shines at small batches: interactive chat, coding assistants, <strong>voice agents</strong> where time-to-audio matters.</div>
+    </section>
+
+    <!-- 10 -->
+    <section id="recap" class="reveal">
+      <div class="sec-no">10</div>
+      <h2>Recap</h2>
+      <ul class="clean">
+        <li><strong>Why it works:</strong> decode is a memory-bound GEMV (≈ 1 FLOP/byte vs the H100's ≈ 295), so verifying k + 1 tokens in one pass costs about one step.</li>
+        <li><strong>Algorithm:</strong> draft k tokens with q → one target pass → accept each with $\min(1,p/q)$ → on the first reject sample from $\max(0,p-q)$ → bonus token if all are accepted.</li>
+        <li><strong>Lossless:</strong> $\min(p,q)+\max(0,p-q)=p$, so the output distribution is exactly the target's.</li>
+        <li><strong>Speed:</strong> $\mathbb{E}[\text{tokens/pass}]=\frac{1-\alpha^{k+1}}{1-\alpha}$ with $\alpha=1-\tfrac12\|p-q\|_1$; speedup ≈ that ÷ (1 + kc).</li>
+        <li><strong>Drafts:</strong> a separate small model, Medusa heads, EAGLE (trained feature extrapolator), prompt lookup, lookahead. Co-locate everything.</li>
+      </ul>
+      <div class="note violet">Related notebooks: <a href="multi-head-attention-blog.html">Multi-head attention</a> (where the KV cache comes from) · <a href="stt-3d-explorer.html">Speech-to-text in 3D</a> (where low-latency decoding matters for voice).</div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="big">Guess fast, check once, and lose nothing.</div>
+  <div>min(p, q) + max(0, p − q) = p</div>
+  <div class="links">
+    <a href="https://arxiv.org/abs/2211.17192" target="_blank" rel="noopener">Leviathan et al. 2023: Fast Inference via Speculative Decoding</a> ·
+    <a href="https://arxiv.org/abs/2302.01318" target="_blank" rel="noopener">Chen et al. 2023: Speculative Sampling</a> ·
+    <a href="https://arxiv.org/abs/2401.15077" target="_blank" rel="noopener">EAGLE</a> ·
+    <a href="https://arxiv.org/abs/2401.10774" target="_blank" rel="noopener">Medusa</a>
+  </div>
+  <div class="sub">Simulator distributions are toy examples. Hardware numbers: H100 SXM, dense BF16.</div>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const prog=$('progress'), tb=$('topbar');
+function onScroll(){const h=document.documentElement,m=h.scrollHeight-h.clientHeight;prog.style.width=(m>0?h.scrollTop/m*100:0)+'%';tb.classList.toggle('solid',h.scrollTop>40);}
+document.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in');}),{threshold:.06});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+const tl=[...document.querySelectorAll('.toc a')];
+const spy=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;tl.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));}}),{rootMargin:'-28% 0px -60% 0px'});
+document.querySelectorAll('main section[id]').forEach(s=>spy.observe(s));
+
+/* ---------- svg helpers ---------- */
+const NS='http://www.w3.org/2000/svg';
+function svg(w,h){const s=document.createElementNS(NS,'svg');s.setAttribute('viewBox',`0 0 ${w} ${h}`);return s;}
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e};
+const txt=(p,x,y,s,o={})=>{const e=el('text',Object.assign({x,y,'font-size':12,fill:'#4C5658','font-family':'JetBrains Mono'},o),p);e.textContent=s;return e};
+const C={teal:'#0E5C58',deep:'#093F3C',violet:'#6C5CE7',vsoft:'#ECEAFB',tsoft:'#E3EEEC',amber:'#D9663B',asoft:'#F7E4D8',green:'#2E9E5B',gsoft:'#E4F3EA',red:'#C8433A',line:'#E4DBCB',muted:'#7E8888',gold:'#C9A24B',paper:'#FBF7EF'};
+const box=(s,x,y,w,h,f,st,r=10)=>el('rect',{x,y,width:w,height:h,rx:r,fill:f,stroke:st,'stroke-width':1.5},s);
+const arr=(s,x1,y1,x2,y2,c=C.deep)=>{el('line',{x1,y1,x2,y2,stroke:c,'stroke-width':1.8},s);const a=Math.atan2(y2-y1,x2-x1);
+  el('path',{d:`M${x2},${y2} L${x2-9*Math.cos(a-.4)},${y2-9*Math.sin(a-.4)} L${x2-9*Math.cos(a+.4)},${y2-9*Math.sin(a+.4)} z`,fill:c},s)};
+
+/* ---------- 01 roofline ---------- */
+(()=>{const W=760,H=330,s=svg(W,H),x0=70,x1=720,y0=290,y1=30;
+ const lx=v=>x0+(Math.log10(v)-Math.log10(0.5))/(Math.log10(4000)-Math.log10(0.5))*(x1-x0);
+ const ly=v=>y0-(Math.log10(v)-Math.log10(1))/(Math.log10(2000)-Math.log10(1))*(y0-y1);
+ [1,10,100,1000].forEach(v=>{el('line',{x1:lx(v),y1:y0,x2:lx(v),y2:y1,stroke:'#F0EADD'},s);txt(s,lx(v),y0+18,v+'',{'text-anchor':'middle','font-size':11,fill:C.muted})});
+ [1,10,100,1000].forEach(v=>{el('line',{x1:x0,y1:ly(v),x2:x1,y2:ly(v),stroke:'#F0EADD'},s);txt(s,x0-8,ly(v)+4,v+'',{'text-anchor':'end','font-size':11,fill:C.muted})});
+ txt(s,(x0+x1)/2,y0+36,'arithmetic intensity (FLOP / byte, log)',{'text-anchor':'middle','font-size':11,fill:C.muted});
+ txt(s,16,160,'TFLOP/s',{'font-size':11,fill:C.muted,transform:'rotate(-90 16 160)'});
+ const ridge=989/3.35;let d='';for(let i=0;i<=200;i++){const v=0.5*Math.pow(8000,i/200);const y=Math.min(989,3.35*v);d+=(i?'L':'M')+lx(v)+','+ly(y)}
+ el('path',{d,fill:'none',stroke:C.deep,'stroke-width':3},s);
+ el('line',{x1:lx(ridge),y1:ly(989),x2:lx(ridge),y2:y0,stroke:C.gold,'stroke-dasharray':'5 4'},s);txt(s,lx(ridge)+6,y0-8,'ridge ≈ 295',{fill:C.gold,'font-size':11});
+ txt(s,lx(3),ly(3.35*3)-28,'memory-bound: 3.35 TB/s × intensity',{fill:C.teal,'font-size':11});txt(s,lx(600),ly(989)-10,'compute-bound: 989 TFLOP/s',{fill:C.teal,'font-size':11,'text-anchor':'middle'});
+ [[1,'decode, batch 1',C.red],[5,'verify k+1 = 5',C.violet],[64,'decode, batch 64',C.amber],[2048,'prefill, P = 2048',C.green]].forEach(([v,l,c],i)=>{
+   const y=Math.min(989,3.35*v);el('circle',{cx:lx(v),cy:ly(y),r:7,fill:c,stroke:'#fff','stroke-width':2},s);txt(s,lx(v)+(i==3?-10:10),ly(y)+(i==3?22:18),l,{fill:c,'font-size':11.5,'text-anchor':i==3?'end':'start'})});
+ $('roof').appendChild(s)})();
+
+/* ---------- 03 flowchart ---------- */
+(()=>{const s=svg(900,300);
+ box(s,10,110,150,70,C.paper,C.line);txt(s,24,135,'prefix',{'font-size':11,fill:C.muted});txt(s,24,158,'"The future of',{'font-size':12});txt(s,24,174,' AI is"',{'font-size':12});
+ box(s,200,20,170,70,C.vsoft,C.violet);txt(s,214,48,'① draft q × k steps',{fill:C.violet,'font-weight':700,'font-size':12});txt(s,214,70,'cheap, sequential',{fill:C.violet,'font-size':11});
+ el('path',{d:'M352,20 C 390,-6 392,60 368,44',fill:'none',stroke:C.violet,'stroke-width':1.5},s);txt(s,386,22,'k times',{fill:C.violet,'font-size':10});
+ arr(s,160,130,198,70);
+ box(s,420,20,210,70,'#fff',C.violet);txt(s,434,46,'k drafted tokens',{'font-size':12});txt(s,434,68,'+ q(x̃ᵢ) stored',{'font-size':11,fill:C.muted});arr(s,370,55,418,55,C.violet);
+ box(s,200,200,170,70,C.tsoft,C.teal);txt(s,214,228,'② target p',{fill:C.teal,'font-weight':700,'font-size':12});txt(s,214,250,'ONE parallel pass',{fill:C.teal,'font-size':11});
+ arr(s,160,160,198,225);arr(s,525,90,370,215,C.violet);
+ box(s,420,200,210,70,'#fff',C.teal);txt(s,434,226,'k + 1 distributions',{'font-size':12});txt(s,434,248,'p(x̃ᵢ), p(· | all drafts)',{'font-size':11,fill:C.muted});arr(s,370,235,418,235,C.teal);
+ box(s,670,110,220,82,'#F7FBF8',C.green);txt(s,684,134,'③ accept if r < min(1, p/q)',{fill:C.green,'font-weight':700,'font-size':11.5});txt(s,684,156,'reject → sample max(0,p−q)',{fill:C.amber,'font-size':11});txt(s,684,176,'④ all accepted → bonus token',{fill:C.gold,'font-size':11});
+ arr(s,630,235,668,180,C.green);arr(s,630,55,668,122,C.violet);
+ el('path',{d:'M780,192 C 780,295 85,300 85,182',fill:'none',stroke:C.muted,'stroke-width':1.6,'stroke-dasharray':'6 4'},s);
+ txt(s,330,292,'append accepted tokens + 1 → repeat until <eos>',{fill:C.muted,'font-size':11});
+ $('flow').appendChild(s)})();
+
+/* ---------- 05 simulator ---------- */
+let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646};
+const VOC=['likely','to','be','bright','more','very','the','.'];
+const POS=[ // [target p, draft q] per position (toy; vocab: likely,to,be,bright,more,very,the,.)
+ [[.62,.005,.005,.01,.005,.25,.10,.005],[.76,.005,.005,.005,.005,.12,.10,.005]],
+ [[.01,.90,.01,.01,.01,.04,.01,.01],[.01,.93,.01,.01,.01,.01,.01,.01]],
+ [[.01,.01,.90,.02,.02,.02,.01,.01],[.01,.01,.93,.01,.02,.01,.005,.005]],
+ [[.005,.005,.005,.55,.20,.20,.03,.005],[.005,.005,.005,.20,.65,.10,.03,.005]],
+ [[.005,.005,.005,.01,.005,.01,.01,.95],[.005,.005,.005,.01,.005,.01,.01,.95]]];
+const norm=v=>{const z=v.reduce((a,b)=>a+b,0);return v.map(x=>x/z)};
+POS.forEach(pq=>{pq[0]=norm(pq[0]);pq[1]=norm(pq[1])});
+const sample=v=>{let r=rnd(),a=0;for(let i=0;i<v.length;i++){a+=v[i];if(r<a)return i}return v.length-1};
+let drafts=[],stats={rounds:0,tokens:0};
+function drawDrafts(states){$('draftToks').innerHTML='<span class="tag" style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-right:6px">drafts:</span>'+
+  drafts.map((x,i)=>`<div class="tk ${states?states[i]:'draft'}">${VOC[x]}<small>q = ${POS[i][1][x].toFixed(2)}</small></div>`).join('')}
+function bars(v,col,w=110){return v.map((p,i)=>`<span title="${VOC[i]}" class="minibar" style="width:${Math.max(2,p*w)}px;background:${col}"></span>`).join('')}
+$('bDraft').onclick=()=>{drafts=[0,1,2,3].map(i=>sample(POS[i][1]));drawDrafts();$('vtable').innerHTML='';$('resid').innerHTML='';$('bVerify').disabled=false;
+  $('outbox').innerHTML='Output so far: "The future of AI is" &nbsp;·&nbsp; waiting for verification…'};
+$('bVerify').onclick=()=>{let html='<div class="vrow h"><span>draft x̃</span><span>p(x̃) target</span><span>q(x̃) draft</span><span>min(1,p/q)</span><span>r ~ U(0,1)</span><span>decision</span></div>';
+  const out=[],states=[];let stop=false,resid='';
+  drafts.forEach((x,i)=>{const [p,q]=POS[i];
+    if(stop){states.push('ghost');html+=`<div class="vrow"><span>${VOC[x]}</span><span>—</span><span>—</span><span>—</span><span>—</span><span class="skip">discarded</span></div>`;return}
+    const a=Math.min(1,p[x]/q[x]),r=rnd();
+    if(r<a){out.push(`${VOC[x]}`);states.push('ok');html+=`<div class="vrow"><span>${VOC[x]}</span><span>${p[x].toFixed(3)}</span><span>${q[x].toFixed(3)}</span><span>${a.toFixed(3)}</span><span>${r.toFixed(3)}</span><span class="acc">✓ accept</span></div>`}
+    else{states.push('bad');const res=norm(p.map((v,j)=>Math.max(0,v-q[j])));const fx=sample(res);out.push(`<b>${VOC[fx]}</b>`);stop=true;
+      html+=`<div class="vrow"><span>${VOC[x]}</span><span>${p[x].toFixed(3)}</span><span>${q[x].toFixed(3)}</span><span>${a.toFixed(3)}</span><span>${r.toFixed(3)}</span><span class="rej">✗ reject</span></div>`;
+      resid=`<div class="eread">Residual p′ ∝ max(0, p − q) at position ${i+1}: ${VOC.map((w,j)=>res[j]>0.001?`<b>${w}</b> ${res[j].toFixed(2)}`:'').filter(Boolean).join(' · ')} → sampled <b style="color:var(--amber)">${VOC[fx]}</b></div>`}});
+  if(!stop){const b=sample(POS[4][0]);out.push(`<b style="color:var(--gold)">${VOC[b]}</b>`);resid='<div class="eread">All 4 accepted → <b style="color:#9a7a1e">bonus token</b> sampled from p(· | all drafts), already computed in the same target pass.</div>'}
+  drawDrafts(states);$('vtable').innerHTML=html;$('resid').innerHTML=resid;$('bVerify').disabled=true;
+  stats.rounds++;stats.tokens+=out.length;
+  $('outbox').innerHTML=`Output: "The future of AI is ${out.join(' ')}" &nbsp;→&nbsp; <b>${out.length}</b> token${out.length>1?'s':''} from 1 target pass`;
+  $('simStats').innerHTML=`Rounds run: <b>${stats.rounds}</b> · average tokens per target pass: <b>${(stats.tokens/stats.rounds).toFixed(2)}</b> (standard decoding: 1.00). Click Draft again for a new round.`};
+$('bReset').onclick=()=>{drafts=[];$('draftToks').innerHTML='';$('vtable').innerHTML='';$('resid').innerHTML='';$('bVerify').disabled=true;stats={rounds:0,tokens:0};$('simStats').innerHTML='';$('outbox').innerHTML='Output so far: "The future of AI is"'};
+
+/* ---------- 06 Monte-Carlo ---------- */
+const MV=['cat','dog','fox','owl','bee'],MP=[.40,.25,.15,.12,.08],MQ=[.15,.45,.25,.05,.10];
+function mcDraw(emp,n){const W=760,H=250,s=svg(W,H),x0=60,bw=22,gw=140,y0=210,sc=380;
+ el('line',{x1:40,y1:y0,x2:W-20,y2:y0,stroke:C.line},s);
+ MV.forEach((w,i)=>{const gx=x0+i*gw;
+   [[MP[i],C.teal,'p'],[MQ[i],C.violet,'q'],[Math.min(MP[i],MQ[i]),C.green,'min'],[emp?emp[i]:0,C.amber,'emp']].forEach(([v,c,l],j)=>{
+     const h=v*sc;el('rect',{x:gx+j*(bw+4),y:y0-h,width:bw,height:h,rx:3,fill:c,opacity:j==2?.55:1},s);
+     if(v>0)txt(s,gx+j*(bw+4)+bw/2,y0-h-5,v.toFixed(2),{'text-anchor':'middle','font-size':9.5,fill:c})});
+   txt(s,gx+50,y0+18,w,{'text-anchor':'middle','font-size':12})});
+ [['target p',C.teal],['draft q',C.violet],['min(p,q) = accepted mass',C.green],['empirical output',C.amber]].forEach(([l,c],i)=>{el('rect',{x:60+i*175,y:8,width:12,height:12,rx:3,fill:c},s);txt(s,78+i*175,18,l,{'font-size':11})});
+ $('mcSvg').innerHTML='';$('mcSvg').appendChild(s);
+ if(emp){const err=Math.max(...emp.map((v,i)=>Math.abs(v-MP[i])));const acc=MV.reduce((a,_,i)=>a+Math.min(MP[i],MQ[i]),0);
+   const tol=Math.max(...MP.map(v=>3*Math.sqrt(v*(1-v)/n)));
+   $('mcRead').innerHTML=`${n.toLocaleString()} trials · max |empirical − p| = <b>${err.toFixed(4)}</b> ${err<=tol?'✅':'⚠️'} within the 3σ sampling band ±${tol.toFixed(4)} · acceptance rate α = Σ min(p,q) = <b>${acc.toFixed(2)}</b>. The draft over-predicts <b>dog</b> and <b>fox</b>, yet the output matches p.`}}
+function runMC(n){const res=norm(MP.map((v,j)=>Math.max(0,v-MQ[j])));const cnt=[0,0,0,0,0];
+ for(let t=0;t<n;t++){const x=sample(MQ);if(rnd()<Math.min(1,MP[x]/MQ[x]))cnt[x]++;else cnt[sample(res)]++}
+ mcDraw(cnt.map(c=>c/n),n)}
+mcDraw(null);$('bMC').onclick=()=>runMC(20000);$('bMC2').onclick=()=>runMC(200000);
+
+/* ---------- 07 speedup ---------- */
+function spRender(){const a=+$('aS').value,k=+$('kS').value,c=+$('cS').value;$('aLab').textContent=a.toFixed(2);$('kLab').textContent=k;$('cLab').textContent=c.toFixed(2);
+ const E=k=>(1-Math.pow(a,k+1))/(1-a),S=k=>E(k)/(1+k*c);let best=1;for(let j=1;j<=12;j++)if(S(j)>S(best))best=j;
+ $('spOut').innerHTML=[['tokens / target pass',E(k).toFixed(2),`k = ${k}`],['wall-clock speedup',S(k).toFixed(2)+'×',`draft cost ${c.toFixed(2)}`],['best k',best,`→ ${S(best).toFixed(2)}×`],['draft rejected early',(100*(1-a)).toFixed(0)+'%','per drafted token']]
+   .map(([l,v,s])=>`<div class="stat"><div class="sl">${l}</div><div class="sv">${v}</div><div class="ss">${s}</div></div>`).join('');
+ const W=760,H=220,s=svg(W,H),x0=60,x1=720,y0=185,y1=20,maxS=Math.max(...Array.from({length:12},(_,j)=>S(j+1)),1.2)*1.1;
+ const X=j=>x0+(j-1)/11*(x1-x0),Y=v=>y0-v/maxS*(y0-y1);
+ el('line',{x1:x0,y1:y0,x2:x1,y2:y0,stroke:C.line},s);el('line',{x1:x0,y1:Y(1),x2:x1,y2:Y(1),stroke:C.red,'stroke-dasharray':'4 4'},s);txt(s,x1,Y(1)-6,'1× = no gain',{'text-anchor':'end','font-size':10.5,fill:C.red});
+ for(let j=1;j<=12;j++)txt(s,X(j),y0+16,j,{'text-anchor':'middle','font-size':10.5,fill:C.muted});txt(s,(x0+x1)/2,y0+32,'draft length k',{'text-anchor':'middle','font-size':10.5,fill:C.muted});
+ let d='';for(let j=1;j<=12;j++)d+=(j>1?'L':'M')+X(j)+','+Y(S(j));el('path',{d,fill:'none',stroke:C.teal,'stroke-width':3},s);
+ el('circle',{cx:X(k),cy:Y(S(k)),r:6,fill:C.amber},s);el('circle',{cx:X(best),cy:Y(S(best)),r:8,fill:'none',stroke:C.green,'stroke-width':2.5},s);
+ txt(s,X(best),Y(S(best))-14,'best',{'text-anchor':'middle','font-size':10.5,fill:C.green});
+ $('spSvg').innerHTML='';$('spSvg').appendChild(s)}
+['aS','kS','cS'].forEach(id=>$(id).oninput=spRender);spRender();
+
+/* ---------- 08 architectures ---------- */
+(()=>{const s=svg(900,260);
+ const panel=(x,title,col)=>{box(s,x,10,280,240,'#FCFAF5',C.line,14);txt(s,x+14,34,title,{'font-weight':700,'font-size':12.5,fill:col})};
+ panel(10,'A · separate draft model',C.violet);box(s,30,60,110,60,C.vsoft,C.violet);txt(s,44,86,'draft LLM',{fill:C.violet});txt(s,44,104,'~1 B',{fill:C.violet,'font-size':11});
+ box(s,160,150,110,70,C.tsoft,C.teal);txt(s,174,180,'target LLM',{fill:C.teal});txt(s,174,198,'~70 B',{fill:C.teal,'font-size':11});arr(s,140,105,160,160,C.violet);
+ txt(s,30,150,'2 weight sets',{'font-size':10.5,fill:C.muted});txt(s,30,168,'2 KV caches',{'font-size':10.5,fill:C.muted});txt(s,30,186,'same tokenizer!',{'font-size':10.5,fill:C.amber});
+ panel(310,'B · Medusa: extra heads',C.amber);box(s,330,140,240,60,C.tsoft,C.teal);txt(s,344,172,'target trunk (frozen)',{fill:C.teal});
+ ['t+1','t+2','t+3','t+4'].forEach((l,i)=>{box(s,330+i*60,60,50,40,C.asoft,C.amber,8);txt(s,355+i*60,85,l,{'text-anchor':'middle','font-size':11,fill:C.amber});el('line',{x1:450,y1:140,x2:355+i*60,y2:100,stroke:C.amber},s)});
+ txt(s,330,228,'one head per future offset',{'font-size':10.5,fill:C.muted});
+ panel(610,'C · EAGLE: feature level',C.green);box(s,630,180,110,48,C.tsoft,C.teal);txt(s,642,208,'target → fₜ',{fill:C.teal,'font-size':11.5});
+ box(s,630,110,110,48,'#E9F5EE',C.green);txt(s,642,131,'g_φ (1 layer)',{fill:C.green,'font-size':11.5});txt(s,642,149,'f̂ₜ₊₁, f̂ₜ₊₂…',{fill:C.green,'font-size':10.5});
+ box(s,760,110,110,48,C.paper,C.deep);txt(s,772,131,'frozen LM head',{fill:C.deep,'font-size':11});txt(s,772,149,'→ draft tokens',{fill:C.deep,'font-size':10.5});
+ arr(s,685,180,685,160,C.green);arr(s,740,134,758,134,C.deep);
+ el('path',{d:'M815,110 C 815,70 685,70 685,108',fill:'none',stroke:C.green,'stroke-dasharray':'4 3'},s);txt(s,700,66,'feeds its own output back',{'font-size':10,fill:C.green});
+ txt(s,630,246,'high α: uses the target\'s own features',{'font-size':10.5,fill:C.muted});
+ $('arch').appendChild(s)})();
+</script>
+</body>
+</html>
